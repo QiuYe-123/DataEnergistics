@@ -49,6 +49,7 @@
   "item.data_energistics.data_storage_component_64k": "64K-ME Data Storage Component",
   "item.data_energistics.data_storage_component_256k": "256K-ME Data Storage Component",
   "item.data_energistics.data_ripper": "Data Ripper",
+  "item.data_energistics.adaptive_pattern_provider_part": "Adaptive Pattern Provider",
   "item.data_energistics.data_ripper.tip.requirement": "Requires an AE2 Speed Card to enable acceleration",
   "item.data_energistics.data_ripper.tip.max": "Up to 1024x acceleration",
   "item.data_energistics.data_ripper.tip.energy": "Acceleration consumes data flow from the network and pauses when it runs out",

@@ -95,9 +95,13 @@ public class Data_Energistics {
             Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DATA_MIMETIC_FIELD.get(), 3, "block.data_energistics.data_mimetic_field");
             Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_MIMETIC_FIELD.get(), 4, "block.data_energistics.data_mimetic_field");
             Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 3, "block.data_energistics.adaptive_pattern_provider");
+            Upgrades.add(AEItems.CAPACITY_CARD, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 3, "item.data_energistics.adaptive_pattern_provider_part");
             registerAppliedFluxAdaptivePatternProviderCompat();
             appeng.api.parts.PartModels.registerModels(
                     PartModelsHelper.createModels(ModItems.DATA_RIPPER.get().getPartClass())
+            );
+            appeng.api.parts.PartModels.registerModels(
+                    PartModelsHelper.createModels(ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get().getPartClass())
             );
         });
     }
@@ -109,6 +113,7 @@ public class Data_Energistics {
         }
 
         Upgrades.add(inductionCard, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 1, "block.data_energistics.adaptive_pattern_provider");
+        Upgrades.add(inductionCard, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 1, "item.data_energistics.adaptive_pattern_provider_part");
     }
 
     private void registerAe2KeyTypes(final RegisterEvent event) {
@@ -151,7 +156,6 @@ public class Data_Energistics {
                 ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity
         );
-
         event.registerBlock(
                 Capabilities.EnergyStorage.BLOCK,
                 (level, pos, state, blockEntity, context) -> {

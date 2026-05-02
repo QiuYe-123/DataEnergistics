@@ -49,6 +49,7 @@
   "item.data_energistics.data_storage_component_64k": "64K-ME 数据流存储组件",
   "item.data_energistics.data_storage_component_256k": "256K-ME 数据流存储组件",
   "item.data_energistics.data_ripper": "数据撕裂器",
+  "item.data_energistics.adaptive_pattern_provider_part": "自适应样板供应器",
   "item.data_energistics.data_ripper.tip.requirement": "需要放入 AE2 加速卡以启用加速",
   "item.data_energistics.data_ripper.tip.max": "最高可达 1024x 加速",
   "item.data_energistics.data_ripper.tip.energy": "加速会消耗网络中的数据流，耗尽后将暂停",

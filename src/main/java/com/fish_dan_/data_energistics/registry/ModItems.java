@@ -6,7 +6,9 @@ import com.fish_dan_.data_energistics.item.BiologyDataCarrierItem;
 import com.fish_dan_.data_energistics.item.DataFlowPortableCellItem;
 import com.fish_dan_.data_energistics.item.DataFlowStorageCellItem;
 import com.fish_dan_.data_energistics.item.DataRipperPartItem;
+import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
 import appeng.api.stacks.GenericStack;
+import appeng.items.parts.PartItem;
 import appeng.items.storage.StorageTier;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -41,6 +43,10 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> DATA_DISTRIBUTION_TOWER = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_DISTRIBUTION_TOWER);
     public static final DeferredItem<BlockItem> DATA_MIMETIC_FIELD = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_MIMETIC_FIELD);
     public static final DeferredItem<BlockItem> ADAPTIVE_PATTERN_PROVIDER = ITEMS.registerSimpleBlockItem(ModBlocks.ADAPTIVE_PATTERN_PROVIDER);
+    public static final DeferredItem<PartItem<AdaptivePatternProviderPart>> ADAPTIVE_PATTERN_PROVIDER_PART = ITEMS.register(
+            "adaptive_pattern_provider_part",
+            () -> new PartItem<>(new Item.Properties(), AdaptivePatternProviderPart.class, AdaptivePatternProviderPart::new)
+    );
     public static final DeferredItem<Item> REDSTONE_ALLOY = ITEMS.registerSimpleItem("redstone_alloy");
     public static final DeferredItem<Item> SOLIDIFIED_OBSIDIAN = ITEMS.registerSimpleItem("solidified_obsidian");
     public static final DeferredItem<Item> MIXED_REDSTONE_DUST = ITEMS.registerSimpleItem("mixed_redstone_dust");

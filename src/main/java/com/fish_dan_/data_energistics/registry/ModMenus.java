@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.registry;
 
-import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
@@ -50,7 +50,7 @@ public final class ModMenus {
 
     public static final DeferredHolder<MenuType<?>, MenuType<AdaptivePatternProviderMenu>> ADAPTIVE_PATTERN_PROVIDER =
             MENUS.register("adaptive_pattern_provider", () -> MenuTypeBuilder
-                    .create(AdaptivePatternProviderMenu::new, AdaptivePatternProviderBlockEntity.class)
+                    .create(AdaptivePatternProviderMenu::new, AdaptivePatternProviderHost.class)
                     .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "adaptive_pattern_provider")));
 
     private ModMenus() {

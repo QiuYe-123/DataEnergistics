@@ -19,19 +19,21 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.phys.BlockHitResult;
 
-public class AdaptivePatternProviderBlock extends AEBaseEntityBlock<AdaptivePatternProviderBlockEntity> {
+public class AdaptivePatternProviderBlock<T extends AdaptivePatternProviderBlockEntity> extends AEBaseEntityBlock<T> {
     public AdaptivePatternProviderBlock(BlockBehaviour.Properties properties) {
         super(properties);
         this.registerDefaultState(this.defaultBlockState().setValue(PatternProviderBlock.PUSH_DIRECTION, PushDirection.ALL));
     }
 
     public void bindBlockEntity() {
-        this.setBlockEntity(
-                AdaptivePatternProviderBlockEntity.class,
-                ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
-                null,
-                null
-        );
+        bindBlockEntity((Class<T>) AdaptivePatternProviderBlockEntity.class, (net.minecraft.world.level.block.entity.BlockEntityType<T>) ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get());
+    }
+
+    protected void bindBlockEntity(
+            Class<T> blockEntityClass,
+            net.minecraft.world.level.block.entity.BlockEntityType<T> blockEntityType
+    ) {
+        this.setBlockEntity(blockEntityClass, blockEntityType, null, null);
     }
 
     @Override
@@ -42,7 +44,7 @@ public class AdaptivePatternProviderBlock extends AEBaseEntityBlock<AdaptivePatt
 
     @Override
     public void neighborChanged(BlockState state, Level level, BlockPos pos, net.minecraft.world.level.block.Block block, BlockPos fromPos, boolean isMoving) {
-        AdaptivePatternProviderBlockEntity blockEntity = this.getBlockEntity(level, pos);
+        T blockEntity = this.getBlockEntity(level, pos);
         if (blockEntity != null) {
             blockEntity.getLogic().updateRedstoneState();
         }
@@ -60,7 +62,7 @@ public class AdaptivePatternProviderBlock extends AEBaseEntityBlock<AdaptivePatt
 
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
-        AdaptivePatternProviderBlockEntity blockEntity = this.getBlockEntity(level, pos);
+        T blockEntity = this.getBlockEntity(level, pos);
         if (blockEntity == null) {
             return InteractionResult.PASS;
         }

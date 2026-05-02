@@ -28,7 +28,6 @@ import appeng.helpers.patternprovider.PatternProviderReturnInventory;
 import appeng.helpers.patternprovider.PatternProviderTarget;
 import appeng.me.helpers.MachineSource;
 import appeng.util.inv.AppEngInternalInventory;
-import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.moakiee.ae2lt.blockentity.GhostOutputBlockEntity;
 import com.moakiee.ae2lt.blockentity.OverloadedPatternProviderBlockEntity;
 import com.moakiee.ae2lt.logic.EjectModeRegistry;
@@ -579,35 +578,35 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
     }
 
     private boolean isAdvancedAeProviderSelected() {
-        return this.host instanceof AdaptivePatternProviderBlockEntity adaptivePatternProviderBlockEntity
-                && adaptivePatternProviderBlockEntity.isAdvancedAeProviderSelected();
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
+                && adaptivePatternProviderHost.isAdvancedAeProviderSelected();
     }
 
     private boolean isAe2LightningTechOverloadedProviderSelected() {
-        return this.host instanceof AdaptivePatternProviderBlockEntity adaptivePatternProviderBlockEntity
-                && adaptivePatternProviderBlockEntity.isAe2LightningTechOverloadedProviderSelected();
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
+                && adaptivePatternProviderHost.isAe2LightningTechOverloadedProviderSelected();
     }
 
     private boolean isMeteoritePatternProvider() {
-        return this.host instanceof AdaptivePatternProviderBlockEntity adaptivePatternProviderBlockEntity
-                && adaptivePatternProviderBlockEntity.isMeteoriteProviderSelected();
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
+                && adaptivePatternProviderHost.isMeteoriteProviderSelected();
     }
 
     private boolean isAe2LtWirelessMode() {
-        return this.host instanceof AdaptivePatternProviderBlockEntity adaptivePatternProviderBlockEntity
-                && adaptivePatternProviderBlockEntity.isAe2LtWirelessMode();
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
+                && adaptivePatternProviderHost.isAe2LtWirelessMode();
     }
 
     private boolean isAe2LtAutoReturnEnabled() {
-        return this.host instanceof AdaptivePatternProviderBlockEntity adaptivePatternProviderBlockEntity
-                && adaptivePatternProviderBlockEntity.getAe2LtReturnMode()
-                == AdaptivePatternProviderBlockEntity.Ae2LtReturnMode.AUTO;
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
+                && adaptivePatternProviderHost.getAe2LtReturnMode()
+                == com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity.Ae2LtReturnMode.AUTO;
     }
 
     private boolean isAe2LtEjectModeEnabled() {
-        return this.host instanceof AdaptivePatternProviderBlockEntity adaptivePatternProviderBlockEntity
-                && adaptivePatternProviderBlockEntity.getAe2LtReturnMode()
-                == AdaptivePatternProviderBlockEntity.Ae2LtReturnMode.EJECT;
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
+                && adaptivePatternProviderHost.getAe2LtReturnMode()
+                == com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity.Ae2LtReturnMode.EJECT;
     }
 
     private boolean isDirectionalPattern(IPatternDetails patternDetails) {
@@ -615,12 +614,12 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
     }
 
     private List<OverloadedPatternProviderBlockEntity.WirelessConnection> getOrderedWirelessConnections(ServerLevel level) {
-        if (!(this.host instanceof AdaptivePatternProviderBlockEntity adaptivePatternProviderBlockEntity)) {
+        if (!(this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost)) {
             return List.of();
         }
 
         List<OverloadedPatternProviderBlockEntity.WirelessConnection> valid = new ArrayList<>();
-        for (var conn : adaptivePatternProviderBlockEntity.getConnections()) {
+        for (var conn : adaptivePatternProviderHost.getConnections()) {
             if (!conn.dimension().equals(level.dimension())) {
                 continue;
             }
@@ -1229,7 +1228,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
             return;
         }
 
-        if (!(this.host instanceof AdaptivePatternProviderBlockEntity adaptive)) {
+        if (!(this.host instanceof AdaptivePatternProviderHost adaptive)) {
             return;
         }
 
@@ -1455,9 +1454,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
     }
 
     private boolean isAdvancedAeFilteredImportEnabled() {
-        return this.host instanceof AdaptivePatternProviderBlockEntity adaptivePatternProviderBlockEntity
-                && adaptivePatternProviderBlockEntity.isAdvancedAeProviderSelected()
-                && adaptivePatternProviderBlockEntity.isAdvancedAeFilteredImportEnabled();
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
+                && adaptivePatternProviderHost.isAdvancedAeProviderSelected()
+                && adaptivePatternProviderHost.isAdvancedAeFilteredImportEnabled();
     }
 
     private boolean tryConsumeMeteoriteEnergy(double energy) {

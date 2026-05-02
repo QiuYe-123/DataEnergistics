@@ -13,6 +13,7 @@ import appeng.core.definitions.AEBlocks;
 import appeng.core.localization.GuiText;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.helpers.patternprovider.PatternContainer;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
@@ -46,6 +47,11 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.neoforged.neoforge.registries.DeferredBlock;
+import net.neoforged.neoforge.registries.DeferredHolder;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -54,7 +60,8 @@ import java.util.Iterator;
 import java.util.List;
 import org.jetbrains.annotations.Nullable;
 
-public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEntity implements InternalInventoryHost, IUpgradeableObject {
+public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEntity implements InternalInventoryHost, IUpgradeableObject, AdaptivePatternProviderHost {
+    protected static final String ADAPTIVE_PATTERN_PROVIDER_KEY = "adaptive_pattern_provider";
     private static final String PROVIDER_SLOT_TAG = "provider_slot";
     private static final String UPGRADES_TAG = "upgrades";
     private static final String ADVANCED_AE_FILTERED_IMPORT_TAG = "advanced_ae_filtered_import";
@@ -82,18 +89,18 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
                     + 18 // two return rows
                     + 1  // provider sample slot
                     + 36 // visible page proxy slots
-                    + APPFLUX_UPGRADE_SLOTS;
+                    + (APPFLUX_UPGRADE_SLOTS * 2);
     private static final int MAX_PATTERN_SLOTS = MAX_NETWORK_SAFE_MENU_SLOTS - FIXED_MENU_SLOT_OVERHEAD;
     private static final String AE2LT_NAMESPACE = "ae2lt";
     private static final String AE2LT_OVERLOADED_PATTERN_PROVIDER = "overloaded_pattern_provider";
     private static final String AE2LT_OVERLOAD_PATTERN = "overload_pattern";
     private static final ResourceLocation APPFLUX_INDUCTION_CARD_ID =
             ResourceLocation.fromNamespaceAndPath("appflux", "induction_card");
-    private static final String TERMINAL_GROUP_LOCKED_SUFFIX_KEY = "tooltip.data_energistics.adaptive_pattern_provider.terminal_hidden_slots";
-    private static final String TERMINAL_GROUP_NAME_KEY = "screen.data_energistics.adaptive_pattern_provider.terminal_group";
+    private static final String TERMINAL_GROUP_LOCKED_SUFFIX_SUFFIX = ".terminal_hidden_slots";
+    private static final String TERMINAL_GROUP_NAME_SUFFIX = ".terminal_group";
 
     private final AppEngInternalInventory providerInventory = new AppEngInternalInventory(this, 1);
-    private final IUpgradeInventory upgrades = createUpgradeInventory();
+    private final IUpgradeInventory upgrades;
     private final List<OverloadedPatternProviderBlockEntity.WirelessConnection> ae2LtConnections = new ArrayList<>();
     private int syncedPatternSlotCount = 0;
     private boolean advancedAeFilteredImport;
@@ -104,9 +111,10 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     public AdaptivePatternProviderBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(), blockPos, blockState);
+        this.upgrades = createUpgradeInventory();
         this.providerInventory.setMaxStackSize(0, getProviderSlotLimit());
         this.providerInventory.setFilter(new ProviderSuffixFilter());
-        this.getMainNode().setVisualRepresentation(ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get());
+        this.getMainNode().setVisualRepresentation(getProviderBlock().get());
     }
 
     @Override
@@ -278,12 +286,12 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     @Override
     public void openMenu(Player player, MenuHostLocator locator) {
-        MenuOpener.open(ModMenus.ADAPTIVE_PATTERN_PROVIDER.get(), player, locator);
+        MenuOpener.open(getProviderMenu().get(), player, locator);
     }
 
     @Override
     public void returnToMainMenu(Player player, ISubMenu subMenu) {
-        MenuOpener.returnTo(ModMenus.ADAPTIVE_PATTERN_PROVIDER.get(), player, subMenu.getLocator());
+        MenuOpener.returnTo(getProviderMenu().get(), player, subMenu.getLocator());
     }
 
     @Override
@@ -422,7 +430,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Override
     public AEItemKey getTerminalIcon() {
         ProviderProfile profile = getProviderProfile();
-        return profile != null ? profile.terminalIcon() : AEItemKey.of(ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem().getDefaultInstance());
+        return profile != null ? profile.terminalIcon() : AEItemKey.of(getProviderBlock().get().asItem().getDefaultInstance());
     }
 
     @Override
@@ -439,7 +447,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Override
     public ItemStack getMainMenuIcon() {
         ProviderProfile profile = getProviderProfile();
-        return profile != null ? profile.mainMenuIcon().copy() : ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem().getDefaultInstance();
+        return profile != null ? profile.mainMenuIcon().copy() : getProviderBlock().get().asItem().getDefaultInstance();
     }
 
     @Override
@@ -447,8 +455,8 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         var baseGroup = buildAdaptiveTerminalGroup();
         var tooltip = new ArrayList<Component>(baseGroup.tooltip());
         baseGroup = new appeng.api.implementations.blockentities.PatternContainerGroup(
-                AEItemKey.of(ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem().getDefaultInstance()),
-                Component.translatable(TERMINAL_GROUP_NAME_KEY, getProviderDisplayName()),
+                AEItemKey.of(getProviderBlock().get().asItem().getDefaultInstance()),
+                Component.translatable(getTerminalGroupNameKey(), getProviderDisplayName()),
                 List.copyOf(tooltip)
         );
         int unlockedSlots = getConfiguredPatternSlotCount();
@@ -459,7 +467,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
         tooltip = new ArrayList<Component>(baseGroup.tooltip());
         tooltip.add(Component.translatable(
-                TERMINAL_GROUP_LOCKED_SUFFIX_KEY,
+                getTerminalGroupLockedSlotsKey(),
                 unlockedSlots,
                 totalSlots
         ));
@@ -524,6 +532,35 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         return resolveProviderProfile(stack) != null;
     }
 
+    @Nullable
+    public static ProviderKind getResolvedProviderKind(ItemStack stack) {
+        ProviderProfile profile = resolveProviderProfile(stack);
+        return profile != null ? profile.kind() : null;
+    }
+
+    public static int getResolvedSlotsPerProvider(ItemStack stack) {
+        ProviderProfile profile = resolveProviderProfile(stack);
+        return profile != null ? profile.slotsPerProvider() : 0;
+    }
+
+    @Nullable
+    public static ItemStack getResolvedProviderMainMenuIcon(ItemStack stack) {
+        ProviderProfile profile = resolveProviderProfile(stack);
+        return profile != null ? profile.mainMenuIcon().copy() : null;
+    }
+
+    @Nullable
+    public static AEItemKey getResolvedProviderTerminalIcon(ItemStack stack) {
+        ProviderProfile profile = resolveProviderProfile(stack);
+        return profile != null ? profile.terminalIcon() : null;
+    }
+
+    @Nullable
+    public static Component getResolvedProviderDisplayName(ItemStack stack) {
+        ProviderProfile profile = resolveProviderProfile(stack);
+        return profile != null ? profile.displayName() : null;
+    }
+
     public static boolean isAdvancedAeProviderStack(ItemStack stack) {
         ProviderProfile profile = resolveProviderProfile(stack);
         if (profile == null) {
@@ -552,6 +589,10 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Nullable
     private static ProviderProfile resolveProviderProfile(ItemStack stack) {
         if (stack.isEmpty() || stack.is(ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem())) {
+            return null;
+        }
+
+        if (stack.is(ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem())) {
             return null;
         }
 
@@ -771,7 +812,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         }
 
         return UpgradeInventories.forMachine(
-                ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(),
+                getProviderBlock().get(),
                 APPFLUX_UPGRADE_SLOTS,
                 this::onUpgradesChanged
         );
@@ -900,6 +941,26 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         public boolean allowInsert(appeng.api.inventories.InternalInventory inv, int slot, ItemStack stack) {
             return isSupportedProviderStack(stack);
         }
+    }
+
+    protected String getProviderTranslationKey() {
+        return "block.data_energistics." + ADAPTIVE_PATTERN_PROVIDER_KEY;
+    }
+
+    protected String getTerminalGroupNameKey() {
+        return "screen.data_energistics." + ADAPTIVE_PATTERN_PROVIDER_KEY + TERMINAL_GROUP_NAME_SUFFIX;
+    }
+
+    protected String getTerminalGroupLockedSlotsKey() {
+        return "tooltip.data_energistics." + ADAPTIVE_PATTERN_PROVIDER_KEY + TERMINAL_GROUP_LOCKED_SUFFIX_SUFFIX;
+    }
+
+    protected DeferredBlock<Block> getProviderBlock() {
+        return ModBlocks.ADAPTIVE_PATTERN_PROVIDER;
+    }
+
+    protected DeferredHolder<MenuType<?>, ? extends MenuType<?>> getProviderMenu() {
+        return ModMenus.ADAPTIVE_PATTERN_PROVIDER;
     }
 
     public enum ProviderKind {

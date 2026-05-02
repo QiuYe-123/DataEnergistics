@@ -9,8 +9,11 @@ import appeng.menu.SlotSemantics;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.implementations.PatternProviderMenu;
 import appeng.menu.slot.AppEngSlot;
+import appeng.menu.slot.IOptionalSlotHost;
+import appeng.menu.slot.OptionalRestrictedInputSlot;
 import appeng.menu.slot.RestrictedInputSlot;
 import appeng.util.inv.AppEngInternalInventory;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import it.unimi.dsi.fastutil.shorts.ShortSet;
@@ -19,7 +22,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 
-public class AdaptivePatternProviderMenu extends PatternProviderMenu {
+public class AdaptivePatternProviderMenu extends PatternProviderMenu implements IOptionalSlotHost {
     private static final String ACTION_SET_PAGE = "set_page";
     private static final String ACTION_SET_FILTERED_IMPORT = "set_filtered_import";
     private static final String ACTION_TOGGLE_AE2LT_MODE = "toggle_ae2lt_mode";
@@ -33,7 +36,7 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
     public static final SlotSemantic PAGE_PATTERN = SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_PAGE_PATTERN", false);
     public static final SlotSemantic STORAGE_ROW_2 = SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_STORAGE_ROW_2", false);
 
-    private final AdaptivePatternProviderBlockEntity host;
+    private final AdaptivePatternProviderHost host;
 
     @GuiSync(780)
     public int visiblePatternSlots;
@@ -52,7 +55,7 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
     @GuiSync(787)
     public int ae2ltWirelessSpeedMode;
 
-    public AdaptivePatternProviderMenu(int id, Inventory playerInventory, AdaptivePatternProviderBlockEntity host) {
+    public AdaptivePatternProviderMenu(int id, Inventory playerInventory, AdaptivePatternProviderHost host) {
         super(ModMenus.ADAPTIVE_PATTERN_PROVIDER.get(), id, playerInventory, host);
         this.host = host;
         registerClientAction(ACTION_SET_PAGE, Integer.class, this::setPage);
@@ -447,6 +450,12 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
         }
     }
 
+    @Override
+    public boolean isSlotEnabled(int idx) {
+        int capacityUpgrades = this.host == null ? 0 : this.host.getUpgrades().getInstalledUpgrades(appeng.core.definitions.AEItems.CAPACITY_CARD);
+        return idx == 0 || idx == 1 && capacityUpgrades >= 1 || idx == 2 && capacityUpgrades >= 2;
+    }
+
     private final class PagedPatternInventory implements InternalInventory {
         private final InternalInventory backing;
         private final int slotOnPage;
@@ -545,9 +554,9 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
     }
 
     private static final class ProviderSuffixSlot extends RestrictedInputSlot {
-        private final AdaptivePatternProviderBlockEntity host;
+        private final AdaptivePatternProviderHost host;
 
-        private ProviderSuffixSlot(appeng.api.inventories.InternalInventory inv, int slot, AdaptivePatternProviderBlockEntity host) {
+        private ProviderSuffixSlot(appeng.api.inventories.InternalInventory inv, int slot, AdaptivePatternProviderHost host) {
             super(PlacableItemType.INSCRIBER_INPUT, inv, slot);
             this.host = host;
             this.setStackLimit(host != null ? host.getProviderSlotLimit() : 4);
