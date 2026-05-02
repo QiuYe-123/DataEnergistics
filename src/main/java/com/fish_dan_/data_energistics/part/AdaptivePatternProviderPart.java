@@ -136,6 +136,26 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
     @Override
     public Component getProviderDisplayName() {
+        var adjacentGroup = getAdjacentMachineGroup();
+        if (adjacentGroup != null) {
+            return adjacentGroup.name();
+        }
+
+        ItemStack providerStack = getProviderStack();
+        Component displayName = AdaptivePatternProviderBlockEntity.getResolvedProviderDisplayName(providerStack);
+        return displayName != null ? displayName : this.getMainMenuIcon().getHoverName();
+    }
+
+    @Override
+    public Component getGuiDisplayName() {
+        var adjacentGroup = getAdjacentMachineGroup();
+        if (adjacentGroup != null) {
+            return AdaptivePatternProviderBlockEntity.decorateAttachedMachineName(
+                    adjacentGroup.name(),
+                    getResolvedProviderNameForGui()
+            );
+        }
+
         ItemStack providerStack = getProviderStack();
         Component displayName = AdaptivePatternProviderBlockEntity.getResolvedProviderDisplayName(providerStack);
         return displayName != null ? displayName : this.getMainMenuIcon().getHoverName();
@@ -355,6 +375,11 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
     @Override
     public AEItemKey getTerminalIcon() {
+        var adjacentGroup = getAdjacentMachineGroup();
+        if (adjacentGroup != null && adjacentGroup.icon() != null) {
+            return adjacentGroup.icon();
+        }
+
         AEItemKey icon = AdaptivePatternProviderBlockEntity.getResolvedProviderTerminalIcon(getProviderStack());
         return icon != null ? icon : AEItemKey.of(this.getPartItem());
     }
@@ -367,6 +392,14 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
     @Override
     public ItemStack getMainMenuIcon() {
+        var adjacentGroup = getAdjacentMachineGroup();
+        if (adjacentGroup != null && adjacentGroup.icon() != null) {
+            ItemStack adjacentIcon = adjacentGroup.icon().toStack();
+            if (!adjacentIcon.isEmpty()) {
+                return adjacentIcon;
+            }
+        }
+
         ItemStack icon = AdaptivePatternProviderBlockEntity.getResolvedProviderMainMenuIcon(getProviderStack());
         return icon != null && !icon.isEmpty() ? icon.copy() : new ItemStack(this.getPartItem().asItem());
     }
@@ -377,21 +410,12 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
             return new PatternContainerGroup(this.getTerminalIcon(), nameable.getCustomName(), List.of());
         }
 
-        List<Component> tooltip = new ArrayList<>();
-        var blockEntity = this.getBlockEntity();
-        var level = this.getLevel();
-        var side = this.getSide();
-        var adjacentGroup = blockEntity != null && level != null && side != null
-                ? PatternContainerGroup.fromMachine(
-                level,
-                blockEntity.getBlockPos().relative(side),
-                side.getOpposite()
-        )
-                : null;
+        var adjacentGroup = getAdjacentMachineGroup();
         if (adjacentGroup != null) {
-            tooltip.addAll(adjacentGroup.tooltip());
+            return adjacentGroup;
         }
 
+        List<Component> tooltip = new ArrayList<>();
         int unlockedSlots = getConfiguredPatternSlotCount();
         int totalSlots = getCurrentProviderMaxPatternCapacity();
         if (unlockedSlots < totalSlots) {
@@ -404,7 +428,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
         return new PatternContainerGroup(
                 this.getTerminalIcon(),
-                Component.translatable("screen.data_energistics.adaptive_pattern_provider.terminal_group", getProviderDisplayName()),
+                getProviderDisplayName(),
                 List.copyOf(tooltip)
         );
     }
@@ -488,8 +512,36 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         }
     }
 
+    @Nullable
+    private PatternContainerGroup getAdjacentMachineGroup() {
+        var blockEntity = this.getBlockEntity();
+        if (blockEntity == null) {
+            return null;
+        }
+
+        var level = blockEntity.getLevel();
+        var side = this.getSide();
+        return blockEntity != null && level != null && side != null
+                ? PatternContainerGroup.fromMachine(
+                level,
+                blockEntity.getBlockPos().relative(side),
+                side.getOpposite()
+        )
+                : null;
+    }
+
     private ItemStack getProviderStack() {
         return this.providerInventory != null ? this.providerInventory.getStackInSlot(0) : ItemStack.EMPTY;
+    }
+
+    private Component getResolvedProviderNameForGui() {
+        ItemStack providerStack = getProviderStack();
+        if (providerStack.isEmpty()) {
+            return this.getPartItem().asItem().getDefaultInstance().getHoverName();
+        }
+
+        Component displayName = AdaptivePatternProviderBlockEntity.getResolvedProviderDisplayName(providerStack);
+        return displayName != null ? displayName : this.getPartItem().asItem().getDefaultInstance().getHoverName();
     }
 
     private static final class ProviderSuffixFilter implements IAEItemFilter {

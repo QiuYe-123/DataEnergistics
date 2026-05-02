@@ -97,7 +97,6 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     private static final ResourceLocation APPFLUX_INDUCTION_CARD_ID =
             ResourceLocation.fromNamespaceAndPath("appflux", "induction_card");
     private static final String TERMINAL_GROUP_LOCKED_SUFFIX_SUFFIX = ".terminal_hidden_slots";
-    private static final String TERMINAL_GROUP_NAME_SUFFIX = ".terminal_group";
 
     private final AppEngInternalInventory providerInventory = new AppEngInternalInventory(this, 1);
     private final IUpgradeInventory upgrades;
@@ -169,6 +168,21 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     public Component getProviderDisplayName() {
+        var adjacentGroup = getSingleAdjacentMachineGroup();
+        if (adjacentGroup != null) {
+            return adjacentGroup.name();
+        }
+
+        ProviderProfile profile = getProviderProfile();
+        return profile != null ? profile.displayName() : this.getMainMenuIcon().getHoverName();
+    }
+
+    public Component getGuiDisplayName() {
+        var adjacentGroup = getSingleAdjacentMachineGroup();
+        if (adjacentGroup != null) {
+            return decorateAttachedMachineName(adjacentGroup.name(), getResolvedProviderNameForGui());
+        }
+
         ProviderProfile profile = getProviderProfile();
         return profile != null ? profile.displayName() : this.getMainMenuIcon().getHoverName();
     }
@@ -429,6 +443,11 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     @Override
     public AEItemKey getTerminalIcon() {
+        var adjacentGroup = getSingleAdjacentMachineGroup();
+        if (adjacentGroup != null && adjacentGroup.icon() != null) {
+            return adjacentGroup.icon();
+        }
+
         ProviderProfile profile = getProviderProfile();
         return profile != null ? profile.terminalIcon() : AEItemKey.of(getProviderBlock().get().asItem().getDefaultInstance());
     }
@@ -446,6 +465,14 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     @Override
     public ItemStack getMainMenuIcon() {
+        var adjacentGroup = getSingleAdjacentMachineGroup();
+        if (adjacentGroup != null && adjacentGroup.icon() != null) {
+            ItemStack adjacentIcon = adjacentGroup.icon().toStack();
+            if (!adjacentIcon.isEmpty()) {
+                return adjacentIcon;
+            }
+        }
+
         ProviderProfile profile = getProviderProfile();
         return profile != null ? profile.mainMenuIcon().copy() : getProviderBlock().get().asItem().getDefaultInstance();
     }
@@ -453,24 +480,21 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Override
     public appeng.api.implementations.blockentities.PatternContainerGroup getTerminalGroup() {
         var baseGroup = buildAdaptiveTerminalGroup();
-        var tooltip = new ArrayList<Component>(baseGroup.tooltip());
-        baseGroup = new appeng.api.implementations.blockentities.PatternContainerGroup(
-                AEItemKey.of(getProviderBlock().get().asItem().getDefaultInstance()),
-                Component.translatable(getTerminalGroupNameKey(), getProviderDisplayName()),
-                List.copyOf(tooltip)
-        );
-        int unlockedSlots = getConfiguredPatternSlotCount();
-        int totalSlots = getCurrentProviderMaxPatternCapacity();
-        if (unlockedSlots >= totalSlots) {
+        if (getSingleAdjacentMachineGroup() != null) {
             return baseGroup;
         }
 
-        tooltip = new ArrayList<Component>(baseGroup.tooltip());
-        tooltip.add(Component.translatable(
-                getTerminalGroupLockedSlotsKey(),
-                unlockedSlots,
-                totalSlots
-        ));
+        var tooltip = new ArrayList<Component>(baseGroup.tooltip());
+        int unlockedSlots = getConfiguredPatternSlotCount();
+        int totalSlots = getCurrentProviderMaxPatternCapacity();
+        if (unlockedSlots < totalSlots) {
+            tooltip.add(Component.translatable(
+                    getTerminalGroupLockedSlotsKey(),
+                    unlockedSlots,
+                    totalSlots
+            ));
+        }
+
         return new appeng.api.implementations.blockentities.PatternContainerGroup(
                 baseGroup.icon(),
                 baseGroup.name(),
@@ -853,22 +877,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             );
         }
 
-        var hostLevel = this.getLevel();
-        var hostPos = this.getBlockPos();
-        var sides = this.getTargets();
-        var groups = new java.util.LinkedHashSet<appeng.api.implementations.blockentities.PatternContainerGroup>(sides.size());
-        for (var side : sides) {
-            var sidePos = hostPos.relative(side);
-            var group = appeng.api.implementations.blockentities.PatternContainerGroup.fromMachine(
-                    hostLevel,
-                    sidePos,
-                    side.getOpposite()
-            );
-            if (group != null) {
-                groups.add(group);
-            }
-        }
-
+        var groups = getAdjacentMachineGroups();
         if (groups.size() == 1) {
             return groups.iterator().next();
         }
@@ -892,6 +901,52 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
                 icon.getDisplayName(),
                 tooltip
         );
+    }
+
+    @Nullable
+    private appeng.api.implementations.blockentities.PatternContainerGroup getSingleAdjacentMachineGroup() {
+        var groups = getAdjacentMachineGroups();
+        return groups.size() == 1 ? groups.iterator().next() : null;
+    }
+
+    private java.util.LinkedHashSet<appeng.api.implementations.blockentities.PatternContainerGroup> getAdjacentMachineGroups() {
+        var hostLevel = this.getLevel();
+        if (hostLevel == null) {
+            return new java.util.LinkedHashSet<>();
+        }
+
+        var hostPos = this.getBlockPos();
+        var sides = this.getTargets();
+        var groups = new java.util.LinkedHashSet<appeng.api.implementations.blockentities.PatternContainerGroup>(sides.size());
+        for (var side : sides) {
+            var sidePos = hostPos.relative(side);
+            var group = appeng.api.implementations.blockentities.PatternContainerGroup.fromMachine(
+                    hostLevel,
+                    sidePos,
+                    side.getOpposite()
+            );
+            if (group != null) {
+                groups.add(group);
+            }
+        }
+        return groups;
+    }
+
+    public static Component decorateAttachedMachineName(Component machineName, Component providerName) {
+        return Component.translatable(
+                "screen.data_energistics.adaptive_pattern_provider.attached_machine",
+                machineName,
+                providerName
+        );
+    }
+
+    private Component getResolvedProviderNameForGui() {
+        if (this.providerInventory.getStackInSlot(0).isEmpty()) {
+            return Component.translatable(getProviderTranslationKey());
+        }
+
+        ProviderProfile profile = getProviderProfile();
+        return profile != null ? profile.displayName() : Component.translatable(getProviderTranslationKey());
     }
 
     private void requestPatternAccessTerminalRefresh() {
@@ -945,10 +1000,6 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     protected String getProviderTranslationKey() {
         return "block.data_energistics." + ADAPTIVE_PATTERN_PROVIDER_KEY;
-    }
-
-    protected String getTerminalGroupNameKey() {
-        return "screen.data_energistics." + ADAPTIVE_PATTERN_PROVIDER_KEY + TERMINAL_GROUP_NAME_SUFFIX;
     }
 
     protected String getTerminalGroupLockedSlotsKey() {

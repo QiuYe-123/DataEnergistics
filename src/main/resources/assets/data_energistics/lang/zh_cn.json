@@ -6,7 +6,7 @@
   "block.data_energistics.data_distribution_tower": "数据均分塔",
   "block.data_energistics.data_mimetic_field": "数据拟生场",
   "block.data_energistics.adaptive_pattern_provider": "自适应样板供应器",
-  "screen.data_energistics.adaptive_pattern_provider.terminal_group": "自适应(%s)",
+  "screen.data_energistics.adaptive_pattern_provider.attached_machine": "%s[%s]",
   "screen.data_energistics.adaptive_pattern_provider.page": "第 %s/%s 页",
   "screen.data_energistics.adaptive_pattern_provider.page.previous": "上一页",
   "screen.data_energistics.adaptive_pattern_provider.page.next": "下一页",

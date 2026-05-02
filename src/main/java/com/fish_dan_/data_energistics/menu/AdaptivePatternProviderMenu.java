@@ -159,13 +159,13 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
     }
 
     public Component getProviderDisplayName() {
-        ItemStack providerStack = getProviderStack();
-        if (!providerStack.isEmpty()) {
-            return providerStack.getHoverName();
+        if (this.host != null) {
+            return this.host.getGuiDisplayName();
         }
 
-        return this.host != null
-                ? this.host.getProviderDisplayName()
+        ItemStack providerStack = getProviderStack();
+        return !providerStack.isEmpty()
+                ? providerStack.getHoverName()
                 : Component.translatable("block.data_energistics.adaptive_pattern_provider");
     }
 

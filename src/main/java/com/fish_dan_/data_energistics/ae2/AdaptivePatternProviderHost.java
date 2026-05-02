@@ -25,6 +25,8 @@ public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, I
 
     Component getProviderDisplayName();
 
+    Component getGuiDisplayName();
+
     boolean isMeteoriteProviderSelected();
 
     boolean isAdvancedAeProviderSelected();
