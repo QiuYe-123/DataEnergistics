@@ -44,6 +44,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_MIMETIC_FIELD);
                         output.accept(ModItems.ADAPTIVE_PATTERN_PROVIDER);
                         output.accept(ModItems.ADAPTIVE_PATTERN_PROVIDER_PART);
+                        output.accept(ModItems.UNIVERSAL_TERMINAL);
                         output.accept(ModItems.REDSTONE_ALLOY);
                         output.accept(ModItems.SOLIDIFIED_OBSIDIAN);
                         output.accept(ModItems.MIXED_REDSTONE_DUST);

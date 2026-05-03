@@ -10,7 +10,12 @@ import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.menu.DataExtractorMenu;
 import com.fish_dan_.data_energistics.menu.DataMimeticFieldMenu;
 import com.fish_dan_.data_energistics.menu.DataRipperMenu;
+import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
+import com.fish_dan_.data_energistics.menu.universal.UniversalMEStorageMenu;
+import com.fish_dan_.data_energistics.menu.universal.UniversalPatternAccessTermMenu;
+import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
 import com.fish_dan_.data_energistics.part.DataRipperPart;
+import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import appeng.menu.implementations.MenuTypeBuilder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
@@ -52,6 +57,26 @@ public final class ModMenus {
             MENUS.register("adaptive_pattern_provider", () -> MenuTypeBuilder
                     .create(AdaptivePatternProviderMenu::new, AdaptivePatternProviderHost.class)
                     .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "adaptive_pattern_provider")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<UniversalMEStorageMenu>> UNIVERSAL_ME_STORAGE =
+            MENUS.register("universal_me_storage", () -> MenuTypeBuilder
+                    .create(UniversalMEStorageMenu::new, UniversalTerminalPart.class)
+                    .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "universal_me_storage")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<UniversalCraftingTermMenu>> UNIVERSAL_CRAFTING_TERM =
+            MENUS.register("universal_crafting_terminal", () -> MenuTypeBuilder
+                    .create(UniversalCraftingTermMenu::new, UniversalTerminalPart.class)
+                    .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "universal_crafting_terminal")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<UniversalPatternEncodingTermMenu>> UNIVERSAL_PATTERN_ENCODING_TERM =
+            MENUS.register("universal_pattern_encoding_terminal", () -> MenuTypeBuilder
+                    .create(UniversalPatternEncodingTermMenu::new, UniversalTerminalPart.class)
+                    .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "universal_pattern_encoding_terminal")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<UniversalPatternAccessTermMenu>> UNIVERSAL_PATTERN_ACCESS_TERM =
+            MENUS.register("universal_pattern_access_terminal", () -> MenuTypeBuilder
+                    .create(UniversalPatternAccessTermMenu::new, UniversalTerminalPart.class)
+                    .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "universal_pattern_access_terminal")));
 
     private ModMenus() {
     }

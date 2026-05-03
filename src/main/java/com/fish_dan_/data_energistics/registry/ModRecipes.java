@@ -3,9 +3,11 @@ package com.fish_dan_.data_energistics.registry;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.recipe.TimeShiftRecipe;
 import com.fish_dan_.data_energistics.recipe.TimeShiftRecipeSerializer;
+import com.fish_dan_.data_energistics.recipe.UniversalTerminalCombineRecipe;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.item.crafting.SimpleCraftingRecipeSerializer;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -26,6 +28,11 @@ public final class ModRecipes {
 
     public static final DeferredHolder<RecipeSerializer<?>, TimeShiftRecipeSerializer> TIME_SHIFT_SERIALIZER =
             RECIPE_SERIALIZERS.register("time_shift", TimeShiftRecipeSerializer::new);
+    public static final DeferredHolder<RecipeSerializer<?>, SimpleCraftingRecipeSerializer<UniversalTerminalCombineRecipe>> UNIVERSAL_TERMINAL_COMBINE_SERIALIZER =
+            RECIPE_SERIALIZERS.register(
+                    "universal_terminal_combine",
+                    () -> new SimpleCraftingRecipeSerializer<>(UniversalTerminalCombineRecipe::new)
+            );
 
     private ModRecipes() {
     }

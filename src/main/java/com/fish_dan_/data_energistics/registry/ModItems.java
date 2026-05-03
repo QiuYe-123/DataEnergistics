@@ -6,7 +6,9 @@ import com.fish_dan_.data_energistics.item.BiologyDataCarrierItem;
 import com.fish_dan_.data_energistics.item.DataFlowPortableCellItem;
 import com.fish_dan_.data_energistics.item.DataFlowStorageCellItem;
 import com.fish_dan_.data_energistics.item.DataRipperPartItem;
+import com.fish_dan_.data_energistics.item.UniversalTerminalPartItem;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
+import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import appeng.api.stacks.GenericStack;
 import appeng.items.parts.PartItem;
 import appeng.items.storage.StorageTier;
@@ -46,6 +48,10 @@ public final class ModItems {
     public static final DeferredItem<PartItem<AdaptivePatternProviderPart>> ADAPTIVE_PATTERN_PROVIDER_PART = ITEMS.register(
             "adaptive_pattern_provider_part",
             () -> new PartItem<>(new Item.Properties(), AdaptivePatternProviderPart.class, AdaptivePatternProviderPart::new)
+    );
+    public static final DeferredItem<PartItem<UniversalTerminalPart>> UNIVERSAL_TERMINAL = ITEMS.register(
+            "universal_terminal",
+            () -> new UniversalTerminalPartItem(new Item.Properties())
     );
     public static final DeferredItem<Item> REDSTONE_ALLOY = ITEMS.registerSimpleItem("redstone_alloy");
     public static final DeferredItem<Item> SOLIDIFIED_OBSIDIAN = ITEMS.registerSimpleItem("solidified_obsidian");
