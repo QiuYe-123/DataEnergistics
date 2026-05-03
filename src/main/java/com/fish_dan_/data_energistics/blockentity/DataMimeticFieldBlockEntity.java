@@ -40,6 +40,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.Vec3;
@@ -287,11 +288,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             }
         }
 
-        if (generated.isEmpty() || !canHiddenBufferAcceptAll(generated)) {
-            return;
-        }
-
-        insertAllIntoHiddenBuffer(generated);
+        submitGeneratedLoot(generated);
     }
 
     private void performOreMimeticWork() {
@@ -311,11 +308,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             }
         }
 
-        if (generated.isEmpty() || !canHiddenBufferAcceptAll(generated)) {
-            return;
-        }
-
-        insertAllIntoHiddenBuffer(generated);
+        submitGeneratedLoot(generated);
     }
 
     private void flushHiddenBuffer() {
@@ -456,6 +449,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
                 fakePlayer.getXRot()
         );
 
+        LootTable lootTable = serverLevel.getServer().reloadableRegistries().getLootTable(lootTableId);
         ArrayList<ItemStack> drops = new ArrayList<>();
         for (int roll = 0; roll < getBiologyLootRollsPerCycle(); roll++) {
             LootParams.Builder builder = new LootParams.Builder(serverLevel)
@@ -466,8 +460,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
                     .withParameter(LootContextParams.ATTACKING_ENTITY, fakePlayer)
                     .withParameter(LootContextParams.DIRECT_ATTACKING_ENTITY, fakePlayer);
 
-            drops.addAll(serverLevel.getServer().reloadableRegistries().getLootTable(lootTableId)
-                    .getRandomItems(builder.create(LootContextParamSets.ENTITY))
+            drops.addAll(lootTable.getRandomItems(builder.create(LootContextParamSets.ENTITY))
                     .stream()
                     .filter(stack -> !stack.isEmpty())
                     .toList());
@@ -556,6 +549,14 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         }
 
         return true;
+    }
+
+    private void submitGeneratedLoot(List<ItemStack> generated) {
+        if (generated.isEmpty() || !canHiddenBufferAcceptAll(generated)) {
+            return;
+        }
+
+        insertAllIntoHiddenBuffer(generated);
     }
 
     private void insertAllIntoHiddenBuffer(List<ItemStack> stacks) {

@@ -1,14 +1,13 @@
 package com.fish_dan_.data_energistics.mixin;
 
 import com.fish_dan_.data_energistics.integration.Ae2LtAdaptiveProviderCompat;
-import com.moakiee.ae2lt.item.OverloadedWirelessConnectorItem;
-import com.moakiee.ae2lt.logic.WirelessConnectorTargetHelper;
-import com.moakiee.ae2lt.network.WirelessConnectorUsePacket;
+import com.fish_dan_.data_energistics.integration.Ae2LtWirelessBridge;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -19,10 +18,16 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 
-@Mixin(WirelessConnectorUsePacket.class)
+@Mixin(targets = "com.moakiee.ae2lt.network.WirelessConnectorUsePacket", remap = false)
 public abstract class Ae2ltWirelessConnectorUsePacketMixin {
+    @Unique
+    private static Method dataEnergistics$handMethod;
+    @Unique
+    private static boolean dataEnergistics$handMethodInitialized = false;
+
     @Shadow
     private BlockPos pos;
 
@@ -39,8 +44,8 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
             return;
         }
 
-        ItemStack stack = player.getItemInHand(((WirelessConnectorUsePacket) (Object) this).hand());
-        if (!(stack.getItem() instanceof com.moakiee.ae2lt.item.OverloadedWirelessConnectorItem)) {
+        ItemStack stack = player.getItemInHand(dataEnergistics$getPacketHand());
+        if (!Ae2LtWirelessBridge.isConnectorItem(stack)) {
             return;
         }
         if (!player.canInteractWithBlock(this.pos, 1.0D)) {
@@ -49,10 +54,12 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
 
         BlockEntity targetBe = level.getBlockEntity(this.pos);
         boolean isAdaptiveProvider = Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(targetBe);
-        boolean hasSelection = OverloadedWirelessConnectorItem.hasSelection(stack);
-        String hostType = hasSelection ? OverloadedWirelessConnectorItem.getSelectedHostType(stack) : null;
+        boolean hasSelection = Ae2LtWirelessBridge.hasSelection(stack);
+        String hostType = hasSelection ? Ae2LtWirelessBridge.getSelectedHostType(stack) : null;
+        String hostProviderType = Ae2LtWirelessBridge.hostProviderType();
         boolean selectedAdaptiveProvider = hasSelection
-                && OverloadedWirelessConnectorItem.HOST_PROVIDER.equals(hostType)
+                && hostProviderType != null
+                && hostProviderType.equals(hostType)
                 && Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(
                 dataEnergistics$getSelectedAdaptiveOrVanillaProvider(level, stack));
 
@@ -64,7 +71,7 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
                 return;
             }
 
-            OverloadedWirelessConnectorItem.selectHost(stack, level, this.pos, OverloadedWirelessConnectorItem.HOST_PROVIDER);
+            Ae2LtWirelessBridge.selectHost(stack, level, this.pos, hostProviderType);
             player.displayClientMessage(
                     Component.translatable("ae2lt.connector.selected", this.pos.getX(), this.pos.getY(), this.pos.getZ())
                             .withStyle(ChatFormatting.GREEN), true);
@@ -75,7 +82,7 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
         if (!selectedAdaptiveProvider) {
             return;
         }
-        if (!OverloadedWirelessConnectorItem.isSelectionInCurrentDimension(level, stack)) {
+        if (!Ae2LtWirelessBridge.isSelectionInCurrentDimension(level, stack)) {
             return;
         }
 
@@ -84,7 +91,7 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
             return;
         }
 
-        if (targetBe instanceof com.moakiee.ae2lt.blockentity.OverloadedPatternProviderBlockEntity
+        if (Ae2LtWirelessBridge.isVanillaOverloadedProvider(targetBe)
                 || Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(targetBe)) {
             player.displayClientMessage(
                     Component.translatable("ae2lt.connector.cannot_bind_provider").withStyle(ChatFormatting.RED), true);
@@ -92,7 +99,7 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
             return;
         }
 
-        var targets = WirelessConnectorTargetHelper.collectTargets(level, this.pos, this.contiguous);
+        var targets = Ae2LtWirelessBridge.collectTargets(level, this.pos, this.contiguous);
         if (targets.isEmpty()) {
             player.displayClientMessage(
                     Component.translatable("ae2lt.connector.not_machine").withStyle(ChatFormatting.GREEN), true);
@@ -104,9 +111,7 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
         var disconnected = new ArrayList<BlockPos>();
         var updated = new ArrayList<BlockPos>();
         var connected = new ArrayList<BlockPos>();
-        var existingConnections = Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(selectedHost)
-                ? Ae2LtAdaptiveProviderCompat.getConnections(selectedHost)
-                : ((com.moakiee.ae2lt.blockentity.OverloadedPatternProviderBlockEntity) selectedHost).getConnections();
+        var existingConnections = Ae2LtAdaptiveProviderCompat.getConnectionsFromAnyProvider(selectedHost);
 
         for (var targetPos : targets) {
             var existing = existingConnections.stream()
@@ -117,8 +122,7 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
                 if (existing.boundFace() == this.face) {
                     boolean removed = Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(selectedHost)
                             ? Ae2LtAdaptiveProviderCompat.removeConnection(selectedHost, targetDim, targetPos)
-                            : ((com.moakiee.ae2lt.blockentity.OverloadedPatternProviderBlockEntity) selectedHost)
-                            .removeConnection(targetDim, targetPos);
+                            : Ae2LtWirelessBridge.removeConnection(selectedHost, targetDim, targetPos);
                     if (removed) {
                         disconnected.add(targetPos.immutable());
                     }
@@ -138,7 +142,7 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
 
     @Unique
     private BlockEntity dataEnergistics$getSelectedAdaptiveOrVanillaProvider(Level level, ItemStack stack) {
-        BlockEntity vanilla = OverloadedWirelessConnectorItem.getSelectedProvider(level, stack);
+        BlockEntity vanilla = Ae2LtWirelessBridge.getSelectedProvider(level, stack);
         if (vanilla != null) {
             return vanilla;
         }
@@ -165,7 +169,7 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
         if (Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(provider)) {
             Ae2LtAdaptiveProviderCompat.addOrUpdateConnection(provider, dimension, pos, face);
         } else {
-            ((com.moakiee.ae2lt.blockentity.OverloadedPatternProviderBlockEntity) provider).addOrUpdateConnection(dimension, pos, face);
+            Ae2LtWirelessBridge.addOrUpdateConnection(provider, dimension, pos, face);
         }
     }
 
@@ -208,6 +212,25 @@ public abstract class Ae2ltWirelessConnectorUsePacketMixin {
             player.displayClientMessage(Component.translatable(
                     "ae2lt.connector.connected", p.getX(), p.getY(), p.getZ(), this.face.getName())
                     .withStyle(ChatFormatting.GREEN), true);
+        }
+    }
+
+    @Unique
+    private InteractionHand dataEnergistics$getPacketHand() {
+        if (!dataEnergistics$handMethodInitialized) {
+            dataEnergistics$handMethodInitialized = true;
+            try {
+                dataEnergistics$handMethod = this.getClass().getMethod("hand");
+            } catch (Exception ignored) {
+                dataEnergistics$handMethod = null;
+            }
+        }
+
+        try {
+            Object result = dataEnergistics$handMethod != null ? dataEnergistics$handMethod.invoke(this) : null;
+            return result instanceof InteractionHand hand ? hand : InteractionHand.MAIN_HAND;
+        } catch (Exception ignored) {
+            return InteractionHand.MAIN_HAND;
         }
     }
 }

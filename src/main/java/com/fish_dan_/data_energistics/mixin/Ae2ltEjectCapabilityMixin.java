@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.mixin;
 
-import com.moakiee.ae2lt.logic.EjectModeRegistry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -19,10 +19,22 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.lang.reflect.Method;
+
 @Mixin(BlockCapability.class)
 public abstract class Ae2ltEjectCapabilityMixin<T, C> {
     @Unique
+    private static final String DE_EJECT_MODE_REGISTRY = "com.moakiee.ae2lt.logic.EjectModeRegistry";
+    @Unique
     private static boolean dataEnergistics$proxying = false;
+    @Unique
+    private static Method dataEnergistics$isBypassedMethod;
+    @Unique
+    private static Method dataEnergistics$lookupByFaceMethod;
+    @Unique
+    private static Method dataEnergistics$getHostMethod;
+    @Unique
+    private static boolean dataEnergistics$ejectReflectionInitialized = false;
 
     @Unique
     private static final IItemHandler dataEnergistics$REJECTING_ITEM_HANDLER = new IItemHandler() {
@@ -51,14 +63,15 @@ public abstract class Ae2ltEjectCapabilityMixin<T, C> {
                                                           BlockState state, BlockEntity blockEntity, C context,
                                                           CallbackInfoReturnable<T> cir) {
         if (dataEnergistics$proxying) return;
-        if (EjectModeRegistry.isBypassed()) return;
+        if (!dataEnergistics$hasAe2LtEjectSupport()) return;
+        if (dataEnergistics$isBypassed()) return;
         if (!(level instanceof ServerLevel)) return;
         if (!(context instanceof Direction face)) return;
 
-        var entry = EjectModeRegistry.lookupByFace(level.dimension(), pos.asLong(), face);
+        Object entry = dataEnergistics$lookupByFace(level.dimension(), pos.asLong(), face);
         if (entry == null) return;
 
-        var host = entry.getHost();
+        BlockEntity host = dataEnergistics$getHost(entry);
 
         if (host != null) {
             Level hostLevel = host.getLevel();
@@ -83,6 +96,65 @@ public abstract class Ae2ltEjectCapabilityMixin<T, C> {
             } else if (cap == Capabilities.FluidHandler.BLOCK) {
                 cir.setReturnValue((T) dataEnergistics$REJECTING_FLUID_HANDLER);
             }
+        }
+    }
+
+    @Unique
+    private static boolean dataEnergistics$hasAe2LtEjectSupport() {
+        if (!dataEnergistics$ejectReflectionInitialized) {
+            dataEnergistics$initEjectReflection();
+        }
+        return dataEnergistics$isBypassedMethod != null
+                && dataEnergistics$lookupByFaceMethod != null
+                && dataEnergistics$getHostMethod != null;
+    }
+
+    @Unique
+    private static void dataEnergistics$initEjectReflection() {
+        dataEnergistics$ejectReflectionInitialized = true;
+        try {
+            Class<?> registryClass = Class.forName(DE_EJECT_MODE_REGISTRY);
+            dataEnergistics$isBypassedMethod = registryClass.getMethod("isBypassed");
+            dataEnergistics$lookupByFaceMethod = registryClass.getMethod(
+                    "lookupByFace",
+                    ResourceKey.class,
+                    long.class,
+                    Direction.class
+            );
+            Class<?> ejectEntryClass = Class.forName("com.moakiee.ae2lt.logic.EjectModeRegistry$EjectEntry");
+            dataEnergistics$getHostMethod = ejectEntryClass.getMethod("getHost");
+        } catch (Exception ignored) {
+            dataEnergistics$isBypassedMethod = null;
+            dataEnergistics$lookupByFaceMethod = null;
+            dataEnergistics$getHostMethod = null;
+        }
+    }
+
+    @Unique
+    private static boolean dataEnergistics$isBypassed() {
+        try {
+            return Boolean.TRUE.equals(dataEnergistics$isBypassedMethod.invoke(null));
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    @Unique
+    private static Object dataEnergistics$lookupByFace(ResourceKey<Level> dimension, long pos, Direction face) {
+        try {
+            return dataEnergistics$lookupByFaceMethod.invoke(null, dimension, pos, face);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    @Unique
+    private static BlockEntity dataEnergistics$getHost(Object entry) {
+        try {
+            Object host = dataEnergistics$getHostMethod.invoke(entry);
+            return host instanceof BlockEntity blockEntity ? blockEntity : null;
+        } catch (Exception ignored) {
+            return null;
         }
     }
 }

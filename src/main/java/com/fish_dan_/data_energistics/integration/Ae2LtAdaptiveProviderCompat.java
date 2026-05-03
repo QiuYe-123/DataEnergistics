@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.integration;
 
+import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
-import com.moakiee.ae2lt.blockentity.OverloadedPatternProviderBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
@@ -30,9 +30,17 @@ public final class Ae2LtAdaptiveProviderCompat {
         return adaptive != null && adaptive.isAe2LtWirelessMode();
     }
 
-    public static List<OverloadedPatternProviderBlockEntity.WirelessConnection> getConnections(@Nullable BlockEntity blockEntity) {
+    public static List<AdaptiveWirelessConnection> getConnections(@Nullable BlockEntity blockEntity) {
         AdaptivePatternProviderBlockEntity adaptive = asAdaptiveOverloadedProvider(blockEntity);
         return adaptive != null ? adaptive.getConnections() : List.of();
+    }
+
+    public static List<AdaptiveWirelessConnection> getConnectionsFromAnyProvider(@Nullable BlockEntity blockEntity) {
+        AdaptivePatternProviderBlockEntity adaptive = asAdaptiveOverloadedProvider(blockEntity);
+        if (adaptive != null) {
+            return adaptive.getConnections();
+        }
+        return Ae2LtWirelessBridge.getConnectionsFromVanilla(blockEntity);
     }
 
     public static void addOrUpdateConnection(@Nullable BlockEntity blockEntity, ResourceKey<Level> dimension, BlockPos pos, Direction face) {

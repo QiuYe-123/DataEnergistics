@@ -170,12 +170,6 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
     }
 
     public boolean isAdvancedAeProviderSelected() {
-        ItemStack providerStack = getProviderStack();
-        if (!providerStack.isEmpty()) {
-            return AdaptivePatternProviderBlockEntity.isAdvancedAeProviderStack(providerStack)
-                    || AdaptivePatternProviderBlockEntity.isAe2LightningTechOverloadedProviderStack(providerStack);
-        }
-
         return this.host != null && this.host.supportsFilteredImportToggle();
     }
 
@@ -189,11 +183,6 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
     }
 
     public boolean isAe2LtOverloadedProviderSelected() {
-        ItemStack providerStack = getProviderStack();
-        if (!providerStack.isEmpty()) {
-            return AdaptivePatternProviderBlockEntity.isAe2LightningTechOverloadedProviderStack(providerStack);
-        }
-
         return this.host != null && this.host.isAe2LightningTechOverloadedProviderSelected();
     }
 

@@ -9,10 +9,15 @@ import appeng.api.storage.cells.CellState;
 import appeng.core.definitions.AEItems;
 import appeng.items.tools.powered.AbstractPortableCell;
 import appeng.items.tools.powered.PortableCellItem;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.ItemMenuHostLocator;
+import appeng.menu.locator.MenuLocators;
 import appeng.items.storage.StorageTier;
+import appeng.util.InteractionUtil;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -25,7 +30,7 @@ import java.lang.reflect.Field;
 
 public class DataFlowPortableCellItem extends PortableCellItem {
     public DataFlowPortableCellItem(StorageTier tier, Item.Properties properties, int color) {
-        super(DataFlowKeyType.TYPE, 1, portableItemCellMenu(), tier, properties.stacksTo(1), color);
+        super(DataFlowKeyType.TYPE, 1, null, tier, properties.stacksTo(1), color);
     }
 
     @Override
@@ -36,7 +41,7 @@ public class DataFlowPortableCellItem extends PortableCellItem {
         var energyCell = getReturnedEnergyCell(stack);
         if (!player.isShiftKeyDown() || storageComponent.isEmpty() || meChest.isEmpty() || energyCell.isEmpty()
                 || !isEmptyCell(stack)) {
-            return super.use(level, player, usedHand);
+            return openPortableCell(level, player, usedHand);
         }
 
         if (!level.isClientSide) {
@@ -51,11 +56,29 @@ public class DataFlowPortableCellItem extends PortableCellItem {
     }
 
     @Override
+    protected boolean openFromInventory(Player player, ItemMenuHostLocator locator, boolean returningFromSubmenu) {
+        ItemStack stack = locator.locateItem(player);
+        if (stack.getItem() != this) {
+            return false;
+        }
+
+        return MenuOpener.open(resolvePortableItemCellMenu(), player, locator, returningFromSubmenu);
+    }
+
+    @Override
     public int getBytes(ItemStack stack) {
         return super.getBytes(stack);
     }
 
-    private static MenuType<?> portableItemCellMenu() {
+    private InteractionResultHolder<ItemStack> openPortableCell(Level level, Player player, InteractionHand usedHand) {
+        if (!level.isClientSide && !InteractionUtil.isInAlternateUseMode(player)) {
+            MenuOpener.open(resolvePortableItemCellMenu(), player, MenuLocators.forHand(player, usedHand));
+        }
+
+        return new InteractionResultHolder<>(InteractionResult.sidedSuccess(level.isClientSide), player.getItemInHand(usedHand));
+    }
+
+    private static MenuType<?> resolvePortableItemCellMenu() {
         try {
             Field field = AbstractPortableCell.class.getDeclaredField("menuType");
             field.setAccessible(true);

@@ -3,11 +3,9 @@ package com.fish_dan_.data_energistics.mixin;
 import appeng.client.render.overlay.OverlayRenderType;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.integration.Ae2LtAdaptiveProviderCompat;
+import com.fish_dan_.data_energistics.integration.Ae2LtWirelessBridge;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.moakiee.ae2lt.client.Ae2ltRenderTypes;
-import com.moakiee.ae2lt.item.OverloadedWirelessConnectorItem;
-import com.moakiee.ae2lt.logic.WirelessConnectorTargetHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
@@ -36,7 +34,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Function;
 
-@Mixin(value = com.moakiee.ae2lt.client.WirelessConnectorRenderer.class, remap = false)
+@Mixin(targets = "com.moakiee.ae2lt.client.WirelessConnectorRenderer", remap = false)
 public abstract class Ae2ltWirelessConnectorRendererMixin {
     @Unique private static final int DE_COLOR_PREVIEW = 0x60FFFF00;
     @Unique private static final int DE_COLOR_CONNECTED = 0x600080FF;
@@ -65,7 +63,7 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
         ItemStack stack = ItemStack.EMPTY;
         for (var hand : net.minecraft.world.InteractionHand.values()) {
             var held = player.getItemInHand(hand);
-            if (held.getItem() instanceof OverloadedWirelessConnectorItem) {
+            if (Ae2LtWirelessBridge.isConnectorItem(held)) {
                 stack = held;
                 break;
             }
@@ -94,6 +92,7 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
                 && mc.level.dimension().equals(selectedDim);
         boolean selectedRendered = false;
 
+        String hostProviderType = Ae2LtWirelessBridge.hostProviderType();
         BlockPos playerPos = player.blockPosition();
         int minCX = (playerPos.getX() - DE_SCAN_RANGE) >> 4;
         int maxCX = (playerPos.getX() + DE_SCAN_RANGE) >> 4;
@@ -115,7 +114,8 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
                     }
 
                     boolean isSelected = hasSelection
-                            && OverloadedWirelessConnectorItem.HOST_PROVIDER.equals(selectedHostType)
+                            && hostProviderType != null
+                            && hostProviderType.equals(selectedHostType)
                             && bePos.equals(selectedPos);
                     dataEnergistics$renderAdaptiveProviderHost(poseStack, buffer, mc.level, bePos, adaptive, isSelected);
                     selectedRendered |= isSelected;
@@ -127,7 +127,8 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
             var selectedBe = mc.level.getBlockEntity(selectedPos);
             if (Ae2LtAdaptiveProviderCompat.isAdaptiveOverloadedProvider(selectedBe)
                     && Ae2LtAdaptiveProviderCompat.isWirelessMode(selectedBe)
-                    && OverloadedWirelessConnectorItem.HOST_PROVIDER.equals(selectedHostType)) {
+                    && hostProviderType != null
+                    && hostProviderType.equals(selectedHostType)) {
                 dataEnergistics$renderAdaptiveProviderHost(
                         poseStack, buffer, mc.level, selectedPos, (AdaptivePatternProviderBlockEntity) selectedBe, true);
             }
@@ -135,7 +136,8 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
 
         if (hasSelection) {
             var selectedBe = mc.level.getBlockEntity(selectedPos);
-            if (OverloadedWirelessConnectorItem.HOST_PROVIDER.equals(selectedHostType)
+            if (hostProviderType != null
+                    && hostProviderType.equals(selectedHostType)
                     && selectedBe instanceof AdaptivePatternProviderBlockEntity adaptive
                     && adaptive.isAe2LightningTechOverloadedProviderSelected()
                     && adaptive.isAe2LtWirelessMode()
@@ -144,7 +146,7 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
                     && !bhr.getBlockPos().equals(selectedPos)
                     && mc.level.getBlockEntity(bhr.getBlockPos()) != null) {
 
-                var previewTargets = WirelessConnectorTargetHelper.collectTargets(
+                var previewTargets = Ae2LtWirelessBridge.collectTargets(
                         mc.level,
                         bhr.getBlockPos(),
                         net.minecraft.client.gui.screens.Screen.hasControlDown());
@@ -209,18 +211,23 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
         if (dimStr.isEmpty()) {
             return null;
         }
+        String fallbackHostType = Ae2LtWirelessBridge.hostProviderType();
         return new SelectedHost(
                 BlockPos.of(sel.getLong(DE_TAG_POS)),
                 ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(dimStr)),
                 sel.contains(DE_TAG_HOST_TYPE, CompoundTag.TAG_STRING)
                         ? sel.getString(DE_TAG_HOST_TYPE)
-                        : OverloadedWirelessConnectorItem.HOST_PROVIDER);
+                        : fallbackHostType);
     }
 
     @Unique
     private static void dataEnergistics$renderInnerCube(PoseStack poseStack, MultiBufferSource buffer,
                                                         BlockPos pos, int color) {
-        VertexConsumer vc = buffer.getBuffer(Ae2ltRenderTypes.getFaceSeeThrough());
+        var renderType = Ae2LtWirelessBridge.getFaceSeeThroughRenderType();
+        if (renderType == null) {
+            return;
+        }
+        VertexConsumer vc = buffer.getBuffer(renderType);
         int[] c = OverlayRenderType.decomposeColor(color);
 
         poseStack.pushPose();

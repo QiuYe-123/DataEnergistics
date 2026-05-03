@@ -28,13 +28,7 @@ import appeng.helpers.patternprovider.PatternProviderReturnInventory;
 import appeng.helpers.patternprovider.PatternProviderTarget;
 import appeng.me.helpers.MachineSource;
 import appeng.util.inv.AppEngInternalInventory;
-import com.moakiee.ae2lt.blockentity.GhostOutputBlockEntity;
-import com.moakiee.ae2lt.blockentity.OverloadedPatternProviderBlockEntity;
-import com.moakiee.ae2lt.logic.EjectModeRegistry;
-import com.moakiee.ae2lt.logic.MachineAdapter;
-import com.moakiee.ae2lt.logic.MachineAdapterRegistry;
-import com.moakiee.ae2lt.logic.PushResult;
-import com.moakiee.ae2lt.logic.energy.PowerCostUtil;
+import com.fish_dan_.data_energistics.integration.Ae2LtRuntimeBridge;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import net.minecraft.core.HolderLookup;
@@ -51,6 +45,7 @@ import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -87,17 +82,23 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
     private final Object2LongOpenHashMap<AEKey> advancedDirectionalSendList = new Object2LongOpenHashMap<>();
     private final HashMap<AEKey, Direction> advancedDirectionalMap = new HashMap<>();
     private final List<GenericStack> ae2ltWirelessSendList = new ArrayList<>();
-    private @Nullable OverloadedPatternProviderBlockEntity.WirelessConnection ae2ltWirelessSendConn;
+    private @Nullable AdaptiveWirelessConnection ae2ltWirelessSendConn;
     private final Set<AEKey> trackedCrafts = new HashSet<>();
     private final HashSet<AEKey> outputCache = new HashSet<>();
     private @Nullable Object ae2ltAllowedOutputFilter;
     private boolean ae2ltOutputFilterDirty = true;
     private @Nullable IStackWatcher craftingWatcher;
-    private final ICraftingWatcherNode craftingWatcherNode = new AdaptiveCraftingWatcherNode();
     private @Nullable Direction advancedSendDirection;
     private int worksInRound;
     private final Method doWorkMethod;
     private final Method hasWorkToDoMethod;
+    private final Method onPushPatternSuccessMethod;
+    private final List<IPatternDetails> patternDetailsView;
+    private final Set<AEKey> patternInputsView;
+    private final AppEngInternalInventory patternInventory;
+    private final @Nullable Method ae2LtTotalCostMethod;
+    private final @Nullable Method ae2LtCanAffordMethod;
+    private final @Nullable Method ae2LtConsumeRawMethod;
     private long ae2ltLastAutoReturnTick = -1L;
 
     public AdaptivePatternProviderLogic(IManagedGridNode mainNode, PatternProviderLogicHost host, int patternInventorySize) {
@@ -105,10 +106,17 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
         this.host = host;
         this.mainNode = mainNode
                 .addService(IGridTickable.class, new Ticker())
-                .addService(ICraftingWatcherNode.class, this.craftingWatcherNode);
+                .addService(ICraftingWatcherNode.class, new AdaptiveCraftingWatcherNode());
         this.actionSource = new MachineSource(mainNode::getNode);
         this.doWorkMethod = findBaseMethod("doWork");
         this.hasWorkToDoMethod = findBaseMethod("hasWorkToDo");
+        this.onPushPatternSuccessMethod = findBaseMethod("onPushPatternSuccess", IPatternDetails.class);
+        this.patternDetailsView = requireBaseField("patterns", List.class);
+        this.patternInputsView = requireBaseField("patternInputs", Set.class);
+        this.patternInventory = requireBaseField("patternInventory", AppEngInternalInventory.class);
+        this.ae2LtTotalCostMethod = findAe2LtPowerCostMethod("totalCost", KeyCounter[].class);
+        this.ae2LtCanAffordMethod = findAe2LtPowerCostMethod("canAfford", appeng.api.networking.IGrid.class, double.class);
+        this.ae2LtConsumeRawMethod = findAe2LtPowerCostMethod("consumeRaw", appeng.api.networking.IGrid.class, double.class);
         installExpandedReturnInventory();
     }
 
@@ -206,7 +214,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
         }
 
         if (isMeteoritePatternProvider() && patternDetails instanceof IMolecularAssemblerSupportedPattern molecularAssemblerSupportedPattern) {
-            return pushMeteoritePattern(molecularAssemblerSupportedPattern, patternDetails, inputHolder);
+            return pushMeteoritePattern(molecularAssemblerSupportedPattern, inputHolder);
         }
 
         if (!isResonatingPatternDetails(patternDetails)) {
@@ -350,10 +358,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
             }
         }
 
-        if (!pushed) {
-            return false;
-        }
-        return true;
+        return pushed;
     }
 
     private boolean pushAe2LtWirelessPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, double totalCost) {
@@ -473,7 +478,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
         return false;
     }
 
-    private boolean pushMeteoritePattern(IMolecularAssemblerSupportedPattern pattern, IPatternDetails details, KeyCounter[] inputHolder) {
+    private boolean pushMeteoritePattern(IMolecularAssemblerSupportedPattern pattern, KeyCounter[] inputHolder) {
         if (this.worksInRound >= METEORITE_MAX_WORKS_PER_ROUND || super.isBusy() || !this.mainNode.isActive()) {
             return false;
         }
@@ -483,7 +488,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
             return false;
         }
 
-        if (!tryConsumeMeteoriteEnergy(METEORITE_ENERGY_PER_WORK)) {
+        if (!tryConsumeMeteoriteEnergy()) {
             return false;
         }
 
@@ -523,58 +528,37 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
 
     private boolean isAdvancedAeDirectionalPattern(IPatternDetails patternDetails) {
         return isAdvancedAeProviderSelected()
-                && patternDetails != null
                 && implementsAdvancedAePatternInterface(patternDetails)
                 && hasDirectionalInputs(patternDetails);
     }
 
     private boolean isAe2LightningTechOverloadedPattern(IPatternDetails patternDetails) {
         return isAe2LightningTechOverloadedProviderSelected()
-                && patternDetails != null
                 && implementsNamedInterface(patternDetails, AE2LT_OVERLOADED_PATTERN_DETAILS_INTERFACE);
     }
 
-    @SuppressWarnings("unchecked")
     private void rebuildPatternsIncludingAe2LtOverloadPatterns() {
-        try {
-            var patternsField = PatternProviderLogic.class.getDeclaredField("patterns");
-            patternsField.setAccessible(true);
-            var patternInputsField = PatternProviderLogic.class.getDeclaredField("patternInputs");
-            patternInputsField.setAccessible(true);
-            var patternInventoryField = PatternProviderLogic.class.getDeclaredField("patternInventory");
-            patternInventoryField.setAccessible(true);
+        this.patternDetailsView.clear();
+        this.patternInputsView.clear();
 
-            List<IPatternDetails> patterns = (List<IPatternDetails>) patternsField.get(this);
-            Set<AEKey> patternInputs = (Set<AEKey>) patternInputsField.get(this);
-            AppEngInternalInventory patternInventory = (AppEngInternalInventory) patternInventoryField.get(this);
-
-            patterns.clear();
-            patternInputs.clear();
-
-            var level = this.host.getBlockEntity().getLevel();
-            for (int slot = 0; slot < patternInventory.size(); slot++) {
-                ItemStack patternStack = patternInventory.getStackInSlot(slot);
-                IPatternDetails details = PatternDetailsHelper.decodePattern(patternStack, level);
-                if (details == null) {
-                    continue;
-                }
-
-                patterns.add(details);
-                for (var input : details.getInputs()) {
-                    for (var possibleInput : input.getPossibleInputs()) {
-                        patternInputs.add(possibleInput.what().dropSecondary());
-                    }
-                }
+        var level = this.host.getBlockEntity().getLevel();
+        for (int slot = 0; slot < this.patternInventory.size(); slot++) {
+            ItemStack patternStack = this.patternInventory.getStackInSlot(slot);
+            IPatternDetails details = PatternDetailsHelper.decodePattern(patternStack, level);
+            if (details == null) {
+                continue;
             }
 
-            var mainNodeField = PatternProviderLogic.class.getDeclaredField("mainNode");
-            mainNodeField.setAccessible(true);
-            IManagedGridNode managedGridNode = (IManagedGridNode) mainNodeField.get(this);
-            appeng.api.networking.crafting.ICraftingProvider.requestUpdate(managedGridNode);
-            this.mainNode.ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to rebuild overload patterns for adaptive pattern provider", e);
+            this.patternDetailsView.add(details);
+            for (var input : details.getInputs()) {
+                for (var possibleInput : input.getPossibleInputs()) {
+                    this.patternInputsView.add(possibleInput.what().dropSecondary());
+                }
+            }
         }
+
+        appeng.api.networking.crafting.ICraftingProvider.requestUpdate(this.mainNode);
+        this.mainNode.ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
     }
 
     private boolean isAdvancedAeProviderSelected() {
@@ -613,12 +597,12 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
         return hasDirectionalInputs(patternDetails);
     }
 
-    private List<OverloadedPatternProviderBlockEntity.WirelessConnection> getOrderedWirelessConnections(ServerLevel level) {
+    private List<AdaptiveWirelessConnection> getOrderedWirelessConnections(ServerLevel level) {
         if (!(this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost)) {
             return List.of();
         }
 
-        List<OverloadedPatternProviderBlockEntity.WirelessConnection> valid = new ArrayList<>();
+        List<AdaptiveWirelessConnection> valid = new ArrayList<>();
         for (var conn : adaptivePatternProviderHost.getConnections()) {
             if (!conn.dimension().equals(level.dimension())) {
                 continue;
@@ -639,7 +623,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
             return valid;
         }
 
-        ArrayList<OverloadedPatternProviderBlockEntity.WirelessConnection> ordered = new ArrayList<>(valid.size());
+        ArrayList<AdaptiveWirelessConnection> ordered = new ArrayList<>(valid.size());
         ordered.addAll(valid.subList(idx, valid.size()));
         ordered.addAll(valid.subList(0, idx));
         return ordered;
@@ -647,31 +631,23 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
 
     private boolean tryPushAe2LtWirelessConnection(IPatternDetails patternDetails,
                                                    KeyCounter[] inputHolder,
-                                                   OverloadedPatternProviderBlockEntity.WirelessConnection connection,
+                                                   AdaptiveWirelessConnection connection,
                                                    ServerLevel targetLevel) {
-        MachineAdapter adapter = MachineAdapterRegistry.find(targetLevel, connection.pos());
-        if (adapter == null || !adapter.canAccept(targetLevel, connection.pos(), connection.boundFace(), patternDetails)) {
-            return false;
-        }
-
-        Set<AEKey> patternInputs = getPatternInputs();
-        PushResult result = adapter.pushCopies(
+        List<GenericStack> overflow = Ae2LtRuntimeBridge.pushWirelessConnection(
                 targetLevel,
-                connection.pos(),
-                connection.boundFace(),
+                connection,
                 patternDetails,
                 inputHolder,
-                1,
                 this.isBlocking(),
-                patternInputs,
+                getPatternInputs(),
                 this.actionSource
         );
-        if (result.acceptedCopies() == 0) {
+        if (overflow == null) {
             return false;
         }
 
-        if (!result.overflow().isEmpty()) {
-            this.ae2ltWirelessSendList.addAll(result.overflow());
+        if (!overflow.isEmpty()) {
+            this.ae2ltWirelessSendList.addAll(overflow);
             this.ae2ltWirelessSendConn = connection;
         }
 
@@ -683,7 +659,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
 
     private boolean tryPushAdvancedDirectionalToWirelessConnection(IPatternDetails patternDetails,
                                                                    KeyCounter[] inputHolder,
-                                                                   OverloadedPatternProviderBlockEntity.WirelessConnection connection,
+                                                                   AdaptiveWirelessConnection connection,
                                                                    ServerLevel targetLevel) {
         BlockEntity targetBlockEntity = targetLevel.getBlockEntity(connection.pos());
         if (targetBlockEntity == null || !patternDetails.supportsPushInputsToExternalInventory()) {
@@ -777,30 +753,49 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
     }
 
     private Set<AEKey> getPatternInputs() {
-        try {
-            var field = PatternProviderLogic.class.getDeclaredField("patternInputs");
-            field.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            Set<AEKey> value = (Set<AEKey>) field.get(this);
-            return value;
-        } catch (Exception ignored) {
-            return Set.of();
-        }
+        return this.patternInputsView;
     }
 
     private void invokePatternSuccess(IPatternDetails patternDetails) {
         try {
-            Method method = PatternProviderLogic.class.getDeclaredMethod("onPushPatternSuccess", IPatternDetails.class);
-            method.setAccessible(true);
-            method.invoke(this, patternDetails);
+            if (this.onPushPatternSuccessMethod != null) {
+                this.onPushPatternSuccessMethod.invoke(this, patternDetails);
+            }
         } catch (Exception ignored) {
         }
     }
 
     @Nullable
-    private Method findBaseMethod(String name) {
+    private Method findBaseMethod(String name, Class<?>... parameterTypes) {
         try {
-            Method method = PatternProviderLogic.class.getDeclaredMethod(name);
+            Method method = PatternProviderLogic.class.getDeclaredMethod(name, parameterTypes);
+            method.setAccessible(true);
+            return method;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> T requireBaseField(String name, Class<?> type) {
+        try {
+            Field field = PatternProviderLogic.class.getDeclaredField(name);
+            field.setAccessible(true);
+            Object value = field.get(this);
+            if (!type.isInstance(value)) {
+                throw new IllegalStateException("Unexpected base field type for " + name);
+            }
+            return (T) value;
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to access base field: " + name, e);
+        }
+    }
+
+    @Nullable
+    private Method findAe2LtPowerCostMethod(String name, Class<?>... parameterTypes) {
+        try {
+            Class<?> owner = Class.forName(AE2LT_POWER_COST_UTIL_CLASS);
+            Method method = owner.getMethod(name, parameterTypes);
             method.setAccessible(true);
             return method;
         } catch (Exception ignored) {
@@ -983,15 +978,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
             return false;
         }
 
-        MachineAdapter adapter = MachineAdapterRegistry.find(targetLevel, this.ae2ltWirelessSendConn.pos());
-        if (adapter == null) {
-            return false;
-        }
-
-        boolean flushed = adapter.flushOverflow(
+        boolean flushed = Ae2LtRuntimeBridge.flushWirelessOverflow(
                 targetLevel,
-                this.ae2ltWirelessSendConn.pos(),
-                this.ae2ltWirelessSendConn.boundFace(),
+                this.ae2ltWirelessSendConn,
                 this.ae2ltWirelessSendList,
                 this.actionSource
         );
@@ -1041,9 +1030,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
 
     private double getAe2LtTotalCost(KeyCounter[] inputHolder) {
         try {
-            Class<?> powerCostUtilClass = Class.forName(AE2LT_POWER_COST_UTIL_CLASS);
-            Method totalCostMethod = powerCostUtilClass.getMethod("totalCost", KeyCounter[].class);
-            Object result = totalCostMethod.invoke(null, (Object) inputHolder);
+            if (this.ae2LtTotalCostMethod == null) {
+                return 0.0D;
+            }
+            Object result = this.ae2LtTotalCostMethod.invoke(null, (Object) inputHolder);
             return result instanceof Number number ? number.doubleValue() : 0.0D;
         } catch (Exception ignored) {
             return 0.0D;
@@ -1052,9 +1042,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
 
     private boolean canAffordAe2LtTotalCost(double totalCost) {
         try {
-            Class<?> powerCostUtilClass = Class.forName(AE2LT_POWER_COST_UTIL_CLASS);
-            Method canAffordMethod = powerCostUtilClass.getMethod("canAfford", appeng.api.networking.IGrid.class, double.class);
-            Object result = canAffordMethod.invoke(null, getGrid(), totalCost);
+            if (this.ae2LtCanAffordMethod == null) {
+                return true;
+            }
+            Object result = this.ae2LtCanAffordMethod.invoke(null, getGrid(), totalCost);
             return !(result instanceof Boolean canAfford) || canAfford;
         } catch (Exception ignored) {
             return true;
@@ -1063,9 +1054,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
 
     private void consumeAe2LtTotalCost(double totalCost) {
         try {
-            Class<?> powerCostUtilClass = Class.forName(AE2LT_POWER_COST_UTIL_CLASS);
-            Method consumeRawMethod = powerCostUtilClass.getMethod("consumeRaw", appeng.api.networking.IGrid.class, double.class);
-            consumeRawMethod.invoke(null, getGrid(), totalCost);
+            if (this.ae2LtConsumeRawMethod != null) {
+                this.ae2LtConsumeRawMethod.invoke(null, getGrid(), totalCost);
+            }
         } catch (Exception ignored) {
         }
     }
@@ -1105,8 +1096,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
     private void refreshAdaptivePatternTracking() {
         this.outputCache.clear();
 
-        if (this.craftingWatcher != null) {
-            this.craftingWatcher.reset();
+        IStackWatcher watcher = this.craftingWatcher;
+        if (watcher != null) {
+            watcher.reset();
         }
 
         for (IPatternDetails pattern : getAvailablePatterns()) {
@@ -1114,13 +1106,13 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
                 continue;
             }
 
-            if (this.craftingWatcher != null) {
-                for (GenericStack output : pattern.getOutputs()) {
-                    if (output == null || output.what() == null) {
-                        continue;
-                    }
-                    this.craftingWatcher.add(output.what());
-                    this.outputCache.add(output.what());
+            for (GenericStack output : pattern.getOutputs()) {
+                if (output == null || output.what() == null) {
+                    continue;
+                }
+                this.outputCache.add(output.what());
+                if (watcher != null) {
+                    watcher.add(output.what());
                 }
             }
         }
@@ -1157,12 +1149,13 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
         BlockPos providerPos = this.host.getBlockEntity().getBlockPos();
         for (Direction dir : this.host.getTargets()) {
             BlockPos targetPos = providerPos.relative(dir);
-            MachineAdapter adapter = MachineAdapterRegistry.find(level, targetPos);
-            if (adapter == null) {
-                continue;
-            }
-
-            List<GenericStack> outputs = adapter.extractOutputs(level, targetPos, dir.getOpposite(), castAe2LtAllowedOutputFilter(allowedOutputFilter), this.actionSource);
+            List<GenericStack> outputs = Ae2LtRuntimeBridge.extractOutputs(
+                    level,
+                    targetPos,
+                    dir.getOpposite(),
+                    allowedOutputFilter,
+                    this.actionSource
+            );
             insertAe2LtOutputsToReturnInventory(outputs);
         }
     }
@@ -1174,16 +1167,11 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
                 continue;
             }
 
-            MachineAdapter adapter = MachineAdapterRegistry.find(targetLevel, conn.pos());
-            if (adapter == null) {
-                continue;
-            }
-
-            List<GenericStack> outputs = adapter.extractOutputs(
+            List<GenericStack> outputs = Ae2LtRuntimeBridge.extractOutputs(
                     targetLevel,
                     conn.pos(),
                     conn.boundFace(),
-                    castAe2LtAllowedOutputFilter(allowedOutputFilter),
+                    allowedOutputFilter,
                     this.actionSource
             );
             insertAe2LtOutputsToReturnInventory(outputs);
@@ -1201,13 +1189,13 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
                 continue;
             }
 
-            long affordable = PowerCostUtil.maxAffordable(grid, stack.what(), stack.amount());
+            long affordable = Ae2LtRuntimeBridge.maxAffordable(grid, stack.what(), stack.amount());
             if (affordable <= 0) {
                 continue;
             }
             long inserted = getReturnInv().insert(stack.what(), affordable, Actionable.MODULATE, this.actionSource);
             if (inserted > 0) {
-                PowerCostUtil.consume(grid, stack.what(), inserted);
+                Ae2LtRuntimeBridge.consume(grid, stack.what(), inserted);
             }
         }
     }
@@ -1218,60 +1206,15 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
     }
 
     private void refreshAe2LtEjectRegistrations() {
-        if (!(this.host.getBlockEntity().getLevel() instanceof ServerLevel level)) {
-            return;
-        }
-
-        invalidateAe2LtCapabilities(EjectModeRegistry.unregisterAll(this.host.getBlockEntity(), true), level);
-
-        if (!isAe2LtEjectModeEnabled() || !isAe2LtWirelessMode()) {
-            return;
-        }
-
         if (!(this.host instanceof AdaptivePatternProviderHost adaptive)) {
             return;
         }
-
-        for (var conn : adaptive.getConnections()) {
-            if (!conn.dimension().equals(level.dimension())) {
-                continue;
-            }
-            ServerLevel targetLevel = level.getServer().getLevel(conn.dimension());
-            if (targetLevel == null) {
-                continue;
-            }
-
-            BlockPos adjacentPos = conn.pos().relative(conn.boundFace());
-            Direction queryFace = conn.boundFace().getOpposite();
-            GhostOutputBlockEntity ghostBE = new GhostOutputBlockEntity(adjacentPos);
-            ghostBE.setLevel(targetLevel);
-
-            var entry = new EjectModeRegistry.EjectEntry(
-                    new java.lang.ref.WeakReference<>(this.host.getBlockEntity()),
-                    ghostBE,
-                    level.dimension(),
-                    this.host.getBlockEntity().getBlockPos()
-            );
-
-            EjectModeRegistry.register(targetLevel.dimension(), adjacentPos.asLong(), queryFace, entry);
-            invalidateAe2LtCapability(targetLevel, adjacentPos);
-        }
-    }
-
-    private void invalidateAe2LtCapabilities(List<EjectModeRegistry.DimPos> positions, ServerLevel sourceLevel) {
-        var server = sourceLevel.getServer();
-        for (var dp : positions) {
-            ServerLevel targetLevel = server.getLevel(dp.dimension());
-            if (targetLevel != null) {
-                targetLevel.invalidateCapabilities(dp.pos());
-            }
-        }
-    }
-
-    private void invalidateAe2LtCapability(@Nullable ServerLevel level, BlockPos pos) {
-        if (level != null) {
-            level.invalidateCapabilities(pos);
-        }
+        Ae2LtRuntimeBridge.refreshEjectRegistrations(
+                this.host.getBlockEntity(),
+                adaptive.getConnections(),
+                isAe2LtEjectModeEnabled(),
+                isAe2LtWirelessMode()
+        );
     }
 
     @Nullable
@@ -1338,11 +1281,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
         } catch (Exception ignored) {
             return true;
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private com.moakiee.ae2lt.logic.AllowedOutputFilter castAe2LtAllowedOutputFilter(Object filter) {
-        return (com.moakiee.ae2lt.logic.AllowedOutputFilter) filter;
     }
 
     @Nullable
@@ -1459,7 +1397,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
                 && adaptivePatternProviderHost.isAdvancedAeFilteredImportEnabled();
     }
 
-    private boolean tryConsumeMeteoriteEnergy(double energy) {
+    private boolean tryConsumeMeteoriteEnergy() {
         var grid = getGrid();
         if (grid == null) {
             return false;
@@ -1469,8 +1407,8 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
             return false;
         }
 
-        double extracted = energyService.extractAEPower(energy, Actionable.MODULATE, PowerMultiplier.ONE);
-        if (extracted + 1.0e-9 >= energy) {
+        double extracted = energyService.extractAEPower(METEORITE_ENERGY_PER_WORK, Actionable.MODULATE, PowerMultiplier.ONE);
+        if (extracted + 1.0e-9 >= METEORITE_ENERGY_PER_WORK) {
             return true;
         }
 
@@ -1483,7 +1421,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
 
     private void installExpandedReturnInventory() {
         try {
-            var field = PatternProviderLogic.class.getDeclaredField("returnInv");
+            Field field = PatternProviderLogic.class.getDeclaredField("returnInv");
             field.setAccessible(true);
             field.set(this, new ExpandedReturnInventory(this::onReturnInventoryChanged, this));
         } catch (Exception e) {
@@ -1522,7 +1460,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
             return null;
         }
         var pos = target.position().pos();
-        if (!targetLevel.hasChunkAt(pos)) {
+        if (!targetLevel.isLoaded(pos)) {
             return null;
         }
         return PatternProviderTarget.get(targetLevel, pos, null, target.face(), this.actionSource);
@@ -1685,7 +1623,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
                 return true;
             }
 
-            return this.logic.getOutputCache().stream().anyMatch(key::equals);
+            return this.logic.getOutputCache().contains(key);
         }
 
         private static Runnable prepare(Runnable listener) {

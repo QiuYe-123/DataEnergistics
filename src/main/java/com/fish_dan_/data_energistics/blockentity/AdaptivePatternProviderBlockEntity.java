@@ -15,24 +15,23 @@ import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.helpers.patternprovider.PatternContainer;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuHostLocator;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.api.inventories.InternalInventory;
 import appeng.util.inv.InternalInventoryHost;
-import appeng.util.inv.filter.IAEItemFilter;
-import com.moakiee.ae2lt.blockentity.OverloadedPatternProviderBlockEntity;
+import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
+import com.fish_dan_.data_energistics.integration.Ae2LtCompat;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
@@ -55,42 +54,15 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import org.jetbrains.annotations.Nullable;
 
 public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEntity implements InternalInventoryHost, IUpgradeableObject, AdaptivePatternProviderHost {
     protected static final String ADAPTIVE_PATTERN_PROVIDER_KEY = "adaptive_pattern_provider";
-    private static final String PROVIDER_SLOT_TAG = "provider_slot";
-    private static final String UPGRADES_TAG = "upgrades";
-    private static final String ADVANCED_AE_FILTERED_IMPORT_TAG = "advanced_ae_filtered_import";
-    private static final String AE2LT_PROVIDER_MODE_TAG = "ae2lt_provider_mode";
-    private static final String AE2LT_RETURN_MODE_TAG = "ae2lt_return_mode";
-    private static final String AE2LT_WIRELESS_DISPATCH_MODE_TAG = "ae2lt_wireless_dispatch_mode";
-    private static final String AE2LT_WIRELESS_SPEED_MODE_TAG = "ae2lt_wireless_speed_mode";
-    private static final String AE2LT_CONNECTIONS_TAG = "ae2lt_wireless_connections";
-    private static final int PROVIDER_SLOT_LIMIT = 4;
-    private static final int EXTRA_PROVIDER_SLOTS_PER_CAPACITY_CARD = 4;
     private static final int BASE_PATTERN_SLOTS = 9;
     private static final int SIMPLE_PATTERN_SLOTS = 5;
     private static final int EXTENDED_PATTERN_SLOTS = 36;
     private static final int METEORITE_PATTERN_SLOTS = 63;
-    private static final int MAX_CAPACITY_CARD_UPGRADES = 3;
-    private static final int MAX_PROVIDER_SLOT_LIMIT =
-            PROVIDER_SLOT_LIMIT + MAX_CAPACITY_CARD_UPGRADES * EXTRA_PROVIDER_SLOTS_PER_CAPACITY_CARD;
-    private static final int APPFLUX_UPGRADE_SLOTS = 6;
-    // Container slot ids are synced over the network as signed shorts. Keep the menu's total
-    // slot count below 32768, accounting for player inventory, return slots, provider slot,
-    // page proxy slots, and AppFlux upgrade slots.
-    private static final int MAX_NETWORK_SAFE_MENU_SLOTS = Short.MAX_VALUE + 1;
-    private static final int FIXED_MENU_SLOT_OVERHEAD =
-            36  // player inventory + hotbar
-                    + 18 // two return rows
-                    + 1  // provider sample slot
-                    + 36 // visible page proxy slots
-                    + (APPFLUX_UPGRADE_SLOTS * 2);
-    private static final int MAX_PATTERN_SLOTS = MAX_NETWORK_SAFE_MENU_SLOTS - FIXED_MENU_SLOT_OVERHEAD;
     private static final String AE2LT_NAMESPACE = "ae2lt";
     private static final String AE2LT_OVERLOADED_PATTERN_PROVIDER = "overloaded_pattern_provider";
     private static final String AE2LT_OVERLOAD_PATTERN = "overload_pattern";
@@ -98,27 +70,20 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             ResourceLocation.fromNamespaceAndPath("appflux", "induction_card");
     private static final String TERMINAL_GROUP_LOCKED_SUFFIX_SUFFIX = ".terminal_hidden_slots";
 
-    private final AppEngInternalInventory providerInventory = new AppEngInternalInventory(this, 1);
+    @Nullable
+    private AdaptivePatternProviderState adaptiveState;
     private final IUpgradeInventory upgrades;
-    private final List<OverloadedPatternProviderBlockEntity.WirelessConnection> ae2LtConnections = new ArrayList<>();
     private int syncedPatternSlotCount = 0;
-    private boolean advancedAeFilteredImport;
-    private Ae2LtProviderMode ae2LtProviderMode = Ae2LtProviderMode.NORMAL;
-    private Ae2LtReturnMode ae2LtReturnMode = Ae2LtReturnMode.OFF;
-    private Ae2LtWirelessDispatchMode ae2LtWirelessDispatchMode = Ae2LtWirelessDispatchMode.EVEN_DISTRIBUTION;
-    private Ae2LtWirelessSpeedMode ae2LtWirelessSpeedMode = Ae2LtWirelessSpeedMode.NORMAL;
 
     public AdaptivePatternProviderBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(), blockPos, blockState);
         this.upgrades = createUpgradeInventory();
-        this.providerInventory.setMaxStackSize(0, getProviderSlotLimit());
-        this.providerInventory.setFilter(new ProviderSuffixFilter());
         this.getMainNode().setVisualRepresentation(getProviderBlock().get());
     }
 
     @Override
     protected AdaptivePatternProviderLogic createLogic() {
-        return new AdaptivePatternProviderLogic(this.getMainNode(), this, MAX_PATTERN_SLOTS);
+        return new AdaptivePatternProviderLogic(this.getMainNode(), this, AdaptivePatternProviderState.MAX_PATTERN_SLOTS);
     }
 
     @Nullable
@@ -128,30 +93,15 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     public AppEngInternalInventory getProviderInventory() {
-        return this.providerInventory;
+        return getAdaptiveState().getProviderInventory();
     }
 
     public int getProviderSlotLimit() {
-        return PROVIDER_SLOT_LIMIT + getExtraProviderSlotsFromCapacityCards();
+        return AdaptivePatternProviderState.PROVIDER_SLOT_LIMIT + getExtraProviderSlotsFromCapacityCards();
     }
 
     public ItemStack extractProviderOverflow() {
-        this.providerInventory.setMaxStackSize(0, getProviderSlotLimit());
-        ItemStack providerStack = this.providerInventory.getStackInSlot(0);
-        if (providerStack.isEmpty()) {
-            return ItemStack.EMPTY;
-        }
-
-        int providerLimit = getProviderSlotLimit();
-        if (providerStack.getCount() <= providerLimit) {
-            return ItemStack.EMPTY;
-        }
-
-        int overflowCount = providerStack.getCount() - providerLimit;
-        ItemStack keptStack = providerStack.copyWithCount(providerLimit);
-        ItemStack overflowStack = providerStack.copyWithCount(overflowCount);
-        this.providerInventory.setItemDirect(0, keptStack);
-        return overflowStack;
+        return getAdaptiveState().extractProviderOverflow();
     }
 
     @Override
@@ -210,55 +160,53 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     public Ae2LtProviderMode getAe2LtProviderMode() {
-        return this.ae2LtProviderMode;
+        return getAdaptiveState().getAe2LtProviderMode();
     }
 
     public void cycleAe2LtProviderMode() {
-        this.ae2LtProviderMode = this.ae2LtProviderMode.next();
+        getAdaptiveState().cycleAe2LtProviderMode();
         this.onAe2LtStateChanged();
     }
 
     public boolean isAe2LtWirelessMode() {
-        return this.ae2LtProviderMode == Ae2LtProviderMode.WIRELESS;
+        return getAdaptiveState().isAe2LtWirelessMode();
     }
 
     public Ae2LtReturnMode getAe2LtReturnMode() {
-        return this.ae2LtReturnMode;
+        return getAdaptiveState().getAe2LtReturnMode();
     }
 
     public void cycleAe2LtReturnMode() {
-        this.ae2LtReturnMode = this.ae2LtReturnMode.next();
+        getAdaptiveState().cycleAe2LtReturnMode();
         this.onAe2LtStateChanged();
     }
 
     public Ae2LtWirelessDispatchMode getAe2LtWirelessDispatchMode() {
-        return this.ae2LtWirelessDispatchMode;
+        return getAdaptiveState().getAe2LtWirelessDispatchMode();
     }
 
     public void cycleAe2LtWirelessDispatchMode() {
-        this.ae2LtWirelessDispatchMode = this.ae2LtWirelessDispatchMode.next();
+        getAdaptiveState().cycleAe2LtWirelessDispatchMode();
         this.onAe2LtStateChanged();
     }
 
     public Ae2LtWirelessSpeedMode getAe2LtWirelessSpeedMode() {
-        return this.ae2LtWirelessSpeedMode;
+        return getAdaptiveState().getAe2LtWirelessSpeedMode();
     }
 
     public void cycleAe2LtWirelessSpeedMode() {
-        this.ae2LtWirelessSpeedMode = this.ae2LtWirelessSpeedMode.next();
+        getAdaptiveState().cycleAe2LtWirelessSpeedMode();
         this.onAe2LtStateChanged();
     }
 
     public boolean isAdvancedAeFilteredImportEnabled() {
-        return this.advancedAeFilteredImport;
+        return getAdaptiveState().isAdvancedAeFilteredImportEnabled();
     }
 
     public void setAdvancedAeFilteredImportEnabled(boolean enabled) {
-        if (this.advancedAeFilteredImport == enabled) {
+        if (!getAdaptiveState().setAdvancedAeFilteredImportEnabled(enabled)) {
             return;
         }
-
-        this.advancedAeFilteredImport = enabled;
         this.saveChanges();
         this.markForClientUpdate();
         AdaptivePatternProviderLogic logic = getAdaptiveLogic();
@@ -268,34 +216,20 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     public void addOrUpdateConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace) {
-        for (int i = 0; i < this.ae2LtConnections.size(); i++) {
-            OverloadedPatternProviderBlockEntity.WirelessConnection connection = this.ae2LtConnections.get(i);
-            if (connection.sameTarget(dimension, pos)) {
-                this.ae2LtConnections.set(i, new OverloadedPatternProviderBlockEntity.WirelessConnection(dimension, pos, boundFace));
-                this.onAe2LtStateChanged();
-                return;
-            }
-        }
-
-        this.ae2LtConnections.add(new OverloadedPatternProviderBlockEntity.WirelessConnection(dimension, pos, boundFace));
+        getAdaptiveState().addOrUpdateConnection(dimension, pos, boundFace);
         this.onAe2LtStateChanged();
     }
 
     public boolean removeConnection(ResourceKey<Level> dimension, BlockPos pos) {
-        Iterator<OverloadedPatternProviderBlockEntity.WirelessConnection> iterator = this.ae2LtConnections.iterator();
-        while (iterator.hasNext()) {
-            if (iterator.next().sameTarget(dimension, pos)) {
-                iterator.remove();
-                this.onAe2LtStateChanged();
-                return true;
-            }
+        if (getAdaptiveState().removeConnection(dimension, pos)) {
+            this.onAe2LtStateChanged();
+            return true;
         }
-
         return false;
     }
 
-    public List<OverloadedPatternProviderBlockEntity.WirelessConnection> getConnections() {
-        return Collections.unmodifiableList(this.ae2LtConnections);
+    public List<AdaptiveWirelessConnection> getConnections() {
+        return getAdaptiveState().getConnections();
     }
 
     @Override
@@ -311,36 +245,13 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Override
     public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
         super.saveAdditional(data, registries);
-        this.providerInventory.writeToNBT(data, PROVIDER_SLOT_TAG, registries);
-        this.upgrades.writeToNBT(data, UPGRADES_TAG, registries);
-        data.putBoolean(ADVANCED_AE_FILTERED_IMPORT_TAG, this.advancedAeFilteredImport);
-        data.putString(AE2LT_PROVIDER_MODE_TAG, this.ae2LtProviderMode.name());
-        data.putString(AE2LT_RETURN_MODE_TAG, this.ae2LtReturnMode.name());
-        data.putString(AE2LT_WIRELESS_DISPATCH_MODE_TAG, this.ae2LtWirelessDispatchMode.name());
-        data.putString(AE2LT_WIRELESS_SPEED_MODE_TAG, this.ae2LtWirelessSpeedMode.name());
-        ListTag connectionList = new ListTag();
-        for (OverloadedPatternProviderBlockEntity.WirelessConnection connection : this.ae2LtConnections) {
-            connectionList.add(connection.toTag());
-        }
-        data.put(AE2LT_CONNECTIONS_TAG, connectionList);
+        getAdaptiveState().writeToNBT(data, registries, this.upgrades);
     }
 
     @Override
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
-        this.providerInventory.readFromNBT(data, PROVIDER_SLOT_TAG, registries);
-        this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
-        this.providerInventory.setMaxStackSize(0, getProviderSlotLimit());
-        this.advancedAeFilteredImport = data.getBoolean(ADVANCED_AE_FILTERED_IMPORT_TAG);
-        this.ae2LtProviderMode = readEnum(data, AE2LT_PROVIDER_MODE_TAG, Ae2LtProviderMode.NORMAL, Ae2LtProviderMode.class);
-        this.ae2LtReturnMode = readEnum(data, AE2LT_RETURN_MODE_TAG, Ae2LtReturnMode.OFF, Ae2LtReturnMode.class);
-        this.ae2LtWirelessDispatchMode = readEnum(data, AE2LT_WIRELESS_DISPATCH_MODE_TAG, Ae2LtWirelessDispatchMode.EVEN_DISTRIBUTION, Ae2LtWirelessDispatchMode.class);
-        this.ae2LtWirelessSpeedMode = readEnum(data, AE2LT_WIRELESS_SPEED_MODE_TAG, Ae2LtWirelessSpeedMode.NORMAL, Ae2LtWirelessSpeedMode.class);
-        this.ae2LtConnections.clear();
-        ListTag connectionList = data.getList(AE2LT_CONNECTIONS_TAG, CompoundTag.TAG_COMPOUND);
-        for (int i = 0; i < connectionList.size(); i++) {
-            this.ae2LtConnections.add(OverloadedPatternProviderBlockEntity.WirelessConnection.fromTag(connectionList.getCompound(i)));
-        }
+        getAdaptiveState().readFromNBT(data, registries, this.upgrades);
         this.syncedPatternSlotCount = getConfiguredPatternSlotCount();
     }
 
@@ -348,82 +259,24 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     protected void writeToStream(RegistryFriendlyByteBuf data) {
         super.writeToStream(data);
         data.writeVarInt(getConfiguredPatternSlotCount());
-        data.writeNbt(this.providerInventory.getStackInSlot(0).saveOptional(data.registryAccess()));
-        data.writeBoolean(this.advancedAeFilteredImport);
-        data.writeVarInt(this.ae2LtProviderMode.ordinal());
-        data.writeVarInt(this.ae2LtReturnMode.ordinal());
-        data.writeVarInt(this.ae2LtWirelessDispatchMode.ordinal());
-        data.writeVarInt(this.ae2LtWirelessSpeedMode.ordinal());
-        data.writeVarInt(this.ae2LtConnections.size());
-        for (OverloadedPatternProviderBlockEntity.WirelessConnection connection : this.ae2LtConnections) {
-            data.writeResourceLocation(connection.dimension().location());
-            data.writeBlockPos(connection.pos());
-            data.writeEnum(connection.boundFace());
-        }
+        getAdaptiveState().writeToStream(data);
     }
 
     @Override
     protected boolean readFromStream(RegistryFriendlyByteBuf data) {
         boolean changed = super.readFromStream(data);
         int syncedPatternSlotCount = data.readVarInt();
-        CompoundTag providerStackTag = data.readNbt();
-        ItemStack providerStack = providerStackTag == null
-                ? ItemStack.EMPTY
-                : ItemStack.parseOptional(data.registryAccess(), providerStackTag);
-        boolean advancedAeFilteredImport = data.readBoolean();
-        Ae2LtProviderMode ae2LtProviderMode = Ae2LtProviderMode.values()[data.readVarInt()];
-        Ae2LtReturnMode ae2LtReturnMode = Ae2LtReturnMode.values()[data.readVarInt()];
-        Ae2LtWirelessDispatchMode ae2LtWirelessDispatchMode = Ae2LtWirelessDispatchMode.values()[data.readVarInt()];
-        Ae2LtWirelessSpeedMode ae2LtWirelessSpeedMode = Ae2LtWirelessSpeedMode.values()[data.readVarInt()];
-        int connectionCount = data.readVarInt();
-        List<OverloadedPatternProviderBlockEntity.WirelessConnection> incomingConnections = new ArrayList<>(connectionCount);
-        for (int i = 0; i < connectionCount; i++) {
-            var dimension = ResourceKey.create(Registries.DIMENSION, data.readResourceLocation());
-            var pos = data.readBlockPos();
-            var face = data.readEnum(Direction.class);
-            incomingConnections.add(new OverloadedPatternProviderBlockEntity.WirelessConnection(dimension, pos, face));
-        }
         if (this.syncedPatternSlotCount != syncedPatternSlotCount) {
             this.syncedPatternSlotCount = syncedPatternSlotCount;
             changed = true;
         }
-        if (!ItemStack.matches(this.providerInventory.getStackInSlot(0), providerStack)) {
-            this.providerInventory.setItemDirect(0, providerStack);
-            changed = true;
-        }
-        if (this.advancedAeFilteredImport != advancedAeFilteredImport) {
-            this.advancedAeFilteredImport = advancedAeFilteredImport;
-            changed = true;
-        }
-        if (this.ae2LtProviderMode != ae2LtProviderMode) {
-            this.ae2LtProviderMode = ae2LtProviderMode;
-            changed = true;
-        }
-        if (this.ae2LtReturnMode != ae2LtReturnMode) {
-            this.ae2LtReturnMode = ae2LtReturnMode;
-            changed = true;
-        }
-        if (this.ae2LtWirelessDispatchMode != ae2LtWirelessDispatchMode) {
-            this.ae2LtWirelessDispatchMode = ae2LtWirelessDispatchMode;
-            changed = true;
-        }
-        if (this.ae2LtWirelessSpeedMode != ae2LtWirelessSpeedMode) {
-            this.ae2LtWirelessSpeedMode = ae2LtWirelessSpeedMode;
-            changed = true;
-        }
-        if (!this.ae2LtConnections.equals(incomingConnections)) {
-            this.ae2LtConnections.clear();
-            this.ae2LtConnections.addAll(incomingConnections);
-            changed = true;
-        }
-        this.providerInventory.setMaxStackSize(0, getProviderSlotLimit());
-        return changed;
+        return getAdaptiveState().readFromStream(data) || changed;
     }
 
     @Override
     public void addAdditionalDrops(Level level, BlockPos pos, List<ItemStack> drops) {
         super.addAdditionalDrops(level, pos, drops);
-        ItemStack stack = this.providerInventory.getStackInSlot(0);
+        ItemStack stack = getAdaptiveState().getProviderStack();
         if (!stack.isEmpty()) {
             drops.add(stack.copy());
         }
@@ -437,7 +290,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Override
     public void clearContent() {
         super.clearContent();
-        this.providerInventory.clear();
+        getAdaptiveState().clearContent();
         this.upgrades.clear();
     }
 
@@ -505,7 +358,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Override
     public void saveChangedInventory(AppEngInternalInventory inv) {
         if (inv == this.upgrades) {
-            this.providerInventory.setMaxStackSize(0, getProviderSlotLimit());
+            getAdaptiveState().refreshProviderSlotLimit();
         }
         int oldSlotCount = this.syncedPatternSlotCount;
         int newSlotCount = getConfiguredPatternSlotCount();
@@ -527,7 +380,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             return 0;
         }
 
-        int providerCount = Math.min(this.providerInventory.getStackInSlot(0).getCount(), getProviderSlotLimit());
+        int providerCount = Math.min(getAdaptiveState().getProviderStack().getCount(), getProviderSlotLimit());
         return profile.slotsPerProvider() * providerCount;
     }
 
@@ -537,19 +390,20 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             return 0;
         }
 
-        return Math.min(MAX_PATTERN_SLOTS, profile.slotsPerProvider() * getProviderSlotLimit());
+        return Math.min(AdaptivePatternProviderState.MAX_PATTERN_SLOTS, profile.slotsPerProvider() * getProviderSlotLimit());
     }
 
     private int getExtraProviderSlotsFromCapacityCards() {
-        return Math.max(0, this.upgrades.getInstalledUpgrades(AEItems.CAPACITY_CARD)) * EXTRA_PROVIDER_SLOTS_PER_CAPACITY_CARD;
+        if (this.upgrades == null) {
+            return 0;
+        }
+        return Math.max(0, this.upgrades.getInstalledUpgrades(AEItems.CAPACITY_CARD))
+                * AdaptivePatternProviderState.EXTRA_PROVIDER_SLOTS_PER_CAPACITY_CARD;
     }
 
     @Nullable
     private ProviderProfile getProviderProfile() {
-        if (this.providerInventory == null) {
-            return null;
-        }
-        return resolveProviderProfile(this.providerInventory.getStackInSlot(0));
+        return resolveProviderProfile(getAdaptiveState().getProviderStack());
     }
 
     public static boolean isSupportedProviderStack(ItemStack stack) {
@@ -600,7 +454,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     public static boolean isAe2LightningTechOverloadPatternStack(ItemStack stack) {
-        if (stack.isEmpty()) {
+        if (!Ae2LtCompat.isLoaded() || stack.isEmpty()) {
             return false;
         }
 
@@ -613,10 +467,6 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Nullable
     private static ProviderProfile resolveProviderProfile(ItemStack stack) {
         if (stack.isEmpty() || stack.is(ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem())) {
-            return null;
-        }
-
-        if (stack.is(ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem())) {
             return null;
         }
 
@@ -712,6 +562,10 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     @Nullable
     private static ProviderProfile resolveAe2LightningTechProfile(ItemStack stack) {
+        if (!Ae2LtCompat.isLoaded()) {
+            return null;
+        }
+
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
         if (itemId == null || !AE2LT_NAMESPACE.equals(itemId.getNamespace())) {
             return null;
@@ -837,13 +691,13 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
         return UpgradeInventories.forMachine(
                 getProviderBlock().get(),
-                APPFLUX_UPGRADE_SLOTS,
+                AdaptivePatternProviderState.APPFLUX_UPGRADE_SLOTS,
                 this::onUpgradesChanged
         );
     }
 
     private void onUpgradesChanged() {
-        this.providerInventory.setMaxStackSize(0, getProviderSlotLimit());
+        getAdaptiveState().refreshProviderSlotLimit();
         this.saveChanges();
         this.markForClientUpdate();
         AdaptivePatternProviderLogic logic = getAdaptiveLogic();
@@ -941,12 +795,19 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     private Component getResolvedProviderNameForGui() {
-        if (this.providerInventory.getStackInSlot(0).isEmpty()) {
+        if (getAdaptiveState().getProviderStack().isEmpty()) {
             return Component.translatable(getProviderTranslationKey());
         }
 
         ProviderProfile profile = getProviderProfile();
         return profile != null ? profile.displayName() : Component.translatable(getProviderTranslationKey());
+    }
+
+    private AdaptivePatternProviderState getAdaptiveState() {
+        if (this.adaptiveState == null) {
+            this.adaptiveState = new AdaptivePatternProviderState(this, this::getProviderSlotLimit);
+        }
+        return this.adaptiveState;
     }
 
     private void requestPatternAccessTerminalRefresh() {
@@ -976,25 +837,6 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
                 }
             }
         } catch (Exception ignored) {
-        }
-    }
-
-    private static <E extends Enum<E>> E readEnum(CompoundTag data, String key, E fallback, Class<E> enumClass) {
-        if (!data.contains(key)) {
-            return fallback;
-        }
-
-        try {
-            return Enum.valueOf(enumClass, data.getString(key));
-        } catch (IllegalArgumentException ignored) {
-            return fallback;
-        }
-    }
-
-    private static final class ProviderSuffixFilter implements IAEItemFilter {
-        @Override
-        public boolean allowInsert(appeng.api.inventories.InternalInventory inv, int slot, ItemStack stack) {
-            return isSupportedProviderStack(stack);
         }
     }
 

@@ -4,7 +4,6 @@ import appeng.api.upgrades.IUpgradeableObject;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.util.inv.AppEngInternalInventory;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
-import com.moakiee.ae2lt.blockentity.OverloadedPatternProviderBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -61,7 +60,7 @@ public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, I
 
     boolean removeConnection(ResourceKey<Level> dimension, BlockPos pos);
 
-    List<OverloadedPatternProviderBlockEntity.WirelessConnection> getConnections();
+    List<AdaptiveWirelessConnection> getConnections();
 
     void markForClientUpdate();
 }
