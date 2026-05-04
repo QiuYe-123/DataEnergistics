@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.menu.universal;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,8 @@ import net.minecraft.world.item.crafting.SmithingRecipeInput;
 
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.networking.IGrid;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.security.IActionHost;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.storage.StorageHelper;
@@ -63,6 +66,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     public SyncedPatternProviderList syncedPatternProviders = SyncedPatternProviderList.EMPTY;
 
     private final Map<appeng.helpers.patternprovider.PatternContainer, Long> syncedPatternProviderIds = new IdentityHashMap<>();
+    private final Map<Long, List<appeng.helpers.patternprovider.PatternContainer>> syncedPatternProvidersById = new HashMap<>();
     private long nextSyncedPatternProviderId = 1;
     private int lastPatternProviderSyncTick = Integer.MIN_VALUE;
 
@@ -165,18 +169,18 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
             return;
         }
 
-        var provider = PatternProviderSyncHelper.findProviderById(this.syncedPatternProviderIds, providerId);
-        if (provider == null) {
+        var providers = PatternProviderSyncHelper.findProvidersById(this.syncedPatternProvidersById, providerId);
+        if (providers == null || providers.isEmpty()) {
             syncPatternProvidersFromNetwork();
-            provider = PatternProviderSyncHelper.findProviderById(this.syncedPatternProviderIds, providerId);
-            if (provider == null) {
+            providers = PatternProviderSyncHelper.findProvidersById(this.syncedPatternProvidersById, providerId);
+            if (providers == null || providers.isEmpty()) {
                 return;
             }
         }
 
         var encodedPatternInv = this.host.getLogic().getEncodedPatternInv();
         ItemStack encodedPattern = encodedPatternInv.getStackInSlot(0);
-        ItemStack remainder = PatternProviderSyncHelper.transferEncodedPatternToProvider(provider, encodedPattern);
+        ItemStack remainder = PatternProviderSyncHelper.transferEncodedPatternToProviders(providers, encodedPattern);
         if (remainder.getCount() == encodedPattern.getCount()) {
             return;
         }
@@ -227,6 +231,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         this.syncedPatternProviders = PatternProviderSyncHelper.collectSyncedPatternProviders(
                 grid,
                 this.syncedPatternProviderIds,
+                this.syncedPatternProvidersById,
                 () -> this.nextSyncedPatternProviderId++,
                 this.host.getLogic().getEncodedPatternInv().getStackInSlot(0));
     }
@@ -249,15 +254,19 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
     private void clearSyncedPatternProviders() {
         this.syncedPatternProviderIds.clear();
+        this.syncedPatternProvidersById.clear();
         this.syncedPatternProviders = SyncedPatternProviderList.EMPTY;
         this.lastPatternProviderSyncTick = Integer.MIN_VALUE;
     }
 
     @Nullable
     private IGrid getActiveGrid() {
-        var gridNode = this.getGridNode();
-        if (gridNode != null && gridNode.isActive()) {
-            return gridNode.getGrid();
+        IGridNode hostNode = this.getGridNode();
+        if (hostNode == null && this.getHost() instanceof IActionHost actionHost) {
+            hostNode = actionHost.getActionableNode();
+        }
+        if (hostNode != null && hostNode.isActive()) {
+            return hostNode.getGrid();
         }
         return null;
     }

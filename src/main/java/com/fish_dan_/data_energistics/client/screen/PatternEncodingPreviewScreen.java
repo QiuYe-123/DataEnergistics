@@ -21,6 +21,11 @@ import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.util.ReadableNumberConverter;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.sourceforge.pinyin4j.PinyinHelper;
+import net.sourceforge.pinyin4j.format.HanyuPinyinCaseType;
+import net.sourceforge.pinyin4j.format.HanyuPinyinOutputFormat;
+import net.sourceforge.pinyin4j.format.HanyuPinyinToneType;
+import net.sourceforge.pinyin4j.format.HanyuPinyinVCharType;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -37,6 +42,7 @@ import java.lang.reflect.Field;
 
 public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> extends PatternEncodingTermScreen<T> {
     private static final Field WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
+    private static final HanyuPinyinOutputFormat PINYIN_FORMAT = createPinyinFormat();
     private static final ResourceLocation AE2_UPLOAD_TEXTURE =
             ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/upload.png");
     private static final ResourceLocation AE2_BUTTON_TEXTURE =
@@ -59,25 +65,27 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private static final int BUTTON_TEXTURE_WIDTH = 200;
     private static final int BUTTON_TEXTURE_HEIGHT = 20;
     private static final int BUTTON_SLICE_BORDER = 4;
-    private static final int PREVIEW_PANEL_MARGIN = 0;
-    private static final int PREVIEW_PANEL_X_OFFSET = 0;
-    private static final int PREVIEW_PANEL_Y_OFFSET = 105;
-    private static final int PREVIEW_SCROLLBAR_SCREEN_X = 309;
-    private static final int PREVIEW_SCROLLBAR_SCREEN_Y = 121;
-    private static final int PREVIEW_SCROLLBAR_HEIGHT = 104;
-    private static final int PANEL_CONTENT_X = 10;
-    private static final int PANEL_CONTENT_RIGHT = 6;
-    private static final int PANEL_CONTENT_BOTTOM = 6;
-    private static final int PANEL_TITLE_Y = 4;
-    private static final int SEARCH_BOX_X = 42;
-    private static final int SEARCH_BOX_Y = 6;
-    private static final int SEARCH_BOX_WIDTH = 70;
-    private static final int SEARCH_BOX_HEIGHT = 12;
-    private static final int PROVIDER_LIST_Y = 20;
-    private static final int PROVIDER_BUTTON_GAP = -1;
-    private static final int PROVIDER_VISIBLE_ROWS = 5;
-    private static final int PROVIDER_BUTTON_WIDTH = 95;
-    private static final int PROVIDER_BUTTON_HEIGHT = 20;
+    private static final int DEFAULT_PREVIEW_PANEL_MARGIN = 0;
+    private static final int DEFAULT_PREVIEW_PANEL_X_OFFSET = 0;
+    private static final int DEFAULT_PREVIEW_PANEL_Y_OFFSET = 105;
+    private static final int DEFAULT_PREVIEW_SCROLLBAR_SCREEN_X = 309;
+    private static final int DEFAULT_PREVIEW_SCROLLBAR_SCREEN_Y = 121;
+    private static final int DEFAULT_PREVIEW_SCROLLBAR_HEIGHT = 104;
+    private static final int DEFAULT_PREVIEW_TOOLTIP_SCREEN_X = 190;
+    private static final int DEFAULT_PREVIEW_TOOLTIP_SCREEN_Y = 83;
+    private static final int DEFAULT_PANEL_CONTENT_X = 10;
+    private static final int DEFAULT_PANEL_CONTENT_RIGHT = 6;
+    private static final int DEFAULT_PANEL_CONTENT_BOTTOM = 6;
+    private static final int DEFAULT_PANEL_TITLE_Y = 4;
+    private static final int DEFAULT_SEARCH_BOX_X = 42;
+    private static final int DEFAULT_SEARCH_BOX_Y = 6;
+    private static final int DEFAULT_SEARCH_BOX_WIDTH = 70;
+    private static final int DEFAULT_SEARCH_BOX_HEIGHT = 12;
+    private static final int DEFAULT_PROVIDER_LIST_Y = 20;
+    private static final int DEFAULT_PROVIDER_BUTTON_GAP = -1;
+    private static final int DEFAULT_PROVIDER_VISIBLE_ROWS = 5;
+    private static final int DEFAULT_PROVIDER_BUTTON_WIDTH = 95;
+    private static final int DEFAULT_PROVIDER_BUTTON_HEIGHT = 20;
     private static final int PROVIDER_NAME_X_PADDING = 4;
     private static final int PROVIDER_ICON_SIZE = 16;
     private static final int PROVIDER_ICON_X_PADDING = 2;
@@ -158,14 +166,6 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         if (this.previewVisible && button == 0) {
-            var hit = getProviderButtonHit(mouseX, mouseY);
-            if (hit != null) {
-                this.selectedPatternProviderId = hit.provider().id();
-                return true;
-            }
-        }
-
-        if (this.previewVisible && button == 1) {
             var hit = getProviderButtonHit(mouseX, mouseY);
             if (hit != null) {
                 this.selectedPatternProviderId = hit.provider().id();
@@ -305,8 +305,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private void drawProviderButtons(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         Rect2i previewBounds = getPreviewPanelBounds();
         guiGraphics.drawString(this.font, PANEL_TITLE,
-                previewBounds.getX() + PANEL_CONTENT_X,
-                previewBounds.getY() + PANEL_TITLE_Y,
+                previewBounds.getX() + getPanelContentX(),
+                previewBounds.getY() + getPanelTitleY(),
                 COLOR_PANEL_TITLE,
                 false);
 
@@ -314,15 +314,15 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         List<PatternEncodingPreviewMenu.SyncedPatternProvider> visibleProviders = getVisibleProviders(providers);
         if (visibleProviders.isEmpty()) {
             drawScaledText(guiGraphics, EMPTY_STATE_TEXT.getString(),
-                    previewBounds.getX() + PANEL_CONTENT_X,
-                    previewBounds.getY() + PROVIDER_LIST_Y + 2 + PROVIDER_TEXT_Y_OFFSET,
+                    previewBounds.getX() + getPanelContentX(),
+                    previewBounds.getY() + getProviderListY() + 2 + PROVIDER_TEXT_Y_OFFSET,
                     COLOR_EMPTY_STATE_TEXT,
                     PROVIDER_TEXT_SCALE);
             return;
         }
 
         int start = this.previewScrollbar.getCurrentScroll();
-        int end = Math.min(visibleProviders.size(), start + PROVIDER_VISIBLE_ROWS);
+        int end = Math.min(visibleProviders.size(), start + getProviderVisibleRows());
         for (int rowIndex = start; rowIndex < end; rowIndex++) {
             var provider = visibleProviders.get(rowIndex);
             int visibleRow = rowIndex - start;
@@ -369,22 +369,24 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
         List<Component> tooltip = new ArrayList<>();
         tooltip.add(buttonHit.provider().displayName());
-        tooltip.add(Component.literal("已写入 "
-                + buttonHit.provider().usedPatternSlotCount()
-                + " / "
-                + buttonHit.provider().patternSlotCount()));
+        tooltip.add(Component.translatable("screen.data_energistics.pattern_writer_preview.provider.upload"));
+        tooltip.add(Component.translatable(
+                "screen.data_energistics.pattern_writer_preview.provider.slots",
+                buttonHit.provider().usedPatternSlotCount(),
+                buttonHit.provider().patternSlotCount()));
         List<FormattedCharSequence> lines = tooltip.stream()
                 .map(Component::getVisualOrderText)
                 .toList();
-        guiGraphics.renderTooltip(this.font, lines, mouseX + 6, mouseY + 4);
+        guiGraphics.renderTooltip(this.font, lines, getPreviewTooltipScreenX(), getPreviewTooltipScreenY());
     }
 
     private void updatePreviewScrollbar() {
-        int hiddenRows = Math.max(0, getVisibleProviders(previewBridge().getSyncedPatternProviders()).size() - PROVIDER_VISIBLE_ROWS);
+        int hiddenRows = Math.max(0, getVisibleProviders(previewBridge().getSyncedPatternProviders()).size()
+                - getProviderVisibleRows());
         this.previewScrollbar.setPosition(new Point(
-                PREVIEW_SCROLLBAR_SCREEN_X,
-                PREVIEW_SCROLLBAR_SCREEN_Y));
-        this.previewScrollbar.setHeight(PREVIEW_SCROLLBAR_HEIGHT);
+                getPreviewScrollbarScreenX(),
+                getPreviewScrollbarScreenY()));
+        this.previewScrollbar.setHeight(getPreviewScrollbarHeight());
         this.previewScrollbar.setRange(0, hiddenRows, 1);
         this.previewScrollbar.setVisible(this.previewVisible && hiddenRows > 0);
         this.previewScrollbar.setCurrentScroll(Math.min(this.previewScrollbar.getCurrentScroll(), hiddenRows));
@@ -416,7 +418,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers =
                 getVisibleProviders(previewBridge().getSyncedPatternProviders());
         int start = this.previewScrollbar.getCurrentScroll();
-        int end = Math.min(providers.size(), start + PROVIDER_VISIBLE_ROWS);
+        int end = Math.min(providers.size(), start + getProviderVisibleRows());
         for (int rowIndex = start; rowIndex < end; rowIndex++) {
             int visibleRow = rowIndex - start;
             var provider = providers.get(rowIndex);
@@ -459,7 +461,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     private void initProviderSearchBox() {
         String currentText = this.providerSearchBox != null ? this.providerSearchBox.getValue() : "";
-        this.providerSearchBox = new AETextField(this.getStyle(), this.font, 0, 0, SEARCH_BOX_WIDTH, SEARCH_BOX_HEIGHT);
+        this.providerSearchBox = new AETextField(this.getStyle(), this.font, 0, 0,
+                getSearchBoxWidth(), getSearchBoxHeight());
         this.providerSearchBox.setMaxLength(40);
         this.providerSearchBox.setBordered(false);
         this.providerSearchBox.setVisible(false);
@@ -476,8 +479,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         Rect2i previewBounds = getPreviewPanelBounds();
-        this.providerSearchBox.setX(previewBounds.getX() + SEARCH_BOX_X);
-        this.providerSearchBox.setY(previewBounds.getY() + SEARCH_BOX_Y);
+        this.providerSearchBox.setX(previewBounds.getX() + getSearchBoxX());
+        this.providerSearchBox.setY(previewBounds.getY() + getSearchBoxY());
         this.providerSearchBox.setVisible(this.previewVisible);
         this.providerSearchBox.active = this.previewVisible;
         if (!this.previewVisible) {
@@ -532,20 +535,130 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     private List<PatternEncodingPreviewMenu.SyncedPatternProvider> getVisibleProviders(
             List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers) {
-        String query = this.providerSearchBox != null ? this.providerSearchBox.getValue().trim().toLowerCase() : "";
+        String query = normalizeSearch(this.providerSearchBox != null ? this.providerSearchBox.getValue() : "");
         if (query.isEmpty()) {
             return providers;
         }
 
         List<PatternEncodingPreviewMenu.SyncedPatternProvider> filtered = new ArrayList<>();
         for (var provider : providers) {
-            String displayName = provider.displayName().getString().toLowerCase();
-            String iconName = provider.iconItemId().toString().toLowerCase();
-            if (displayName.contains(query) || iconName.contains(query)) {
+            String searchIndex = buildSearchIndex(provider.displayName().getString() + " " + provider.iconItemId());
+            if (matchesSearch(searchIndex, query)) {
                 filtered.add(provider);
             }
         }
         return filtered;
+    }
+
+    private String normalizeSearch(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+
+        StringBuilder builder = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (Character.isLetterOrDigit(ch) || isCjk(ch)) {
+                builder.append(Character.toLowerCase(ch));
+            }
+        }
+        return builder.toString();
+    }
+
+    private String buildSearchIndex(String text) {
+        String normalized = normalizeSearch(text);
+        if (normalized.isEmpty()) {
+            return "";
+        }
+
+        StringBuilder fullPinyin = new StringBuilder();
+        StringBuilder initials = new StringBuilder();
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (isCjk(ch)) {
+                String syllable = toPinyin(ch);
+                if (!syllable.isEmpty()) {
+                    fullPinyin.append(syllable);
+                    initials.append(syllable.charAt(0));
+                    continue;
+                }
+            }
+
+            if (Character.isLetterOrDigit(ch)) {
+                char normalizedChar = Character.toLowerCase(ch);
+                fullPinyin.append(normalizedChar);
+                initials.append(normalizedChar);
+            }
+        }
+
+        StringBuilder searchIndex = new StringBuilder(normalized);
+        appendSearchVariant(searchIndex, fullPinyin);
+        appendSearchVariant(searchIndex, initials);
+        return searchIndex.toString();
+    }
+
+    private boolean matchesSearch(String searchIndex, String filter) {
+        if (searchIndex == null || searchIndex.isEmpty()) {
+            return false;
+        }
+
+        for (String variant : searchIndex.split("\\|")) {
+            if (variant.contains(filter) || isSubsequenceMatch(filter, variant)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isSubsequenceMatch(String filter, String variant) {
+        if (filter.isEmpty()) {
+            return true;
+        }
+        if (variant.isEmpty()) {
+            return false;
+        }
+
+        int filterIndex = 0;
+        for (int i = 0; i < variant.length() && filterIndex < filter.length(); i++) {
+            if (variant.charAt(i) == filter.charAt(filterIndex)) {
+                filterIndex++;
+            }
+        }
+        return filterIndex == filter.length();
+    }
+
+    private void appendSearchVariant(StringBuilder searchIndex, StringBuilder variant) {
+        if (!variant.isEmpty()) {
+            searchIndex.append('|').append(variant);
+        }
+    }
+
+    private String toPinyin(char ch) {
+        try {
+            String[] values = PinyinHelper.toHanyuPinyinStringArray(ch, PINYIN_FORMAT);
+            if (values != null && values.length > 0 && values[0] != null) {
+                return values[0];
+            }
+        } catch (Exception ignored) {
+        }
+        return "";
+    }
+
+    private boolean isCjk(char ch) {
+        Character.UnicodeBlock block = Character.UnicodeBlock.of(ch);
+        return block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
+                || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A
+                || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_B
+                || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS
+                || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS_SUPPLEMENT;
+    }
+
+    private static HanyuPinyinOutputFormat createPinyinFormat() {
+        HanyuPinyinOutputFormat format = new HanyuPinyinOutputFormat();
+        format.setCaseType(HanyuPinyinCaseType.LOWERCASE);
+        format.setToneType(HanyuPinyinToneType.WITHOUT_TONE);
+        format.setVCharType(HanyuPinyinVCharType.WITH_V);
+        return format;
     }
 
     private static Field resolveField(Class<?> owner, String name) {
@@ -559,22 +672,24 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     }
 
     private Rect2i getPreviewPanelBounds() {
-        int preferredX = this.leftPos + this.imageWidth + PREVIEW_PANEL_MARGIN + PREVIEW_PANEL_X_OFFSET;
-        if (preferredX + PREVIEW_PANEL_WIDTH > this.width - 4) {
-            preferredX = this.leftPos - PREVIEW_PANEL_WIDTH - PREVIEW_PANEL_MARGIN + PREVIEW_PANEL_X_OFFSET;
+        int previewPanelWidth = getPreviewPanelWidth();
+        int previewPanelHeight = getPreviewPanelHeight();
+        int preferredX = this.leftPos + this.imageWidth + getPreviewPanelMargin() + getPreviewPanelXOffset();
+        if (preferredX + previewPanelWidth > this.width - 4) {
+            preferredX = this.leftPos - previewPanelWidth - getPreviewPanelMargin() + getPreviewPanelXOffset();
         }
 
-        int x = Math.max(4, Math.min(preferredX, this.width - PREVIEW_PANEL_WIDTH - 4));
-        int preferredY = this.topPos + PREVIEW_PANEL_Y_OFFSET;
-        int y = Math.max(4, Math.min(preferredY, this.height - PREVIEW_PANEL_HEIGHT - 4));
-        return new Rect2i(x, y, PREVIEW_PANEL_WIDTH, PREVIEW_PANEL_HEIGHT);
+        int x = Math.max(4, Math.min(preferredX, this.width - previewPanelWidth - 4));
+        int preferredY = this.topPos + getPreviewPanelYOffset();
+        int y = Math.max(4, Math.min(preferredY, this.height - previewPanelHeight - 4));
+        return new Rect2i(x, y, previewPanelWidth, previewPanelHeight);
     }
 
     private Rect2i getProviderButtonBounds(int visibleRow) {
         Rect2i listBounds = getProviderListBounds();
         int x = listBounds.getX();
-        int y = listBounds.getY() + visibleRow * (PROVIDER_BUTTON_HEIGHT + PROVIDER_BUTTON_GAP);
-        return new Rect2i(x, y, PROVIDER_BUTTON_WIDTH, PROVIDER_BUTTON_HEIGHT);
+        int y = listBounds.getY() + visibleRow * (getProviderButtonHeight() + getProviderButtonGap());
+        return new Rect2i(x, y, getProviderButtonWidth(), getProviderButtonHeight());
     }
 
     private boolean isOverPreviewScrollbar(double mouseX, double mouseY) {
@@ -616,15 +731,107 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     private Rect2i getProviderListBounds() {
         Rect2i panelBounds = getPreviewPanelBounds();
-        int x = panelBounds.getX() + PANEL_CONTENT_X;
-        int y = panelBounds.getY() + PROVIDER_LIST_Y;
-        int width = panelBounds.getWidth() - PANEL_CONTENT_X - PANEL_CONTENT_RIGHT;
-        int height = panelBounds.getHeight() - PROVIDER_LIST_Y - PANEL_CONTENT_BOTTOM;
+        int x = panelBounds.getX() + getPanelContentX();
+        int y = panelBounds.getY() + getProviderListY();
+        int width = panelBounds.getWidth() - getPanelContentX() - getPanelContentRight();
+        int height = panelBounds.getHeight() - getProviderListY() - getPanelContentBottom();
         return new Rect2i(x, y, Math.max(1, width), Math.max(1, height));
     }
 
     private boolean isMePatternProvider(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
         return provider.useAeButtonStyle();
+    }
+
+    protected int getPreviewPanelWidth() {
+        return PREVIEW_PANEL_WIDTH;
+    }
+
+    protected int getPreviewPanelHeight() {
+        return PREVIEW_PANEL_HEIGHT;
+    }
+
+    protected int getPreviewPanelMargin() {
+        return DEFAULT_PREVIEW_PANEL_MARGIN;
+    }
+
+    protected int getPreviewPanelXOffset() {
+        return DEFAULT_PREVIEW_PANEL_X_OFFSET;
+    }
+
+    protected int getPreviewPanelYOffset() {
+        return DEFAULT_PREVIEW_PANEL_Y_OFFSET;
+    }
+
+    protected int getPreviewScrollbarScreenX() {
+        return DEFAULT_PREVIEW_SCROLLBAR_SCREEN_X;
+    }
+
+    protected int getPreviewScrollbarScreenY() {
+        return DEFAULT_PREVIEW_SCROLLBAR_SCREEN_Y;
+    }
+
+    protected int getPreviewScrollbarHeight() {
+        return DEFAULT_PREVIEW_SCROLLBAR_HEIGHT;
+    }
+
+    protected int getPreviewTooltipScreenX() {
+        return DEFAULT_PREVIEW_TOOLTIP_SCREEN_X;
+    }
+
+    protected int getPreviewTooltipScreenY() {
+        return DEFAULT_PREVIEW_TOOLTIP_SCREEN_Y;
+    }
+
+    protected int getPanelContentX() {
+        return DEFAULT_PANEL_CONTENT_X;
+    }
+
+    protected int getPanelContentRight() {
+        return DEFAULT_PANEL_CONTENT_RIGHT;
+    }
+
+    protected int getPanelContentBottom() {
+        return DEFAULT_PANEL_CONTENT_BOTTOM;
+    }
+
+    protected int getPanelTitleY() {
+        return DEFAULT_PANEL_TITLE_Y;
+    }
+
+    protected int getSearchBoxX() {
+        return DEFAULT_SEARCH_BOX_X;
+    }
+
+    protected int getSearchBoxY() {
+        return DEFAULT_SEARCH_BOX_Y;
+    }
+
+    protected int getSearchBoxWidth() {
+        return DEFAULT_SEARCH_BOX_WIDTH;
+    }
+
+    protected int getSearchBoxHeight() {
+        return DEFAULT_SEARCH_BOX_HEIGHT;
+    }
+
+    protected int getProviderListY() {
+        return DEFAULT_PROVIDER_LIST_Y;
+    }
+
+    protected int getProviderButtonGap() {
+        return DEFAULT_PROVIDER_BUTTON_GAP;
+    }
+
+    protected int getProviderVisibleRows() {
+        return DEFAULT_PROVIDER_VISIBLE_ROWS;
+    }
+
+    protected int getProviderButtonWidth() {
+        return DEFAULT_PROVIDER_BUTTON_WIDTH;
+    }
+
+    protected int getProviderButtonHeight() {
+        return DEFAULT_PROVIDER_BUTTON_HEIGHT;
     }
 
     private void drawNineSlicedTexture(GuiGraphics guiGraphics, ResourceLocation texture, Rect2i bounds,

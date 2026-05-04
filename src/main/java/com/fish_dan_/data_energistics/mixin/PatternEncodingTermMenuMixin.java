@@ -1,10 +1,13 @@
 package com.fish_dan_.data_energistics.mixin;
 
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
 import appeng.api.networking.IGrid;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.security.IActionHost;
 import appeng.api.storage.StorageHelper;
 import appeng.api.storage.ITerminalHost;
 import appeng.api.stacks.AEItemKey;
@@ -44,14 +47,16 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
     @GuiSync(790)
     @Unique
-    private long dataEnergistics$networkBlankPatternCount;
+    public long dataEnergistics$networkBlankPatternCount;
 
     @GuiSync(791)
     @Unique
-    private SyncedPatternProviderList dataEnergistics$syncedPatternProviders = SyncedPatternProviderList.EMPTY;
+    public SyncedPatternProviderList dataEnergistics$syncedPatternProviders = SyncedPatternProviderList.EMPTY;
 
     @Unique
     private final Map<PatternContainer, Long> dataEnergistics$syncedPatternProviderIds = new IdentityHashMap<>();
+    @Unique
+    private final Map<Long, List<PatternContainer>> dataEnergistics$syncedPatternProvidersById = new HashMap<>();
 
     @Unique
     private long dataEnergistics$nextSyncedPatternProviderId = 1;
@@ -98,17 +103,17 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             return;
         }
 
-        var provider = PatternProviderSyncHelper.findProviderById(this.dataEnergistics$syncedPatternProviderIds, providerId);
-        if (provider == null) {
+        var providers = PatternProviderSyncHelper.findProvidersById(this.dataEnergistics$syncedPatternProvidersById, providerId);
+        if (providers == null || providers.isEmpty()) {
             dataEnergistics$syncPatternProvidersFromNetwork();
-            provider = PatternProviderSyncHelper.findProviderById(this.dataEnergistics$syncedPatternProviderIds, providerId);
-            if (provider == null) {
+            providers = PatternProviderSyncHelper.findProvidersById(this.dataEnergistics$syncedPatternProvidersById, providerId);
+            if (providers == null || providers.isEmpty()) {
                 return;
             }
         }
 
         ItemStack encodedPattern = this.encodedPatternSlot.getItem();
-        ItemStack remainder = PatternProviderSyncHelper.transferEncodedPatternToProvider(provider, encodedPattern);
+        ItemStack remainder = PatternProviderSyncHelper.transferEncodedPatternToProviders(providers, encodedPattern);
         if (remainder.getCount() == encodedPattern.getCount()) {
             return;
         }
@@ -147,6 +152,11 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 this::dataEnergistics$setPendingPatternSourceFromClient);
         registerClientAction(DATA_ENERGISTICS_ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER, Long.class,
                 this::dataEnergistics$transferEncodedPatternToProviderFromClient);
+        if (this.isServerSide()) {
+            dataEnergistics$syncBlankPatternCountFromNetwork();
+            dataEnergistics$syncPatternProvidersFromNetwork();
+            this.dataEnergistics$lastPatternProviderSyncTick = this.getPlayer().tickCount;
+        }
     }
 
     @Inject(method = "broadcastChanges", at = @At("HEAD"))
@@ -258,6 +268,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         this.dataEnergistics$syncedPatternProviders = PatternProviderSyncHelper.collectSyncedPatternProviders(
                 grid,
                 this.dataEnergistics$syncedPatternProviderIds,
+                this.dataEnergistics$syncedPatternProvidersById,
                 () -> this.dataEnergistics$nextSyncedPatternProviderId++,
                 this.encodedPatternSlot.getItem());
     }
@@ -265,6 +276,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     @Unique
     private void dataEnergistics$clearSyncedPatternProviders() {
         this.dataEnergistics$syncedPatternProviderIds.clear();
+        this.dataEnergistics$syncedPatternProvidersById.clear();
         this.dataEnergistics$syncedPatternProviders = SyncedPatternProviderList.EMPTY;
         this.dataEnergistics$lastPatternProviderSyncTick = Integer.MIN_VALUE;
     }
@@ -296,10 +308,33 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
     @Unique
     private IGrid dataEnergistics$getActiveGrid() {
-        var gridNode = this.getGridNode();
-        if (gridNode != null && gridNode.isActive()) {
-            return gridNode.getGrid();
+        IGridNode hostNode = dataEnergistics$tryResolveGridNode();
+        if (hostNode != null && hostNode.isActive()) {
+            return hostNode.getGrid();
         }
+        return null;
+    }
+
+    @Unique
+    @Nullable
+    private IGridNode dataEnergistics$tryResolveGridNode() {
+        try {
+            IGridNode hostNode = this.getGridNode();
+            if (hostNode != null) {
+                return hostNode;
+            }
+        } catch (NullPointerException ignored) {
+            // Wireless terminal menus initialize their actionable host after the base constructor runs.
+        }
+
+        try {
+            if (this.getHost() instanceof IActionHost actionHost) {
+                return actionHost.getActionableNode();
+            }
+        } catch (NullPointerException ignored) {
+            // Host not fully initialized yet; broadcastChanges() will sync once construction finishes.
+        }
+
         return null;
     }
 

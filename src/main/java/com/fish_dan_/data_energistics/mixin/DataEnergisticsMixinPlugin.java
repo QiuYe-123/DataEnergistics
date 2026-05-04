@@ -10,8 +10,17 @@ import java.util.Set;
 public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
     private static final String AE2LT_SENTINEL_CLASS = "com/moakiee/ae2lt/logic/EjectModeRegistry.class";
     private static final String AE2LT_MIXIN_PREFIX = "com.fish_dan_.data_energistics.mixin.Ae2lt";
-    private static final boolean AE2LT_PRESENT =
-            DataEnergisticsMixinPlugin.class.getClassLoader().getResource(AE2LT_SENTINEL_CLASS) != null;
+    private static final String EXTENDEDAE_SENTINEL_CLASS =
+            "com/glodblock/github/extendedae/common/me/InscriberThread.class";
+    private static final String JEI_TRANSFER_SENTINEL_CLASS =
+            "tamaized/ae2jeiintegration/integration/modules/jei/transfer/EncodePatternTransferHandler.class";
+    private static final String EMI_API_SENTINEL_CLASS = "dev/emi/emi/api/EmiPlugin.class";
+    private static final String EMI_HANDLER_SENTINEL_CLASS = "appeng/integration/modules/emi/EmiEncodePatternHandler.class";
+    private static final boolean AE2LT_PRESENT = isClassPresent(AE2LT_SENTINEL_CLASS);
+    private static final boolean EXTENDEDAE_PRESENT = isClassPresent(EXTENDEDAE_SENTINEL_CLASS);
+    private static final boolean JEI_TRANSFER_PRESENT = isClassPresent(JEI_TRANSFER_SENTINEL_CLASS);
+    private static final boolean EMI_PRESENT =
+            isClassPresent(EMI_API_SENTINEL_CLASS) && isClassPresent(EMI_HANDLER_SENTINEL_CLASS);
 
     @Override
     public void onLoad(String mixinPackage) {
@@ -27,7 +36,20 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName.startsWith(AE2LT_MIXIN_PREFIX)) {
             return AE2LT_PRESENT;
         }
+        if ("com.fish_dan_.data_energistics.mixin.ExtendedInscriberThreadMixin".equals(mixinClassName)) {
+            return EXTENDEDAE_PRESENT;
+        }
+        if ("com.fish_dan_.data_energistics.mixin.JeiEncodePatternTransferHandlerMixin".equals(mixinClassName)) {
+            return JEI_TRANSFER_PRESENT;
+        }
+        if ("com.fish_dan_.data_energistics.mixin.EmiEncodePatternHandlerMixin".equals(mixinClassName)) {
+            return EMI_PRESENT;
+        }
         return true;
+    }
+
+    private static boolean isClassPresent(String classResourcePath) {
+        return DataEnergisticsMixinPlugin.class.getClassLoader().getResource(classResourcePath) != null;
     }
 
     @Override

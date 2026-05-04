@@ -8,6 +8,7 @@ import appeng.client.gui.widgets.UpgradesPanel;
 import appeng.api.upgrades.Upgrades;
 import appeng.core.localization.GuiText;
 import appeng.menu.SlotSemantics;
+import com.fish_dan_.data_energistics.client.widget.AecsPullModeButton;
 import com.fish_dan_.data_energistics.client.widget.Ae2LtTextureToggleButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
@@ -27,6 +28,7 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
     private final Ae2LtTextureToggleButton ae2ltWirelessStrategyButton;
     private final Ae2LtTextureToggleButton ae2ltWirelessSpeedButton;
     private final DataExtractorToggleButton filteredImportButton;
+    private final AecsPullModeButton resonatingPullButton;
 
     public AdaptivePatternProviderScreen(AdaptivePatternProviderMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
@@ -82,6 +84,13 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
                 this::setFilteredImport
         );
         this.addToLeftToolbar(this.filteredImportButton);
+        this.resonatingPullButton = new AecsPullModeButton(
+                "button.data_energistics.adaptive_pattern_provider.resonating_pull",
+                "button.data_energistics.adaptive_pattern_provider.resonating_pull.enabled",
+                "button.data_energistics.adaptive_pattern_provider.resonating_pull.disabled",
+                this::setResonatingPull
+        );
+        this.addToLeftToolbar(this.resonatingPullButton);
     }
 
     protected void updateBeforeRender() {
@@ -92,6 +101,9 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
         this.filteredImportButton.visible = showFilteredImport;
         this.filteredImportButton.active = showFilteredImport;
         this.filteredImportButton.setState(this.menu.isAdvancedAeFilteredImportEnabled());
+        boolean showResonatingPull = this.menu.isResonatingProviderSelected();
+        this.resonatingPullButton.setVisibility(showResonatingPull);
+        this.resonatingPullButton.setState(this.menu.isResonatingPullEnabled());
         boolean showAe2LtControls = this.menu.isAe2LtOverloadedProviderSelected();
         this.ae2ltModeButton.visible = showAe2LtControls;
         this.ae2ltModeButton.active = showAe2LtControls;
@@ -141,6 +153,11 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
     private void setFilteredImport(boolean enabled) {
         this.filteredImportButton.setState(enabled);
         this.menu.sendSetAdvancedAeFilteredImport(enabled);
+    }
+
+    private void setResonatingPull(boolean enabled) {
+        this.resonatingPullButton.setState(enabled);
+        this.menu.sendSetResonatingPullEnabled(enabled);
     }
 
     private List<Component> getCompatibleUpgrades() {

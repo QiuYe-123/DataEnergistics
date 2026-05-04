@@ -27,6 +27,7 @@ public final class AdaptivePatternProviderState {
     private static final String PROVIDER_SLOT_TAG = "provider_slot";
     private static final String UPGRADES_TAG = "upgrades";
     private static final String ADVANCED_AE_FILTERED_IMPORT_TAG = "advanced_ae_filtered_import";
+    private static final String RESONATING_PULL_ENABLED_TAG = "resonating_pull_enabled";
     private static final String AE2LT_PROVIDER_MODE_TAG = "ae2lt_provider_mode";
     private static final String AE2LT_RETURN_MODE_TAG = "ae2lt_return_mode";
     private static final String AE2LT_WIRELESS_DISPATCH_MODE_TAG = "ae2lt_wireless_dispatch_mode";
@@ -44,6 +45,7 @@ public final class AdaptivePatternProviderState {
     private final IntSupplier providerSlotLimit;
     private final List<AdaptiveWirelessConnection> ae2LtConnections = new ArrayList<>();
     private boolean advancedAeFilteredImport;
+    private boolean resonatingPullEnabled;
     private AdaptivePatternProviderBlockEntity.Ae2LtProviderMode ae2LtProviderMode =
             AdaptivePatternProviderBlockEntity.Ae2LtProviderMode.NORMAL;
     private AdaptivePatternProviderBlockEntity.Ae2LtReturnMode ae2LtReturnMode =
@@ -101,6 +103,19 @@ public final class AdaptivePatternProviderState {
         }
 
         this.advancedAeFilteredImport = enabled;
+        return true;
+    }
+
+    public boolean isResonatingPullEnabled() {
+        return this.resonatingPullEnabled;
+    }
+
+    public boolean setResonatingPullEnabled(boolean enabled) {
+        if (this.resonatingPullEnabled == enabled) {
+            return false;
+        }
+
+        this.resonatingPullEnabled = enabled;
         return true;
     }
 
@@ -171,6 +186,7 @@ public final class AdaptivePatternProviderState {
         this.providerInventory.writeToNBT(data, PROVIDER_SLOT_TAG, registries);
         upgrades.writeToNBT(data, UPGRADES_TAG, registries);
         data.putBoolean(ADVANCED_AE_FILTERED_IMPORT_TAG, this.advancedAeFilteredImport);
+        data.putBoolean(RESONATING_PULL_ENABLED_TAG, this.resonatingPullEnabled);
         data.putString(AE2LT_PROVIDER_MODE_TAG, this.ae2LtProviderMode.name());
         data.putString(AE2LT_RETURN_MODE_TAG, this.ae2LtReturnMode.name());
         data.putString(AE2LT_WIRELESS_DISPATCH_MODE_TAG, this.ae2LtWirelessDispatchMode.name());
@@ -187,6 +203,7 @@ public final class AdaptivePatternProviderState {
         upgrades.readFromNBT(data, UPGRADES_TAG, registries);
         refreshProviderSlotLimit();
         this.advancedAeFilteredImport = data.getBoolean(ADVANCED_AE_FILTERED_IMPORT_TAG);
+        this.resonatingPullEnabled = data.getBoolean(RESONATING_PULL_ENABLED_TAG);
         this.ae2LtProviderMode = readEnum(data, AE2LT_PROVIDER_MODE_TAG,
                 AdaptivePatternProviderBlockEntity.Ae2LtProviderMode.NORMAL,
                 AdaptivePatternProviderBlockEntity.Ae2LtProviderMode.class);
@@ -209,6 +226,7 @@ public final class AdaptivePatternProviderState {
     public void writeToStream(RegistryFriendlyByteBuf data) {
         data.writeNbt(getProviderStack().saveOptional(data.registryAccess()));
         data.writeBoolean(this.advancedAeFilteredImport);
+        data.writeBoolean(this.resonatingPullEnabled);
         data.writeVarInt(this.ae2LtProviderMode.ordinal());
         data.writeVarInt(this.ae2LtReturnMode.ordinal());
         data.writeVarInt(this.ae2LtWirelessDispatchMode.ordinal());
@@ -236,6 +254,12 @@ public final class AdaptivePatternProviderState {
         boolean advancedAeFilteredImport = data.readBoolean();
         if (this.advancedAeFilteredImport != advancedAeFilteredImport) {
             this.advancedAeFilteredImport = advancedAeFilteredImport;
+            changed = true;
+        }
+
+        boolean resonatingPullEnabled = data.readBoolean();
+        if (this.resonatingPullEnabled != resonatingPullEnabled) {
+            this.resonatingPullEnabled = resonatingPullEnabled;
             changed = true;
         }
 

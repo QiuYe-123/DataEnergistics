@@ -1,12 +1,13 @@
 package com.fish_dan_.data_energistics.blockentity;
 
+import appeng.api.parts.IPart;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.api.upgrades.UpgradeInventories;
-import appeng.api.parts.IPart;
 import appeng.api.parts.IPartItem;
 import appeng.blockentity.crafting.PatternProviderBlockEntity;
+import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.core.definitions.AEItems;
 import appeng.core.definitions.AEParts;
 import appeng.core.definitions.AEBlocks;
@@ -57,6 +58,7 @@ import net.neoforged.neoforge.items.IItemHandler;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.jetbrains.annotations.Nullable;
 
 public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEntity implements InternalInventoryHost, IUpgradeableObject, AdaptivePatternProviderHost {
@@ -68,6 +70,17 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     private static final String AE2LT_NAMESPACE = "ae2lt";
     private static final String AE2LT_OVERLOADED_PATTERN_PROVIDER = "overloaded_pattern_provider";
     private static final String AE2LT_OVERLOAD_PATTERN = "overload_pattern";
+    private static final String EXTENDEDAE_NAMESPACE = "extendedae";
+    private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID =
+            ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_NAMESPACE, "assembler_matrix_speed");
+    private static final String EXTENDEDAE_ASSEMBLER_MATRIX_NAME_KEY = "gui.extendedae.assembler_matrix";
+    private static final Set<String> EXTENDEDAE_ASSEMBLER_MATRIX_COMPONENTS = Set.of(
+            "assembler_matrix_wall",
+            "assembler_matrix_frame",
+            "assembler_matrix_glass",
+            "assembler_matrix_crafter",
+            "assembler_matrix_pattern",
+            "assembler_matrix_speed");
     private static final ResourceLocation APPFLUX_INDUCTION_CARD_ID =
             ResourceLocation.fromNamespaceAndPath("appflux", "induction_card");
     private static final String TERMINAL_GROUP_LOCKED_SUFFIX_SUFFIX = ".terminal_hidden_slots";
@@ -145,7 +158,37 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         }
 
         ProviderProfile profile = getProviderProfile();
-        return profile != null ? profile.displayName() : this.getMainMenuIcon().getHoverName();
+        return profile != null
+                ? decorateAdaptiveProviderName(getAdaptiveProviderVariantTranslationKey(), profile.displayName())
+                : this.getMainMenuIcon().getHoverName();
+    }
+
+    @Override
+    public Component getTerminalDisplayName() {
+        var adjacentGroup = getSingleAdjacentMachineGroup();
+        if (adjacentGroup != null) {
+            return decorateAttachedMachineName(adjacentGroup.name(), getResolvedInternalProviderName());
+        }
+        return getResolvedProviderNameForTerminal();
+    }
+
+    @Override
+    public @Nullable appeng.api.implementations.blockentities.PatternContainerGroup getPrimaryAttachedMachineGroup() {
+        var hostLevel = this.getLevel();
+        if (hostLevel == null) {
+            return null;
+        }
+
+        var hostPos = this.getBlockPos();
+        for (var side : this.getTargets()) {
+            var specialGroup = resolveSpecialAdjacentMachineGroup(hostLevel, hostPos.relative(side));
+            if (specialGroup != null) {
+                return specialGroup;
+            }
+        }
+
+        var groups = getAdjacentMachineGroups();
+        return groups.size() == 1 ? groups.iterator().next() : null;
     }
 
     public boolean isMeteoriteProviderSelected() {
@@ -161,6 +204,17 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     public boolean isAe2LightningTechOverloadedProviderSelected() {
         ProviderProfile profile = getProviderProfile();
         return profile != null && profile.kind() == ProviderKind.AE2LT_OVERLOADED;
+    }
+
+    @Override
+    public boolean isResonatingProviderSelected() {
+        ProviderProfile profile = getProviderProfile();
+        if (profile == null) {
+            return false;
+        }
+
+        return profile.kind() == ProviderKind.RESONATING
+                || profile.kind() == ProviderKind.EXTENDED_RESONATING;
     }
 
     public boolean supportsFilteredImportToggle() {
@@ -216,6 +270,24 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     public void setAdvancedAeFilteredImportEnabled(boolean enabled) {
         if (!getAdaptiveState().setAdvancedAeFilteredImportEnabled(enabled)) {
+            return;
+        }
+        this.saveChanges();
+        this.markForClientUpdate();
+        AdaptivePatternProviderLogic logic = getAdaptiveLogic();
+        if (logic != null) {
+            logic.onHostStateChanged();
+        }
+    }
+
+    @Override
+    public boolean isResonatingPullEnabled() {
+        return getAdaptiveState().isResonatingPullEnabled();
+    }
+
+    @Override
+    public void setResonatingPullEnabled(boolean enabled) {
+        if (!getAdaptiveState().setResonatingPullEnabled(enabled)) {
             return;
         }
         this.saveChanges();
@@ -344,10 +416,6 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Override
     public appeng.api.implementations.blockentities.PatternContainerGroup getTerminalGroup() {
         var baseGroup = buildAdaptiveTerminalGroup();
-        if (getSingleAdjacentMachineGroup() != null) {
-            return baseGroup;
-        }
-
         var tooltip = new ArrayList<Component>(baseGroup.tooltip());
         int unlockedSlots = getConfiguredPatternSlotCount();
         int totalSlots = getCurrentProviderMaxPatternCapacity();
@@ -359,9 +427,12 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             ));
         }
 
+        Component displayName = this instanceof Nameable nameable && nameable.hasCustomName()
+                ? baseGroup.name()
+                : getTerminalDisplayName();
         return new appeng.api.implementations.blockentities.PatternContainerGroup(
                 baseGroup.icon(),
-                baseGroup.name(),
+                displayName,
                 List.copyOf(tooltip)
         );
     }
@@ -522,7 +593,9 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
                  "resonating_pattern_provider_part" -> BASE_PATTERN_SLOTS;
             case "simple_pattern_provider",
                  "simple_pattern_provider_part" -> SIMPLE_PATTERN_SLOTS;
-            case "ex_resonating_pattern_provider",
+            case "extended_resonating_pattern_provider",
+                 "extended_resonating_pattern_provider_part",
+                 "ex_resonating_pattern_provider",
                  "ex_resonating_pattern_provider_part" -> EXTENDED_PATTERN_SLOTS;
             case "meteorite_pattern_provider",
                  "meteorite_pattern_provider_part" -> METEORITE_PATTERN_SLOTS;
@@ -537,7 +610,8 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         ProviderKind kind = switch (path) {
             case "resonating_pattern_provider", "resonating_pattern_provider_part" -> ProviderKind.RESONATING;
             case "simple_pattern_provider", "simple_pattern_provider_part" -> ProviderKind.SIMPLE;
-            case "ex_resonating_pattern_provider", "ex_resonating_pattern_provider_part" -> ProviderKind.EXTENDED_RESONATING;
+            case "extended_resonating_pattern_provider", "extended_resonating_pattern_provider_part",
+                    "ex_resonating_pattern_provider", "ex_resonating_pattern_provider_part" -> ProviderKind.EXTENDED_RESONATING;
             case "meteorite_pattern_provider", "meteorite_pattern_provider_part" -> ProviderKind.METEORITE;
             default -> ProviderKind.UNKNOWN;
         };
@@ -781,11 +855,17 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         var groups = new java.util.LinkedHashSet<appeng.api.implementations.blockentities.PatternContainerGroup>(sides.size());
         for (var side : sides) {
             var sidePos = hostPos.relative(side);
-            var group = appeng.api.implementations.blockentities.PatternContainerGroup.fromMachine(
-                    hostLevel,
-                    sidePos,
-                    side.getOpposite()
-            );
+            if (isPatternProviderAttachment(hostLevel, sidePos, side.getOpposite())) {
+                continue;
+            }
+            var group = resolveSpecialAdjacentMachineGroup(hostLevel, sidePos);
+            if (group == null) {
+                group = appeng.api.implementations.blockentities.PatternContainerGroup.fromMachine(
+                        hostLevel,
+                        sidePos,
+                        side.getOpposite()
+                );
+            }
             if (group != null) {
                 groups.add(group);
             }
@@ -801,7 +881,43 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         );
     }
 
+    public static Component decorateAdaptiveProviderName(Component providerName) {
+        return decorateAdaptiveProviderName(
+                "screen.data_energistics.adaptive_pattern_provider.provider_variant",
+                providerName
+        );
+    }
+
+    public static Component decorateAdaptiveProviderName(String translationKey, Component providerName) {
+        return Component.translatable(
+                translationKey,
+                providerName
+        );
+    }
+
     private Component getResolvedProviderNameForGui() {
+        if (getAdaptiveState().getProviderStack().isEmpty()) {
+            return Component.translatable(getProviderTranslationKey());
+        }
+
+        ProviderProfile profile = getProviderProfile();
+        return profile != null
+                ? decorateAdaptiveProviderName(getAdaptiveProviderVariantTranslationKey(), profile.displayName())
+                : Component.translatable(getProviderTranslationKey());
+    }
+
+    private Component getResolvedProviderNameForTerminal() {
+        if (getAdaptiveState().getProviderStack().isEmpty()) {
+            return Component.translatable(getProviderTranslationKey());
+        }
+
+        ProviderProfile profile = getProviderProfile();
+        return profile != null
+                ? decorateAdaptiveProviderName(profile.displayName())
+                : Component.translatable(getProviderTranslationKey());
+    }
+
+    private Component getResolvedInternalProviderName() {
         if (getAdaptiveState().getProviderStack().isEmpty()) {
             return Component.translatable(getProviderTranslationKey());
         }
@@ -851,6 +967,10 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         return "block.data_energistics." + ADAPTIVE_PATTERN_PROVIDER_KEY;
     }
 
+    protected String getAdaptiveProviderVariantTranslationKey() {
+        return "screen.data_energistics.adaptive_pattern_provider.provider_variant";
+    }
+
     protected String getTerminalGroupLockedSlotsKey() {
         return "tooltip.data_energistics." + ADAPTIVE_PATTERN_PROVIDER_KEY + TERMINAL_GROUP_LOCKED_SUFFIX_SUFFIX;
     }
@@ -861,6 +981,60 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     protected DeferredHolder<MenuType<?>, ? extends MenuType<?>> getProviderMenu() {
         return ModMenus.ADAPTIVE_PATTERN_PROVIDER;
+    }
+
+    @Nullable
+    public static appeng.api.implementations.blockentities.PatternContainerGroup resolveSpecialAdjacentMachineGroup(
+            Level level,
+            BlockPos pos) {
+        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock());
+        if (blockId == null
+                || !EXTENDEDAE_NAMESPACE.equals(blockId.getNamespace())
+                || !EXTENDEDAE_ASSEMBLER_MATRIX_COMPONENTS.contains(blockId.getPath())) {
+            return null;
+        }
+
+        var speedBlock = BuiltInRegistries.BLOCK.getOptional(EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID).orElse(null);
+        if (speedBlock == null) {
+            return null;
+        }
+
+        ItemStack iconStack = speedBlock.asItem().getDefaultInstance();
+        if (iconStack.isEmpty()) {
+            return null;
+        }
+
+        return new appeng.api.implementations.blockentities.PatternContainerGroup(
+                AEItemKey.of(iconStack),
+                Component.translatable(EXTENDEDAE_ASSEMBLER_MATRIX_NAME_KEY),
+                List.of());
+    }
+
+    public static boolean isPatternProviderAttachment(Level level, BlockPos pos, @Nullable Direction side) {
+        if (level.getBlockEntity(pos) instanceof PatternProviderBlockEntity) {
+            return true;
+        }
+
+        if (!(level.getBlockEntity(pos) instanceof CableBusBlockEntity cableBusBlockEntity)) {
+            return false;
+        }
+
+        var cableBus = cableBusBlockEntity.getCableBus();
+        IPart centerPart = cableBus.getPart(null);
+        if (centerPart instanceof appeng.parts.crafting.PatternProviderPart) {
+            return true;
+        }
+
+        if (side == null) {
+            for (Direction direction : Direction.values()) {
+                if (cableBus.getPart(direction) instanceof appeng.parts.crafting.PatternProviderPart) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        return cableBus.getPart(side) instanceof appeng.parts.crafting.PatternProviderPart;
     }
 
     public enum ProviderKind {

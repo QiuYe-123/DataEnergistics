@@ -15,6 +15,7 @@ import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.ticking.IGridTickable;
 import appeng.api.networking.ticking.TickRateModulation;
 import appeng.api.networking.ticking.TickingRequest;
+import appeng.api.storage.MEStorage;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
@@ -28,6 +29,7 @@ import appeng.helpers.patternprovider.PatternProviderReturnInventory;
 import appeng.helpers.patternprovider.PatternProviderTarget;
 import appeng.me.helpers.MachineSource;
 import appeng.util.inv.AppEngInternalInventory;
+import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.integration.Ae2LtRuntimeBridge;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
@@ -42,6 +44,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingInput;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.jetbrains.annotations.Nullable;
 
@@ -67,6 +70,8 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
             "com.moakiee.ae2lt.logic.energy.PowerCostUtil";
     private static final String AE2LT_ALLOWED_OUTPUT_FILTER_CLASS =
             "com.moakiee.ae2lt.logic.AllowedOutputFilter";
+    private static final String AE2CS_GENERIC_STACK_INV_HELPER_CLASS =
+            "io.github.lounode.ae2cs.api.util.GenericStackInvHelper";
     private static final int METEORITE_ENERGY_PER_WORK = 50;
     private static final int METEORITE_MAX_WORKS_PER_ROUND = 8;
     private static final int EXPANDED_RETURN_SLOTS = 18;
@@ -99,6 +104,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
     private final @Nullable Method ae2LtTotalCostMethod;
     private final @Nullable Method ae2LtCanAffordMethod;
     private final @Nullable Method ae2LtConsumeRawMethod;
+    private final @Nullable Method ae2csAdjacentMeStorageMethod;
     private long ae2ltLastAutoReturnTick = -1L;
 
     public AdaptivePatternProviderLogic(IManagedGridNode mainNode, PatternProviderLogicHost host, int patternInventorySize) {
@@ -117,6 +123,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
         this.ae2LtTotalCostMethod = findAe2LtPowerCostMethod("totalCost", KeyCounter[].class);
         this.ae2LtCanAffordMethod = findAe2LtPowerCostMethod("canAfford", appeng.api.networking.IGrid.class, double.class);
         this.ae2LtConsumeRawMethod = findAe2LtPowerCostMethod("consumeRaw", appeng.api.networking.IGrid.class, double.class);
+        this.ae2csAdjacentMeStorageMethod = findAe2CsAdjacentMeStorageMethod();
         installExpandedReturnInventory();
     }
 
@@ -279,7 +286,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
             ArrayList<FallbackTarget> candidates = new ArrayList<>();
             for (Direction side : getActiveSidesFiltered()) {
                 BlockPos adjacentPos = blockEntity.getBlockPos().relative(side);
-                PatternProviderTarget target = PatternProviderTarget.get(level, adjacentPos, null, side.getOpposite(), this.actionSource);
+                PatternProviderTarget target = getExternalTarget(level, adjacentPos, side.getOpposite());
                 if (target == null) {
                     continue;
                 }
@@ -451,7 +458,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
                 continue;
             }
 
-            PatternProviderTarget target = PatternProviderTarget.get(level, adjacentPos, null, adjacentFace, this.actionSource);
+            PatternProviderTarget target = getExternalTarget(level, adjacentPos, adjacentFace);
             if (target != null) {
                 candidates.add(new FallbackTarget(side, target));
             }
@@ -524,6 +531,12 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
 
     private boolean isResonatingPatternDetails(IPatternDetails patternDetails) {
         return patternDetails != null && patternDetails.getClass().getName().equals(RESONATING_PATTERN_DETAILS_CLASS);
+    }
+
+    private boolean isResonatingPullEnabled() {
+        return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
+                && adaptivePatternProviderHost.isResonatingProviderSelected()
+                && adaptivePatternProviderHost.isResonatingPullEnabled();
     }
 
     private boolean isAdvancedAeDirectionalPattern(IPatternDetails patternDetails) {
@@ -839,7 +852,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
 
             Direction inputSide = getAdvancedInputSide(patternDetails, firstKey);
             Direction targetSide = inputSide != null ? inputSide : defaultSide;
-            PatternProviderTarget target = PatternProviderTarget.get(level, adjacentPos, null, targetSide, this.actionSource);
+            PatternProviderTarget target = getExternalTarget(level, adjacentPos, targetSide);
             targetsByKey.put(firstKey, target);
             directionMap.put(firstKey, inputSide);
 
@@ -932,7 +945,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
 
             Direction inputSide = this.advancedDirectionalMap.get(key);
             Direction targetSide = inputSide != null ? inputSide : defaultSide;
-            PatternProviderTarget target = PatternProviderTarget.get(level, adjacentPos, null, targetSide, this.actionSource);
+            PatternProviderTarget target = getExternalTarget(level, adjacentPos, targetSide);
             if (target == null) {
                 continue;
             }
@@ -1284,6 +1297,31 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
     }
 
     @Nullable
+    private Method findAe2CsAdjacentMeStorageMethod() {
+        try {
+            Class<?> helperClass = Class.forName(AE2CS_GENERIC_STACK_INV_HELPER_CLASS);
+            return helperClass.getMethod("getAdjacentMeStorage",
+                    Level.class, BlockPos.class, BlockEntity.class, Direction.class);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    @Nullable
+    private MEStorage getAe2CsAdjacentMeStorage(Level level, BlockPos pos, @Nullable BlockEntity blockEntity, Direction side) {
+        if (this.ae2csAdjacentMeStorageMethod == null) {
+            return null;
+        }
+
+        try {
+            Object result = this.ae2csAdjacentMeStorageMethod.invoke(null, level, pos, blockEntity, side);
+            return result instanceof MEStorage storage ? storage : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    @Nullable
     private List<GenericStack> getMeteoritePatternOutput(IMolecularAssemblerSupportedPattern pattern, KeyCounter[] inputHolder, ServerLevel level) {
         final ItemStack[] grid3x3 = new ItemStack[9];
         for (int i = 0; i < 9; i++) {
@@ -1377,6 +1415,72 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
                 entry.setValue(remaining);
             }
         }
+    }
+
+    private boolean doResonatingPullWork() {
+        if (!isResonatingPullEnabled()) {
+            return false;
+        }
+
+        var hostBe = this.host.getBlockEntity();
+        if (!(hostBe.getLevel() instanceof ServerLevel hostLevel) || !this.mainNode.isActive()) {
+            return false;
+        }
+
+        var returnInv = getReturnInv();
+        var sides = getActiveSidesFiltered();
+        if (sides.isEmpty()) {
+            return false;
+        }
+
+        final int maxKeysPerTick = 32;
+        int scanned = 0;
+
+        for (var dir : sides) {
+            BlockPos adjacentPos = hostBe.getBlockPos().relative(dir);
+            Direction adjacentFace = dir.getOpposite();
+            if (!hostLevel.hasChunkAt(adjacentPos)
+                    || AdaptivePatternProviderBlockEntity.isPatternProviderAttachment(hostLevel, adjacentPos, adjacentFace)) {
+                continue;
+            }
+
+            var externalStorage = getAe2CsAdjacentMeStorage(hostLevel, adjacentPos, null, adjacentFace);
+            if (externalStorage == null) {
+                continue;
+            }
+
+            for (var stack : externalStorage.getAvailableStacks()) {
+                if (scanned++ >= maxKeysPerTick) {
+                    return false;
+                }
+
+                AEKey key = stack.getKey();
+                long available = stack.getLongValue();
+                if (key == null || available <= 0) {
+                    continue;
+                }
+
+                long request = Math.min(available, 4000);
+                long canBuffer = returnInv.insert(key, request, Actionable.SIMULATE, this.actionSource);
+                if (canBuffer <= 0) {
+                    continue;
+                }
+
+                long extracted = externalStorage.extract(key, canBuffer, Actionable.MODULATE, this.actionSource);
+                if (extracted <= 0) {
+                    continue;
+                }
+
+                long buffered = returnInv.insert(key, extracted, Actionable.MODULATE, this.actionSource);
+                long leftover = extracted - buffered;
+                if (leftover > 0) {
+                    externalStorage.insert(key, leftover, Actionable.MODULATE, this.actionSource);
+                }
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public int getReturnInventorySlotCount() {
@@ -1545,6 +1649,14 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
         return true;
     }
 
+    @Nullable
+    private PatternProviderTarget getExternalTarget(Level level, BlockPos adjacentPos, Direction targetSide) {
+        if (AdaptivePatternProviderBlockEntity.isPatternProviderAttachment(level, adjacentPos, targetSide)) {
+            return null;
+        }
+        return PatternProviderTarget.get(level, adjacentPos, null, targetSide, this.actionSource);
+    }
+
     private <T> void rearrangeRoundRobin(List<T> list) {
         if (list.isEmpty()) {
             return;
@@ -1573,6 +1685,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
             return new TickingRequest(
                     TickRates.Interface,
                     !invokeBaseHasWorkToDo() && craftedContents.isEmpty() && getReturnInv().isEmpty()
+                            && !isResonatingPullEnabled()
             );
         }
 
@@ -1585,12 +1698,14 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
             boolean couldDoWork = invokeBaseDoWork();
             couldDoWork = flushAe2LtWirelessOverflow() || couldDoWork;
             couldDoWork = flushAdvancedDirectionalSendList() || couldDoWork;
+            couldDoWork = doResonatingPullWork() || couldDoWork;
             tickAe2LtAutoReturn();
             int before = craftedContents.size();
             flushCraftedOutputs();
             boolean workedForCrafter = craftedContents.size() != before || before > 0;
             couldDoWork = couldDoWork || workedForCrafter;
             boolean hasWork = invokeBaseHasWorkToDo()
+                    || isResonatingPullEnabled()
                     || hasAe2LtWirelessOverflowWork()
                     || hasAe2LtAutoReturnWork()
                     || hasAdvancedDirectionalWork()

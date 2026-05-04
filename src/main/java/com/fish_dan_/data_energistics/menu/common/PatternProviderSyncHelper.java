@@ -3,11 +3,13 @@ package com.fish_dan_.data_energistics.menu.common;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.LongSupplier;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.jetbrains.annotations.Nullable;
@@ -30,6 +32,25 @@ import net.minecraft.world.item.Items;
 
 public final class PatternProviderSyncHelper {
     private static final Pattern TOKEN_SPLITTER = Pattern.compile("[^\\p{IsAlphabetic}\\p{IsDigit}\\p{IsIdeographic}]+");
+    private static final Pattern NEOECOAE_TIER_TOKEN = Pattern.compile("([fl]\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final String EXTENDEDAE_ASSEMBLER_MATRIX_NAME_KEY = "gui.extendedae.assembler_matrix";
+    private static final String NEOECOAE_NAMESPACE = "neoecoae";
+    private static final String NEOECOAE_CRAFTING_SYSTEM_PATH = "eco_crafting_system";
+    private static final String NEOECOAE_CRAFTING_SYSTEM_PREFIX = "crafting_system_";
+    private static final String NEOECOAE_CRAFTING_WORKER_PATH = "crafting_worker";
+    private static final String NEOECOAE_CRAFTING_PATTERN_BUS_PATH = "crafting_pattern_bus";
+    private static final String NEOECOAE_ECO_CRAFTING_WORKER_PATH = "eco_crafting_worker";
+    private static final ResourceLocation CRAFTING_TABLE_ID = ResourceLocation.withDefaultNamespace("crafting_table");
+    private static final ResourceLocation STONECUTTER_ID = ResourceLocation.withDefaultNamespace("stonecutter");
+    private static final ResourceLocation SMITHING_TABLE_ID = ResourceLocation.withDefaultNamespace("smithing_table");
+    private static final ResourceLocation AE2_MOLECULAR_ASSEMBLER_ID =
+            ResourceLocation.fromNamespaceAndPath("ae2", "molecular_assembler");
+    private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID =
+            ResourceLocation.fromNamespaceAndPath("extendedae", "assembler_matrix_speed");
+    private static final ResourceLocation EXTENDEDAE_EX_MOLECULAR_ASSEMBLER_ID =
+            ResourceLocation.fromNamespaceAndPath("extendedae", "ex_molecular_assembler");
+    private static final ResourceLocation AE2CS_METEORITE_PATTERN_PROVIDER_ID =
+            ResourceLocation.fromNamespaceAndPath("ae2cs", "meteorite_pattern_provider");
 
     private PatternProviderSyncHelper() {
     }
@@ -37,8 +58,10 @@ public final class PatternProviderSyncHelper {
     public static PatternEncodingPreviewMenu.SyncedPatternProviderList collectSyncedPatternProviders(
             @Nullable IGrid grid,
             Map<PatternContainer, Long> syncedPatternProviderIds,
+            Map<Long, List<PatternContainer>> syncedProviderTargetsById,
             LongSupplier nextIdSupplier,
             ItemStack encodedPattern) {
+        syncedProviderTargetsById.clear();
         if (grid == null) {
             syncedPatternProviderIds.clear();
             return PatternEncodingPreviewMenu.SyncedPatternProviderList.EMPTY;
@@ -66,13 +89,15 @@ public final class PatternProviderSyncHelper {
 
         syncedPatternProviderIds.keySet().removeIf(provider -> !activeProviders.containsKey(provider));
 
-        discoveredProviders.sort(Comparator
-                .comparing(DiscoveredPatternProvider::preferredForEncodedPattern).reversed()
-                .thenComparingLong(DiscoveredPatternProvider::sortOrder)
+        List<AggregatedPatternProvider> aggregatedProviders = aggregateDiscoveredProviders(discoveredProviders);
+        aggregatedProviders.sort(Comparator
+                .comparingInt(AggregatedPatternProvider::preferredScore).reversed()
+                .thenComparingLong(AggregatedPatternProvider::sortOrder)
                 .thenComparing(provider -> provider.displayName().getString()));
 
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = new ArrayList<>(discoveredProviders.size());
-        for (var provider : discoveredProviders) {
+        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = new ArrayList<>(aggregatedProviders.size());
+        for (var provider : aggregatedProviders) {
+            syncedProviderTargetsById.put(provider.id(), List.copyOf(provider.containers()));
             providers.add(new PatternEncodingPreviewMenu.SyncedPatternProvider(
                     provider.id(),
                     provider.displayName(),
@@ -97,6 +122,12 @@ public final class PatternProviderSyncHelper {
         return null;
     }
 
+    @Nullable
+    public static List<PatternContainer> findProvidersById(Map<Long, List<PatternContainer>> syncedProviderTargetsById,
+                                                           long providerId) {
+        return syncedProviderTargetsById.get(providerId);
+    }
+
     public static ItemStack transferEncodedPatternToProvider(PatternContainer container, ItemStack encodedPattern) {
         if (container == null || encodedPattern.isEmpty() || !PatternDetailsHelper.isEncodedPattern(encodedPattern)) {
             return encodedPattern;
@@ -118,6 +149,28 @@ public final class PatternProviderSyncHelper {
         }
 
         return remainder;
+    }
+
+    public static ItemStack transferEncodedPatternToProviders(List<PatternContainer> containers, ItemStack encodedPattern) {
+        if (containers == null || containers.isEmpty() || encodedPattern.isEmpty()) {
+            return encodedPattern;
+        }
+
+        ItemStack remainder = encodedPattern.copy();
+        boolean transferred = false;
+        for (var container : containers) {
+            if (remainder.isEmpty()) {
+                break;
+            }
+
+            ItemStack nextRemainder = transferEncodedPatternToProvider(container, remainder);
+            if (nextRemainder.getCount() != remainder.getCount()) {
+                transferred = true;
+            }
+            remainder = nextRemainder;
+        }
+
+        return transferred ? remainder : encodedPattern;
     }
 
     private static void collectDirectPatternProviders(
@@ -163,6 +216,7 @@ public final class PatternProviderSyncHelper {
         ResourceLocation iconItemId = resolveProviderIconItemId(container);
         int usedPatternSlots = countUsedPatternSlots(patternInventory);
         discoveredProviders.add(new DiscoveredPatternProvider(
+                container,
                 providerId,
                 container.getTerminalSortOrder(),
                 displayName,
@@ -170,7 +224,7 @@ public final class PatternProviderSyncHelper {
                 shouldUseAeButtonStyle(container),
                 patternInventory.size(),
                 usedPatternSlots,
-                isPreferredProvider(displayName, iconItemId, patternInventory.size(), usedPatternSlots,
+                getPreferredProviderScore(container, displayName, iconItemId, patternInventory.size(), usedPatternSlots,
                         preferredWorkstationId)));
     }
 
@@ -180,11 +234,73 @@ public final class PatternProviderSyncHelper {
         }
 
         String className = container.getClass().getSimpleName().toLowerCase(Locale.ROOT);
-        return className.contains("provider");
+        if (className.contains("provider")
+                || className.contains("pattern")
+                || className.contains("crafting")) {
+            return true;
+        }
+
+        ResourceLocation terminalIconItemId = resolveTerminalIconItemId(container);
+        return isNeoEcoCraftingSubsystemIcon(terminalIconItemId)
+                || !resolveTerminalGroupIcon(container).isEmpty()
+                || !resolveMainMenuIconReflectively(container).isEmpty();
     }
 
     private static boolean shouldUseAeButtonStyle(PatternContainer container) {
         return isProviderContainer(container);
+    }
+
+    private static boolean isAssemblerMatrixPatternContainer(PatternContainer container) {
+        return container.getClass().getSimpleName().equals("TileAssemblerMatrixPattern");
+    }
+
+    private static boolean isNeoEcoCraftingSubsystemContainer(DiscoveredPatternProvider provider) {
+        return isNeoEcoCraftingSubsystemIcon(provider.iconItemId())
+                || isNeoEcoCraftingSubsystemClassName(provider.container())
+                || isNeoEcoCraftingSubsystemName(provider.displayName().getString());
+    }
+
+    private static List<AggregatedPatternProvider> aggregateDiscoveredProviders(
+            List<DiscoveredPatternProvider> discoveredProviders) {
+        List<AggregatedPatternProvider> aggregatedProviders = new ArrayList<>();
+        Map<String, AggregatedPatternProvider> aggregatedSpecialProviders = new HashMap<>();
+
+        for (var provider : discoveredProviders) {
+            if (shouldAggregateSpecialProvider(provider)) {
+                String key = getAggregationKey(provider);
+                var aggregated = aggregatedSpecialProviders.get(key);
+                if (aggregated == null) {
+                    aggregated = new AggregatedPatternProvider(provider);
+                    aggregatedSpecialProviders.put(key, aggregated);
+                }
+                aggregated.include(provider);
+            } else {
+                var aggregated = new AggregatedPatternProvider(provider);
+                aggregated.include(provider);
+                aggregatedProviders.add(aggregated);
+            }
+        }
+
+        aggregatedProviders.addAll(aggregatedSpecialProviders.values());
+        return aggregatedProviders;
+    }
+
+    private static boolean shouldAggregateSpecialProvider(DiscoveredPatternProvider provider) {
+        return isAssemblerMatrixPatternContainer(provider.container())
+                || isNeoEcoCraftingSubsystemContainer(provider);
+    }
+
+    private static String getAggregationKey(DiscoveredPatternProvider provider) {
+        if (isAssemblerMatrixPatternContainer(provider.container())) {
+            return "extendedae:assembler_matrix";
+        }
+        if (isNeoEcoCraftingSubsystemContainer(provider)) {
+            String tierKey = resolveNeoEcoCraftingSubsystemTierKey(provider);
+            return tierKey == null
+                    ? "neoecoae:crafting_system"
+                    : "neoecoae:crafting_system:" + tierKey;
+        }
+        return provider.iconItemId() + "|" + provider.displayName().getString();
     }
 
     @Nullable
@@ -195,8 +311,20 @@ public final class PatternProviderSyncHelper {
     }
 
     private static Component resolveProviderDisplayName(PatternContainer container) {
+        if (isAssemblerMatrixPatternContainer(container)) {
+            return Component.translatable(EXTENDEDAE_ASSEMBLER_MATRIX_NAME_KEY);
+        }
+
         if (container instanceof AdaptivePatternProviderHost adaptiveHost) {
-            return adaptiveHost.getGuiDisplayName();
+            var attachedGroup = adaptiveHost.getPrimaryAttachedMachineGroup();
+            if (attachedGroup != null && attachedGroup.name() != null) {
+                return attachedGroup.name();
+            }
+            var terminalGroup = container.getTerminalGroup();
+            if (terminalGroup != null && terminalGroup.name() != null) {
+                return terminalGroup.name();
+            }
+            return adaptiveHost.getTerminalDisplayName();
         }
 
         var terminalGroup = container.getTerminalGroup();
@@ -221,13 +349,57 @@ public final class PatternProviderSyncHelper {
         return BuiltInRegistries.ITEM.getKey(Items.AIR);
     }
 
-    private static ItemStack resolveProviderIcon(PatternContainer container) {
+    @Nullable
+    private static ResourceLocation resolveTerminalIconItemId(PatternContainer container) {
+        ItemStack icon = resolveTerminalGroupIcon(container);
+        if (icon.isEmpty()) {
+            return null;
+        }
+
+        ResourceLocation iconItemId = BuiltInRegistries.ITEM.getKey(icon.getItem());
+        if (iconItemId == null || Items.AIR.equals(icon.getItem())) {
+            return null;
+        }
+
+        return iconItemId;
+    }
+
+    private static ItemStack resolveTerminalGroupIcon(PatternContainer container) {
         var terminalGroup = container.getTerminalGroup();
         if (terminalGroup != null && terminalGroup.icon() != null) {
             ItemStack groupIcon = terminalGroup.icon().toStack();
             if (!groupIcon.isEmpty()) {
                 return groupIcon;
             }
+        }
+
+        return ItemStack.EMPTY;
+    }
+
+    private static ItemStack resolveProviderIcon(PatternContainer container) {
+        if (isAssemblerMatrixPatternContainer(container)) {
+            var speedBlock = BuiltInRegistries.BLOCK.getOptional(EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID).orElse(null);
+            if (speedBlock != null) {
+                ItemStack speedCore = speedBlock.asItem().getDefaultInstance();
+                if (!speedCore.isEmpty()) {
+                    return speedCore;
+                }
+            }
+        }
+
+        if (container instanceof AdaptivePatternProviderHost adaptiveHost) {
+            var attachedGroup = adaptiveHost.getPrimaryAttachedMachineGroup();
+            if (attachedGroup != null && attachedGroup.icon() != null) {
+                ItemStack attachedIcon = attachedGroup.icon().toStack();
+                if (!attachedIcon.isEmpty()) {
+                    return attachedIcon;
+                }
+            }
+        }
+
+        ItemStack terminalIcon = resolveTerminalGroupIcon(container);
+        if (!terminalIcon.isEmpty()) {
+            return terminalIcon;
         }
 
         if (container instanceof AdaptivePatternProviderBlockEntity blockEntity) {
@@ -249,9 +421,9 @@ public final class PatternProviderSyncHelper {
         }
 
         if (container instanceof PatternProviderLogicHost providerHost) {
-            var terminalIcon = providerHost.getTerminalIcon();
-            if (terminalIcon != null) {
-                ItemStack terminalIconStack = terminalIcon.toStack();
+            var providerTerminalIcon = providerHost.getTerminalIcon();
+            if (providerTerminalIcon != null) {
+                ItemStack terminalIconStack = providerTerminalIcon.toStack();
                 if (!terminalIconStack.isEmpty()) {
                     return terminalIconStack;
                 }
@@ -284,17 +456,24 @@ public final class PatternProviderSyncHelper {
         return usedSlots;
     }
 
-    private static boolean isPreferredProvider(Component displayName, ResourceLocation iconItemId,
-                                               int patternSlotCount, int usedPatternSlotCount,
-                                               @Nullable ResourceLocation preferredWorkstationId) {
+    private static int getPreferredProviderScore(PatternContainer container, Component displayName, ResourceLocation iconItemId,
+                                                 int patternSlotCount, int usedPatternSlotCount,
+                                                 @Nullable ResourceLocation preferredWorkstationId) {
         if (preferredWorkstationId == null || patternSlotCount <= 0 || usedPatternSlotCount >= patternSlotCount) {
-            return false;
+            return 0;
+        }
+
+        if (isWorkbenchFamily(preferredWorkstationId)) {
+            int workbenchFamilyPriority = getWorkbenchFamilyPriority(container, displayName, iconItemId);
+            if (workbenchFamilyPriority > 0) {
+                return workbenchFamilyPriority;
+            }
         }
 
         String providerName = normalizeForMatch(displayName.getString());
         String providerIconName = normalizeForMatch(iconItemId.toString());
         if (providerName.isEmpty() && providerIconName.isEmpty()) {
-            return false;
+            return 0;
         }
 
         Component workstationDisplayName = resolveWorkstationDisplayName(preferredWorkstationId);
@@ -308,7 +487,132 @@ public final class PatternProviderSyncHelper {
                 || sharesKeyword(providerName, workstationName)
                 || sharesKeyword(providerName, workstationId)
                 || sharesKeyword(providerIconName, workstationName)
-                || sharesKeyword(providerIconName, workstationId);
+                || sharesKeyword(providerIconName, workstationId)
+                ? 1
+                : 0;
+    }
+
+    private static boolean isWorkbenchFamily(ResourceLocation workstationId) {
+        return CRAFTING_TABLE_ID.equals(workstationId)
+                || STONECUTTER_ID.equals(workstationId)
+                || SMITHING_TABLE_ID.equals(workstationId)
+                || AE2_MOLECULAR_ASSEMBLER_ID.equals(workstationId)
+                || EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID.equals(workstationId);
+    }
+
+    private static int getWorkbenchFamilyPriority(PatternContainer container, Component displayName,
+                                                  ResourceLocation iconItemId) {
+        Integer neoEcoTier = resolveNeoEcoCraftingSubsystemTier(container, displayName, iconItemId);
+        if (neoEcoTier != null) {
+            return switch (neoEcoTier) {
+                case 9 -> 70;
+                case 6 -> 60;
+                case 4 -> 50;
+                default -> 0;
+            };
+        }
+
+        if (EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID.equals(iconItemId)) {
+            return 40;
+        }
+        if (isMeteoriteWorkbenchProvider(container, displayName, iconItemId)) {
+            return 30;
+        }
+        if (EXTENDEDAE_EX_MOLECULAR_ASSEMBLER_ID.equals(iconItemId)) {
+            return 20;
+        }
+        if (AE2_MOLECULAR_ASSEMBLER_ID.equals(iconItemId)) {
+            return 10;
+        }
+
+        return 0;
+    }
+
+    private static boolean isMeteoriteWorkbenchProvider(PatternContainer container, Component displayName,
+                                                        ResourceLocation iconItemId) {
+        if (AE2CS_METEORITE_PATTERN_PROVIDER_ID.equals(iconItemId)) {
+            return true;
+        }
+
+        if (container instanceof AdaptivePatternProviderHost adaptiveHost && adaptiveHost.isMeteoriteProviderSelected()) {
+            return true;
+        }
+
+        String normalizedName = normalizeForMatch(displayName.getString());
+        return normalizedName.contains("自装配式样板供应器")
+                || normalizedName.contains("meteoritepatternprovider");
+    }
+
+    private static boolean isNeoEcoCraftingSubsystemIcon(@Nullable ResourceLocation iconItemId) {
+        if (iconItemId == null || !NEOECOAE_NAMESPACE.equals(iconItemId.getNamespace())) {
+            return false;
+        }
+
+        String path = iconItemId.getPath();
+        return path.equals(NEOECOAE_CRAFTING_SYSTEM_PATH)
+                || path.startsWith(NEOECOAE_CRAFTING_SYSTEM_PREFIX)
+                || path.equals(NEOECOAE_CRAFTING_WORKER_PATH)
+                || path.equals(NEOECOAE_CRAFTING_PATTERN_BUS_PATH)
+                || path.equals(NEOECOAE_ECO_CRAFTING_WORKER_PATH);
+    }
+
+    private static boolean isNeoEcoCraftingSubsystemClassName(PatternContainer container) {
+        String className = container.getClass().getName().toLowerCase(Locale.ROOT);
+        return className.contains("neoeco")
+                && (className.contains("crafting")
+                || className.contains("patternbus")
+                || className.contains("worker"));
+    }
+
+    private static boolean isNeoEcoCraftingSubsystemName(String displayName) {
+        String normalizedName = normalizeForMatch(displayName);
+        return normalizedName.contains("可拓展合成子系统")
+                || normalizedName.contains("ecocraftingsystem")
+                || normalizedName.contains("craftingsystem");
+    }
+
+    @Nullable
+    private static Integer resolveNeoEcoCraftingSubsystemTier(PatternContainer container, Component displayName,
+                                                              ResourceLocation iconItemId) {
+        String tierKey = extractNeoEcoTierToken(iconItemId.getPath());
+        if (tierKey == null) {
+            tierKey = extractNeoEcoTierToken(displayName.getString());
+        }
+        if (tierKey == null) {
+            tierKey = extractNeoEcoTierToken(container.getClass().getSimpleName());
+        }
+        if (tierKey == null) {
+            tierKey = extractNeoEcoTierToken(container.getClass().getName());
+        }
+        if (tierKey == null || tierKey.length() < 2) {
+            return null;
+        }
+
+        try {
+            return Integer.parseInt(tierKey.substring(1));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    @Nullable
+    private static String resolveNeoEcoCraftingSubsystemTierKey(DiscoveredPatternProvider provider) {
+        Integer tier = resolveNeoEcoCraftingSubsystemTier(provider.container(), provider.displayName(), provider.iconItemId());
+        return tier == null ? null : "F" + tier;
+    }
+
+    @Nullable
+    private static String extractNeoEcoTierToken(@Nullable String text) {
+        if (text == null || text.isEmpty()) {
+            return null;
+        }
+
+        Matcher matcher = NEOECOAE_TIER_TOKEN.matcher(text);
+        if (!matcher.find()) {
+            return null;
+        }
+
+        return matcher.group(1).toUpperCase(Locale.ROOT);
     }
 
     private static Component resolveWorkstationDisplayName(ResourceLocation workstationId) {
@@ -362,6 +666,7 @@ public final class PatternProviderSyncHelper {
     }
 
     private record DiscoveredPatternProvider(
+            PatternContainer container,
             long id,
             long sortOrder,
             Component displayName,
@@ -369,6 +674,98 @@ public final class PatternProviderSyncHelper {
             boolean useAeButtonStyle,
             int patternSlotCount,
             int usedPatternSlotCount,
-            boolean preferredForEncodedPattern) {
+            int preferredScore) {
+    }
+
+    private static final class AggregatedPatternProvider {
+        private long id;
+        private long sortOrder;
+        private Component displayName;
+        private ResourceLocation iconItemId;
+        private boolean useAeButtonStyle;
+        private int patternSlotCount;
+        private int usedPatternSlotCount;
+        private int preferredScore;
+        private int representationPriority;
+        private final List<PatternContainer> containers = new ArrayList<>();
+
+        private AggregatedPatternProvider(DiscoveredPatternProvider provider) {
+            this.id = provider.id();
+            this.sortOrder = provider.sortOrder();
+            this.displayName = provider.displayName();
+            this.iconItemId = provider.iconItemId();
+            this.useAeButtonStyle = provider.useAeButtonStyle();
+            this.representationPriority = getRepresentationPriority(provider);
+        }
+
+        private void include(DiscoveredPatternProvider provider) {
+            this.id = Math.min(this.id, provider.id());
+            this.sortOrder = Math.min(this.sortOrder, provider.sortOrder());
+            this.patternSlotCount += provider.patternSlotCount();
+            this.usedPatternSlotCount += provider.usedPatternSlotCount();
+            this.preferredScore = Math.max(this.preferredScore, provider.preferredScore());
+            this.useAeButtonStyle |= provider.useAeButtonStyle();
+            int incomingPriority = getRepresentationPriority(provider);
+            if (incomingPriority > this.representationPriority) {
+                this.displayName = provider.displayName();
+                this.iconItemId = provider.iconItemId();
+                this.representationPriority = incomingPriority;
+            }
+            this.containers.add(provider.container());
+        }
+
+        private long id() {
+            return this.id;
+        }
+
+        private long sortOrder() {
+            return this.sortOrder;
+        }
+
+        private Component displayName() {
+            return this.displayName;
+        }
+
+        private ResourceLocation iconItemId() {
+            return this.iconItemId;
+        }
+
+        private boolean useAeButtonStyle() {
+            return this.useAeButtonStyle;
+        }
+
+        private int patternSlotCount() {
+            return this.patternSlotCount;
+        }
+
+        private int usedPatternSlotCount() {
+            return this.usedPatternSlotCount;
+        }
+
+        private int preferredScore() {
+            return this.preferredScore;
+        }
+
+        private List<PatternContainer> containers() {
+            return this.containers;
+        }
+
+        private int getRepresentationPriority(DiscoveredPatternProvider provider) {
+            if (isAssemblerMatrixPatternContainer(provider.container())) {
+                return 3;
+            }
+            if (isNeoEcoCraftingSubsystemIcon(provider.iconItemId())
+                    && provider.iconItemId().getPath().startsWith(NEOECOAE_CRAFTING_SYSTEM_PREFIX)) {
+                return 3;
+            }
+            if (isNeoEcoCraftingSubsystemIcon(provider.iconItemId())
+                    && provider.iconItemId().getPath().equals(NEOECOAE_CRAFTING_SYSTEM_PATH)) {
+                return 2;
+            }
+            if (isNeoEcoCraftingSubsystemContainer(provider)) {
+                return 1;
+            }
+            return 0;
+        }
     }
 }

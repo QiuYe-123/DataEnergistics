@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.ae2;
 
 import appeng.api.upgrades.IUpgradeableObject;
+import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.util.inv.AppEngInternalInventory;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
@@ -12,6 +13,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
 import java.util.List;
+
+import org.jetbrains.annotations.Nullable;
 
 public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, IUpgradeableObject {
     AppEngInternalInventory getProviderInventory();
@@ -26,11 +29,15 @@ public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, I
 
     Component getGuiDisplayName();
 
+    Component getTerminalDisplayName();
+
     boolean isMeteoriteProviderSelected();
 
     boolean isAdvancedAeProviderSelected();
 
     boolean isAe2LightningTechOverloadedProviderSelected();
+
+    boolean isResonatingProviderSelected();
 
     boolean supportsFilteredImportToggle();
 
@@ -56,6 +63,10 @@ public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, I
 
     void setAdvancedAeFilteredImportEnabled(boolean enabled);
 
+    boolean isResonatingPullEnabled();
+
+    void setResonatingPullEnabled(boolean enabled);
+
     void addOrUpdateConnection(ResourceKey<Level> dimension, BlockPos pos, Direction boundFace);
 
     boolean removeConnection(ResourceKey<Level> dimension, BlockPos pos);
@@ -63,4 +74,7 @@ public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, I
     List<AdaptiveWirelessConnection> getConnections();
 
     void markForClientUpdate();
+
+    @Nullable
+    PatternContainerGroup getPrimaryAttachedMachineGroup();
 }

@@ -125,6 +125,7 @@ public class Data_Energistics {
             Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 3, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
             Upgrades.add(AEItems.CAPACITY_CARD, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 3, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
             registerAppliedFluxAdaptivePatternProviderCompat();
+            registerAe2CrystalScienceAdaptivePatternProviderCompat();
             appeng.api.parts.PartModels.registerModels(
                     PartModelsHelper.createModels(ModItems.DATA_RIPPER.get().getPartClass())
             );
@@ -145,6 +146,19 @@ public class Data_Energistics {
 
         Upgrades.add(inductionCard, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 1, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
         Upgrades.add(inductionCard, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 1, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
+    }
+
+    private void registerAe2CrystalScienceAdaptivePatternProviderCompat() {
+        Item crystalGrowthCard =
+                BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("ae2cs", "crystal_growth_card"));
+        if (crystalGrowthCard == null || crystalGrowthCard == Items.AIR) {
+            return;
+        }
+
+        Upgrades.add(crystalGrowthCard, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 1,
+                ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
+        Upgrades.add(crystalGrowthCard, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 1,
+                ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
     }
 
     private void registerAe2KeyTypes(final RegisterEvent event) {

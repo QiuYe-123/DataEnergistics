@@ -27,6 +27,7 @@ import net.minecraft.world.item.ItemStack;
 public class AdaptivePatternProviderMenu extends PatternProviderMenu implements IOptionalSlotHost {
     private static final String ACTION_SET_PAGE = "set_page";
     private static final String ACTION_SET_FILTERED_IMPORT = "set_filtered_import";
+    private static final String ACTION_SET_RESONATING_PULL = "set_resonating_pull";
     private static final String ACTION_TOGGLE_AE2LT_MODE = "toggle_ae2lt_mode";
     private static final String ACTION_TOGGLE_AE2LT_RETURN_MODE = "toggle_ae2lt_return_mode";
     private static final String ACTION_TOGGLE_AE2LT_WIRELESS_DISPATCH = "toggle_ae2lt_wireless_dispatch";
@@ -56,12 +57,17 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
     public int ae2ltWirelessDispatchMode;
     @GuiSync(787)
     public int ae2ltWirelessSpeedMode;
+    @GuiSync(788)
+    public boolean resonatingProviderSelected;
+    @GuiSync(789)
+    public boolean resonatingPullEnabled;
 
     public AdaptivePatternProviderMenu(int id, Inventory playerInventory, AdaptivePatternProviderHost host) {
         super(ModMenus.ADAPTIVE_PATTERN_PROVIDER.get(), id, playerInventory, host);
         this.host = host;
         registerClientAction(ACTION_SET_PAGE, Integer.class, this::setPage);
         registerClientAction(ACTION_SET_FILTERED_IMPORT, Boolean.class, this::setAdvancedAeFilteredImport);
+        registerClientAction(ACTION_SET_RESONATING_PULL, Boolean.class, this::setResonatingPullEnabled);
         registerClientAction(ACTION_TOGGLE_AE2LT_MODE, this::toggleAe2LtMode);
         registerClientAction(ACTION_TOGGLE_AE2LT_RETURN_MODE, this::toggleAe2LtReturnMode);
         registerClientAction(ACTION_TOGGLE_AE2LT_WIRELESS_DISPATCH, this::toggleAe2LtWirelessDispatchMode);
@@ -77,7 +83,7 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
 
         this.visiblePatternSlots = host != null ? host.getPatternSlotCountForMenu() : 0;
         this.advancedAeFilteredImport = host != null && host.isAdvancedAeFilteredImportEnabled();
-        syncAe2LtStateFromHost();
+        syncStateFromHost();
         addUpgradeSlots();
         addPatternPageSlots();
         addExpandedReturnSlots();
@@ -200,6 +206,19 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
         return this.host != null && this.host.isAe2LightningTechOverloadedProviderSelected();
     }
 
+    public boolean isResonatingProviderSelected() {
+        return this.resonatingProviderSelected;
+    }
+
+    public boolean isResonatingPullEnabled() {
+        return this.resonatingPullEnabled;
+    }
+
+    public void sendSetResonatingPullEnabled(boolean enabled) {
+        this.resonatingPullEnabled = enabled;
+        sendClientAction(ACTION_SET_RESONATING_PULL, enabled);
+    }
+
     public boolean isAe2LtWirelessMode() {
         return this.ae2ltProviderMode == AdaptivePatternProviderBlockEntity.Ae2LtProviderMode.WIRELESS.ordinal();
     }
@@ -256,13 +275,23 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
         broadcastChanges();
     }
 
+    private void setResonatingPullEnabled(Boolean enabled) {
+        if (enabled == null || this.host == null || !this.host.isResonatingProviderSelected()) {
+            return;
+        }
+
+        this.host.setResonatingPullEnabled(enabled);
+        syncStateFromHost();
+        broadcastChanges();
+    }
+
     private void toggleAe2LtMode() {
         if (this.host == null || !this.host.isAe2LightningTechOverloadedProviderSelected()) {
             return;
         }
 
         this.host.cycleAe2LtProviderMode();
-        syncAe2LtStateFromHost();
+        syncStateFromHost();
         broadcastChanges();
     }
 
@@ -272,7 +301,7 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
         }
 
         this.host.cycleAe2LtReturnMode();
-        syncAe2LtStateFromHost();
+        syncStateFromHost();
         broadcastChanges();
     }
 
@@ -282,7 +311,7 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
         }
 
         this.host.cycleAe2LtWirelessDispatchMode();
-        syncAe2LtStateFromHost();
+        syncStateFromHost();
         broadcastChanges();
     }
 
@@ -292,7 +321,7 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
         }
 
         this.host.cycleAe2LtWirelessSpeedMode();
-        syncAe2LtStateFromHost();
+        syncStateFromHost();
         broadcastChanges();
     }
 
@@ -300,7 +329,7 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
         int slotCount = this.host != null ? this.host.getPatternSlotCountForMenu() : 0;
         this.visiblePatternSlots = slotCount;
         this.advancedAeFilteredImport = this.host != null && this.host.isAdvancedAeFilteredImportEnabled();
-        syncAe2LtStateFromHost();
+        syncStateFromHost();
         this.totalPages = Math.max(1, (slotCount + SLOTS_PER_PAGE - 1) / SLOTS_PER_PAGE);
         if (slotCount <= 0) {
             this.pageIndex = 0;
@@ -433,11 +462,13 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
         }
     }
 
-    private void syncAe2LtStateFromHost() {
+    private void syncStateFromHost() {
         if (this.host == null) {
             return;
         }
 
+        this.resonatingProviderSelected = this.host.isResonatingProviderSelected();
+        this.resonatingPullEnabled = this.host.isResonatingPullEnabled();
         this.ae2ltProviderMode = this.host.getAe2LtProviderMode().ordinal();
         this.ae2ltReturnMode = this.host.getAe2LtReturnMode().ordinal();
         this.ae2ltWirelessDispatchMode = this.host.getAe2LtWirelessDispatchMode().ordinal();
