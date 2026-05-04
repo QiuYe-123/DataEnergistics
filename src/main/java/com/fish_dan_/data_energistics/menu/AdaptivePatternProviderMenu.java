@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.menu;
 
 import appeng.api.inventories.InternalInventory;
+import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.upgrades.Upgrades;
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.client.gui.Icon;
 import appeng.core.localization.Tooltips;
@@ -76,6 +78,7 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
         this.visiblePatternSlots = host != null ? host.getPatternSlotCountForMenu() : 0;
         this.advancedAeFilteredImport = host != null && host.isAdvancedAeFilteredImportEnabled();
         syncAe2LtStateFromHost();
+        addUpgradeSlots();
         addPatternPageSlots();
         addExpandedReturnSlots();
 
@@ -89,6 +92,17 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
         ));
         this.addSlot(providerSlot, PROVIDER_INPUT);
         updatePatternSlotVisibility();
+    }
+
+    private void addUpgradeSlots() {
+        if (this.host == null) {
+            return;
+        }
+
+        var upgrades = this.host.getUpgrades();
+        for (int i = 0; i < upgrades.size(); i++) {
+            this.addSlot(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, i), SlotSemantics.UPGRADE);
+        }
     }
 
     @Override
@@ -197,6 +211,10 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
 
     public boolean isAe2LtFastSpeedMode() {
         return this.ae2ltWirelessSpeedMode == AdaptivePatternProviderBlockEntity.Ae2LtWirelessSpeedMode.FAST.ordinal();
+    }
+
+    public IUpgradeInventory getUpgrades() {
+        return this.host != null ? this.host.getUpgrades() : appeng.api.upgrades.UpgradeInventories.empty();
     }
 
     public int getAe2LtReturnModeOrdinal() {
@@ -363,7 +381,11 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
 
         int initialCount = stack.getCount();
 
-        if (AdaptivePatternProviderBlockEntity.isSupportedProviderStack(stack)) {
+        if (Upgrades.isUpgradeCardItem(stack)) {
+            moveIntoSemanticSlots(SlotSemantics.UPGRADE, stack);
+        }
+
+        if (!stack.isEmpty() && AdaptivePatternProviderBlockEntity.isSupportedProviderStack(stack)) {
             moveIntoSemanticSlots(PROVIDER_INPUT, stack);
         }
 
@@ -441,8 +463,7 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
 
     @Override
     public boolean isSlotEnabled(int idx) {
-        int capacityUpgrades = this.host == null ? 0 : this.host.getUpgrades().getInstalledUpgrades(appeng.core.definitions.AEItems.CAPACITY_CARD);
-        return idx == 0 || idx == 1 && capacityUpgrades >= 1 || idx == 2 && capacityUpgrades >= 2;
+        return this.host != null && idx >= 0 && idx < this.host.getUpgrades().size();
     }
 
     private final class PagedPatternInventory implements InternalInventory {

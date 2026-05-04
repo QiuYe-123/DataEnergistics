@@ -3,6 +3,12 @@ package com.fish_dan_.data_energistics;
 import appeng.api.AECapabilities;
 import appeng.api.upgrades.Upgrades;
 import appeng.blockentity.AEBaseBlockEntity;
+import appeng.blockentity.networking.CableBusBlockEntity;
+import appeng.blockentity.networking.CableBusBlockEntity;
+import appeng.client.gui.me.items.PatternEncodingTermScreen;
+import appeng.client.gui.style.StyleManager;
+import appeng.core.definitions.AEBlockEntities;
+import appeng.core.definitions.AEBlockEntities;
 import appeng.core.definitions.AEItems;
 import appeng.init.client.InitScreens;
 import appeng.items.parts.PartModelsHelper;
@@ -12,6 +18,8 @@ import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
 import com.fish_dan_.data_energistics.block.AdaptivePatternProviderBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.client.screen.AdaptivePatternProviderScreen;
+import com.fish_dan_.data_energistics.client.screen.NativePatternEncodingTermScreen;
+import com.fish_dan_.data_energistics.client.screen.PatternEncodingPreviewScreen;
 import com.fish_dan_.data_energistics.client.render.DataExtractorRenderer;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
 import com.fish_dan_.data_energistics.client.screen.DataDistributionTowerScreen;
@@ -24,7 +32,10 @@ import com.fish_dan_.data_energistics.client.screen.UniversalMEStorageScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalPatternAccessTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalPatternEncodingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalTerminalScreenHook;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.network.ModPayloads;
+import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
+import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModCreativeTabs;
@@ -35,7 +46,10 @@ import com.fish_dan_.data_energistics.registry.ModStorageCells;
 import com.fish_dan_.data_energistics.registry.UniversalTerminalAdapters;
 import com.fish_dan_.data_energistics.recipe.TimeShiftTransformLogic;
 import com.mojang.logging.LogUtils;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.state.BlockState;
@@ -67,6 +81,8 @@ import org.slf4j.Logger;
 public class Data_Energistics {
     // Define mod id in a common place for everything to reference
     public static final String MODID = "data_energistics";
+    private static final String ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP =
+            "block.data_energistics.adaptive_pattern_provider";
     // Directly reference a slf4j logger
     private static final Logger LOGGER = LogUtils.getLogger();
 
@@ -106,8 +122,8 @@ public class Data_Energistics {
             Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_EXTRACTOR.get(), 5, "block.data_energistics.data_extractor");
             Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DATA_MIMETIC_FIELD.get(), 3, "block.data_energistics.data_mimetic_field");
             Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_MIMETIC_FIELD.get(), 4, "block.data_energistics.data_mimetic_field");
-            Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 3, "block.data_energistics.adaptive_pattern_provider");
-            Upgrades.add(AEItems.CAPACITY_CARD, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 3, "item.data_energistics.adaptive_pattern_provider_part");
+            Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 3, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
+            Upgrades.add(AEItems.CAPACITY_CARD, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 3, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
             registerAppliedFluxAdaptivePatternProviderCompat();
             appeng.api.parts.PartModels.registerModels(
                     PartModelsHelper.createModels(ModItems.DATA_RIPPER.get().getPartClass())
@@ -127,8 +143,8 @@ public class Data_Energistics {
             return;
         }
 
-        Upgrades.add(inductionCard, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 1, "block.data_energistics.adaptive_pattern_provider");
-        Upgrades.add(inductionCard, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 1, "item.data_energistics.adaptive_pattern_provider_part");
+        Upgrades.add(inductionCard, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 1, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
+        Upgrades.add(inductionCard, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 1, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
     }
 
     private void registerAe2KeyTypes(final RegisterEvent event) {
@@ -170,6 +186,27 @@ public class Data_Energistics {
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity
+        );
+        event.registerBlockEntity(
+                Capabilities.ItemHandler.BLOCK,
+                ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getExternalReturnItemHandler(context)
+        );
+        event.registerBlockEntity(
+                Capabilities.ItemHandler.BLOCK,
+                AEBlockEntities.CABLE_BUS.get(),
+                (CableBusBlockEntity blockEntity, Direction context) -> {
+                    if (context == null) {
+                        return null;
+                    }
+
+                    var part = blockEntity.getPart(context);
+                    if (part instanceof AdaptivePatternProviderPart adaptivePart) {
+                        return adaptivePart.getExternalReturnItemHandler();
+                    }
+
+                    return null;
+                }
         );
         event.registerBlock(
                 Capabilities.EnergyStorage.BLOCK,
@@ -219,6 +256,7 @@ public class Data_Energistics {
             event.enqueueWork(() -> {
                 ModAE2Keys.registerClient();
                 ModStorageCells.registerClientModels();
+                NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenOpening);
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenInitPost);
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenRenderPost);
             });
@@ -244,11 +282,48 @@ public class Data_Energistics {
         }
 
         public static void onScreenInitPost(ScreenEvent.Init.Post event) {
+            maybeReplaceNativePatternEncodingScreen(event.getScreen(), true);
             UniversalTerminalScreenHook.onScreenInitPost(event);
+        }
+
+        public static void onScreenOpening(ScreenEvent.Opening event) {
+            Screen replacement = maybeReplaceNativePatternEncodingScreen(event.getCurrentScreen(), false);
+            if (replacement != null) {
+                event.setNewScreen(replacement);
+            }
         }
 
         public static void onScreenRenderPost(ScreenEvent.Render.Post event) {
             UniversalTerminalScreenHook.onScreenRenderPost(event);
+        }
+
+        private static Screen maybeReplaceNativePatternEncodingScreen(Screen currentScreen, boolean applyImmediately) {
+            if (!(currentScreen instanceof PatternEncodingTermScreen<?> screen)) {
+                return null;
+            }
+
+            if (currentScreen instanceof PatternEncodingPreviewScreen<?>) {
+                return null;
+            }
+
+            if (!(screen.getMenu() instanceof PatternEncodingPreviewMenu)) {
+                return null;
+            }
+
+            Screen replacement = new NativePatternEncodingTermScreen(
+                    screen.getMenu(),
+                    screen.getMenu().getPlayerInventory(),
+                    screen.getTitle(),
+                    StyleManager.loadStyleDoc("/screens/terminals/pattern_encoding_terminal.json"));
+
+            if (applyImmediately) {
+                Minecraft minecraft = Minecraft.getInstance();
+                if (minecraft.screen == currentScreen) {
+                    minecraft.setScreen(replacement);
+                }
+            }
+
+            return replacement;
         }
     }
 }

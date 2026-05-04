@@ -15,6 +15,7 @@ import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.helpers.patternprovider.PatternContainer;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
@@ -51,6 +52,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
+import net.neoforged.neoforge.items.IItemHandler;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -73,6 +75,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Nullable
     private AdaptivePatternProviderState adaptiveState;
     private final IUpgradeInventory upgrades;
+    private final IItemHandler externalReturnItemHandler = new AdaptivePatternProviderReturnItemHandler(this::getAdaptiveLogic);
     private int syncedPatternSlotCount = 0;
 
     public AdaptivePatternProviderBlockEntity(BlockPos blockPos, BlockState blockState) {
@@ -94,6 +97,14 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
     public AppEngInternalInventory getProviderInventory() {
         return getAdaptiveState().getProviderInventory();
+    }
+
+    @Nullable
+    public IItemHandler getExternalReturnItemHandler(@Nullable Direction side) {
+        if (side != null && !this.getTargets().contains(side)) {
+            return null;
+        }
+        return this.externalReturnItemHandler;
     }
 
     public int getProviderSlotLimit() {
@@ -685,10 +696,6 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     private IUpgradeInventory createUpgradeInventory() {
-        if (getAppliedFluxInductionCard() == null) {
-            return UpgradeInventories.empty();
-        }
-
         return UpgradeInventories.forMachine(
                 getProviderBlock().get(),
                 AdaptivePatternProviderState.APPFLUX_UPGRADE_SLOTS,

@@ -5,11 +5,16 @@
   "plugin": "com.fish_dan_.data_energistics.mixin.DataEnergisticsMixinPlugin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "AEBaseMenuMixin",
     "CableBusBlockEntityMixin",
     "PathingServiceMixin",
     "InscriberBlockEntityMixin",
     "ExtendedInscriberThreadMixin",
     "NetworkStatusMixin",
+    "PatternEncodingTermMenuMixin",
+    "JeiEncodePatternTransferHandlerMixin",
+    "EmiEncodePatternHandlerMixin",
+    "EncodedPatternItemMixin",
     "Ae2ltWirelessConnectorUsePacketMixin",
     "Ae2ltEjectCapabilityMixin"
   ],

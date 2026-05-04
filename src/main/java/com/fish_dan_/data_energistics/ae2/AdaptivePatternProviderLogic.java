@@ -15,10 +15,10 @@ import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.ticking.IGridTickable;
 import appeng.api.networking.ticking.TickRateModulation;
 import appeng.api.networking.ticking.TickingRequest;
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
-import appeng.api.storage.MEStorage;
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
 import appeng.core.settings.TickRates;
 import appeng.helpers.InterfaceLogicHost;
@@ -1358,11 +1358,6 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
             return;
         }
 
-        @Nullable MEStorage gridInv = null;
-        if (getGrid() != null) {
-            gridInv = getGrid().getStorageService().getInventory();
-        }
-
         var iterator = this.craftedContents.object2LongEntrySet().iterator();
         while (iterator.hasNext()) {
             Object2LongMap.Entry<AEKey> entry = iterator.next();
@@ -1373,15 +1368,8 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
                 continue;
             }
 
-            if (gridInv != null) {
-                long inserted = gridInv.insert(key, remaining, Actionable.MODULATE, this.actionSource);
-                remaining -= inserted;
-            }
-
-            if (remaining > 0) {
-                long inserted = getReturnInv().insert(key, remaining, Actionable.MODULATE, this.actionSource);
-                remaining -= inserted;
-            }
+            long inserted = getReturnInv().insert(key, remaining, Actionable.MODULATE, this.actionSource);
+            remaining -= inserted;
 
             if (remaining <= 0) {
                 iterator.remove();
@@ -1389,6 +1377,48 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
                 entry.setValue(remaining);
             }
         }
+    }
+
+    public int getReturnInventorySlotCount() {
+        return getReturnInv().size();
+    }
+
+    public ItemStack getReturnInventoryStack(int slot) {
+        if (slot < 0 || slot >= getReturnInv().size()) {
+            return ItemStack.EMPTY;
+        }
+
+        GenericStack stack = getReturnInv().getStack(slot);
+        if (stack == null || !(stack.what() instanceof AEItemKey itemKey) || stack.amount() <= 0) {
+            return ItemStack.EMPTY;
+        }
+
+        return itemKey.toStack((int) Math.min(Integer.MAX_VALUE, stack.amount()));
+    }
+
+    public ItemStack insertReturnInventoryItem(int slot, ItemStack stack, boolean simulate) {
+        if (stack.isEmpty() || slot < 0 || slot >= getReturnInv().size()) {
+            return stack;
+        }
+
+        AEItemKey itemKey = AEItemKey.of(stack);
+        if (itemKey == null) {
+            return stack;
+        }
+
+        long inserted = getReturnInv().insert(slot, itemKey, stack.getCount(),
+                simulate ? Actionable.SIMULATE : Actionable.MODULATE);
+        if (inserted <= 0) {
+            return stack;
+        }
+
+        if (inserted >= stack.getCount()) {
+            return ItemStack.EMPTY;
+        }
+
+        ItemStack remainder = stack.copy();
+        remainder.shrink((int) inserted);
+        return remainder;
     }
 
     private boolean isAdvancedAeFilteredImportEnabled() {

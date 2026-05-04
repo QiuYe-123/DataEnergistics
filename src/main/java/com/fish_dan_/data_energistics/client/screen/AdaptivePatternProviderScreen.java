@@ -4,6 +4,10 @@ import appeng.client.gui.Icon;
 import appeng.client.gui.implementations.PatternProviderScreen;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.ToggleButton;
+import appeng.client.gui.widgets.UpgradesPanel;
+import appeng.api.upgrades.Upgrades;
+import appeng.core.localization.GuiText;
+import appeng.menu.SlotSemantics;
 import com.fish_dan_.data_energistics.client.widget.Ae2LtTextureToggleButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
@@ -12,6 +16,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class AdaptivePatternProviderScreen extends PatternProviderScreen<AdaptivePatternProviderMenu> {
@@ -25,6 +30,7 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
 
     public AdaptivePatternProviderScreen(AdaptivePatternProviderMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
+        this.widgets.add("upgrades", new UpgradesPanel(menu.getSlots(SlotSemantics.UPGRADE), this::getCompatibleUpgrades));
         this.previousPageButton = new ToggleButton(
                 Icon.BACK,
                 Icon.BACK,
@@ -135,5 +141,12 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
     private void setFilteredImport(boolean enabled) {
         this.filteredImportButton.setState(enabled);
         this.menu.sendSetAdvancedAeFilteredImport(enabled);
+    }
+
+    private List<Component> getCompatibleUpgrades() {
+        ArrayList<Component> list = new ArrayList<>();
+        list.add(GuiText.CompatibleUpgrades.text());
+        list.addAll(Upgrades.getTooltipLinesForMachine(this.menu.getUpgrades().getUpgradableItem()));
+        return list;
     }
 }

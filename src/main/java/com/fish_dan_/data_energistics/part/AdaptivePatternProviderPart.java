@@ -17,6 +17,7 @@ import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
@@ -32,6 +33,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.items.IItemHandler;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -41,6 +43,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     @Nullable
     private AdaptivePatternProviderState adaptiveState;
     private final IUpgradeInventory upgrades;
+    private final IItemHandler externalReturnItemHandler = new AdaptivePatternProviderReturnItemHandler(this::getLogic);
 
     public AdaptivePatternProviderPart(IPartItem<?> partItem) {
         super(partItem);
@@ -60,6 +63,10 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     @Override
     public AppEngInternalInventory getProviderInventory() {
         return getAdaptiveState().getProviderInventory();
+    }
+
+    public IItemHandler getExternalReturnItemHandler() {
+        return this.externalReturnItemHandler;
     }
 
     @Override
@@ -385,11 +392,6 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     }
 
     private IUpgradeInventory createUpgradeInventory() {
-        Item inductionCard = AdaptivePatternProviderBlockEntity.getAppliedFluxInductionCard();
-        if (inductionCard == null) {
-            return UpgradeInventories.empty();
-        }
-
         return UpgradeInventories.forMachine(
                 this.getPartItem().asItem(),
                 AdaptivePatternProviderState.APPFLUX_UPGRADE_SLOTS,

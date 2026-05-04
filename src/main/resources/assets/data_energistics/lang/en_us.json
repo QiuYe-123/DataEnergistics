@@ -144,6 +144,7 @@
   "button.data_energistics.data_extractor.drop_routing.ae": "Prefer the AE network, then fall back to nearby containers",
   "tooltip.data_energistics.adaptive_pattern_provider.provider_slot": "Provider Slot",
   "tooltip.data_energistics.adaptive_pattern_provider.terminal_hidden_slots": "Unlocked pattern slots: %s/%s",
+  "tooltip.data_energistics.pattern_encoding_source": "Encoded via: %s",
   "message.data_energistics.data_extractor.range.enabled": "Extractor range display enabled",
   "message.data_energistics.data_extractor.range.disabled": "Extractor range display disabled"
 }

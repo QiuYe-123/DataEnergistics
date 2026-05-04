@@ -1,11 +1,14 @@
 package com.fish_dan_.data_energistics.menu.universal;
 
 import java.util.Arrays;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+import java.lang.reflect.Field;
 
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.NonNullList;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
@@ -18,34 +21,50 @@ import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.item.crafting.SmithingRecipeInput;
 
 import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.networking.IGrid;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.storage.StorageHelper;
 import appeng.core.definitions.AEItems;
-import appeng.crafting.pattern.AEProcessingPattern;
 import appeng.menu.SlotSemantics;
-import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.menu.guisync.GuiSync;
-import appeng.parts.encoding.EncodingMode;
+import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.network.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu implements UniversalTerminalMenuBridge {
+public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
+        implements UniversalTerminalMenuBridge, PatternEncodingPreviewMenu {
+    private static final String ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER = "transferEncodedPatternToProvider";
+    private static final Field FALLBACK_NETWORK_BLANK_PATTERN_COUNT_FIELD =
+            resolveInheritedField("dataEnergistics$networkBlankPatternCount");
+    private static final Field FALLBACK_SYNCED_PATTERN_PROVIDERS_FIELD =
+            resolveInheritedField("dataEnergistics$syncedPatternProviders");
     private static final int CRAFTING_GRID_WIDTH = 3;
     private static final int CRAFTING_GRID_HEIGHT = 3;
     private static final int CRAFTING_GRID_SLOTS = CRAFTING_GRID_WIDTH * CRAFTING_GRID_HEIGHT;
+    private static final int PATTERN_PROVIDER_SYNC_INTERVAL_TICKS = 5;
 
     private final UniversalTerminalPart host;
-    @GuiSync(790)
+    @GuiSync(890)
     public int availableTerminalMask;
-    @GuiSync(791)
+    @GuiSync(891)
     public int activeTerminalIndex = -1;
-    @GuiSync(792)
+    @GuiSync(892)
     public long networkBlankPatternCount;
+    @GuiSync(893)
+    public SyncedPatternProviderList syncedPatternProviders = SyncedPatternProviderList.EMPTY;
+
+    private final Map<appeng.helpers.patternprovider.PatternContainer, Long> syncedPatternProviderIds = new IdentityHashMap<>();
+    private long nextSyncedPatternProviderId = 1;
+    private int lastPatternProviderSyncTick = Integer.MIN_VALUE;
 
     public UniversalPatternEncodingTermMenu(int id, Inventory playerInventory, UniversalTerminalPart host) {
         this(ModMenus.UNIVERSAL_PATTERN_ENCODING_TERM.get(), id, playerInventory, host, true);
@@ -55,7 +74,11 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu im
                                             UniversalTerminalPart host, boolean bindInventory) {
         super(menuType, id, playerInventory, host, bindInventory);
         this.host = host;
+        registerClientAction(ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER, Long.class,
+                this::transferEncodedPatternToProviderFromClient);
         syncTerminalState();
+        syncBlankPatternCountFromNetwork();
+        syncPatternProvidersIfNeeded(true);
     }
 
     @Override
@@ -63,6 +86,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu im
         if (this.isServerSide()) {
             syncTerminalState();
             syncBlankPatternCountFromNetwork();
+            syncPatternProvidersIfNeeded(false);
         }
         super.broadcastChanges();
     }
@@ -92,6 +116,10 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu im
             return;
         }
 
+        if (this instanceof PatternEncodingSourceAware sourceAware) {
+            PatternEncodingSourceHelper.applyPatternSource(encodedPattern, sourceAware,
+                    PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode));
+        }
         encodedPatternInv.setItemDirect(0, encodedPattern);
     }
 
@@ -108,6 +136,53 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu im
     @Override
     public UniversalTerminalPart getUniversalTerminalHost() {
         return this.host;
+    }
+
+    @Override
+    public long getNetworkBlankPatternCount() {
+        if (this.networkBlankPatternCount > 0) {
+            return this.networkBlankPatternCount;
+        }
+
+        Long fallbackCount = readFallbackNetworkBlankPatternCount();
+        return fallbackCount != null ? fallbackCount : this.networkBlankPatternCount;
+    }
+
+    @Override
+    public List<SyncedPatternProvider> getSyncedPatternProviders() {
+        if (!this.syncedPatternProviders.providers().isEmpty()) {
+            return this.syncedPatternProviders.providers();
+        }
+
+        SyncedPatternProviderList fallbackProviders = readFallbackSyncedPatternProviders();
+        return fallbackProviders != null ? fallbackProviders.providers() : this.syncedPatternProviders.providers();
+    }
+
+    @Override
+    public void transferEncodedPatternToProvider(long providerId) {
+        if (this.isClientSide()) {
+            sendClientAction(ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER, providerId);
+            return;
+        }
+
+        var provider = PatternProviderSyncHelper.findProviderById(this.syncedPatternProviderIds, providerId);
+        if (provider == null) {
+            syncPatternProvidersFromNetwork();
+            provider = PatternProviderSyncHelper.findProviderById(this.syncedPatternProviderIds, providerId);
+            if (provider == null) {
+                return;
+            }
+        }
+
+        var encodedPatternInv = this.host.getLogic().getEncodedPatternInv();
+        ItemStack encodedPattern = encodedPatternInv.getStackInSlot(0);
+        ItemStack remainder = PatternProviderSyncHelper.transferEncodedPatternToProvider(provider, encodedPattern);
+        if (remainder.getCount() == encodedPattern.getCount()) {
+            return;
+        }
+
+        encodedPatternInv.setItemDirect(0, remainder.isEmpty() ? ItemStack.EMPTY : remainder);
+        syncPatternProvidersFromNetwork();
     }
 
     @Override
@@ -130,7 +205,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu im
 
     private void syncBlankPatternCountFromNetwork() {
         this.networkBlankPatternCount = 0;
-        if (!this.canInteractWithGrid()) {
+        if (getActiveGrid() == null) {
             return;
         }
 
@@ -140,6 +215,51 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu im
         }
 
         this.networkBlankPatternCount = this.storage.getAvailableStacks().get(blankPatternKey);
+    }
+
+    private void syncPatternProvidersFromNetwork() {
+        var grid = getActiveGrid();
+        if (grid == null) {
+            clearSyncedPatternProviders();
+            return;
+        }
+
+        this.syncedPatternProviders = PatternProviderSyncHelper.collectSyncedPatternProviders(
+                grid,
+                this.syncedPatternProviderIds,
+                () -> this.nextSyncedPatternProviderId++,
+                this.host.getLogic().getEncodedPatternInv().getStackInSlot(0));
+    }
+
+    private void syncPatternProvidersIfNeeded(boolean force) {
+        if (getActiveGrid() == null) {
+            clearSyncedPatternProviders();
+            this.lastPatternProviderSyncTick = Integer.MIN_VALUE;
+            return;
+        }
+
+        int currentTick = this.getPlayer().tickCount;
+        if (!force && currentTick - this.lastPatternProviderSyncTick < PATTERN_PROVIDER_SYNC_INTERVAL_TICKS) {
+            return;
+        }
+
+        syncPatternProvidersFromNetwork();
+        this.lastPatternProviderSyncTick = currentTick;
+    }
+
+    private void clearSyncedPatternProviders() {
+        this.syncedPatternProviderIds.clear();
+        this.syncedPatternProviders = SyncedPatternProviderList.EMPTY;
+        this.lastPatternProviderSyncTick = Integer.MIN_VALUE;
+    }
+
+    @Nullable
+    private IGrid getActiveGrid() {
+        var gridNode = this.getGridNode();
+        if (gridNode != null && gridNode.isActive()) {
+            return gridNode.getGrid();
+        }
+        return null;
     }
 
     private boolean consumeOneBlankPattern() {
@@ -164,6 +284,51 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu im
                         blankPatternKey,
                         1,
                         this.getActionSource()) > 0;
+    }
+
+    private void transferEncodedPatternToProviderFromClient(Long providerId) {
+        if (providerId != null) {
+            transferEncodedPatternToProvider(providerId);
+        }
+    }
+
+    @Nullable
+    private static Field resolveInheritedField(String fieldName) {
+        try {
+            Field field = PatternEncodingTermMenu.class.getDeclaredField(fieldName);
+            field.setAccessible(true);
+            return field;
+        } catch (NoSuchFieldException ignored) {
+            return null;
+        }
+    }
+
+    @Nullable
+    private Long readFallbackNetworkBlankPatternCount() {
+        if (FALLBACK_NETWORK_BLANK_PATTERN_COUNT_FIELD == null) {
+            return null;
+        }
+
+        try {
+            Object value = FALLBACK_NETWORK_BLANK_PATTERN_COUNT_FIELD.get(this);
+            return value instanceof Long count ? count : null;
+        } catch (IllegalAccessException ignored) {
+            return null;
+        }
+    }
+
+    @Nullable
+    private SyncedPatternProviderList readFallbackSyncedPatternProviders() {
+        if (FALLBACK_SYNCED_PATTERN_PROVIDERS_FIELD == null) {
+            return null;
+        }
+
+        try {
+            Object value = FALLBACK_SYNCED_PATTERN_PROVIDERS_FIELD.get(this);
+            return value instanceof SyncedPatternProviderList providers ? providers : null;
+        } catch (IllegalAccessException ignored) {
+            return null;
+        }
     }
 
     private void clearEncodedPatternSlot() {
@@ -318,4 +483,5 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu im
             return null;
         }
     }
+
 }

@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.client.screen;
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.Icon;
 import appeng.client.gui.style.ScreenStyle;
+import appeng.client.gui.widgets.AETextField;
 import appeng.client.gui.widgets.Scrollbar;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerSelectionHighlighter;
@@ -14,7 +15,6 @@ import net.sourceforge.pinyin4j.format.HanyuPinyinToneType;
 import net.sourceforge.pinyin4j.format.HanyuPinyinVCharType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
@@ -40,12 +40,13 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     private static final int SEARCH_Y = 4;
     private static final int SEARCH_WIDTH = 70;
     private static final int SEARCH_HEIGHT = 12;
+    private static final Component SEARCH_HINT = Component.literal("搜索设备");
 
     private final Scrollbar scrollbar;
     private final DataExtractorToggleButton rangeVisibleButton;
     private List<BoundRow> allRows = List.of();
     private List<BoundRow> cachedRows = List.of();
-    private EditBox searchBox;
+    private AETextField searchBox;
     private String searchQuery = "";
 
     public DataDistributionTowerScreen(DataDistributionTowerMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
@@ -67,15 +68,15 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     protected void init() {
         super.init();
 
-        this.searchBox = new EditBox(this.font,
+        this.searchBox = new AETextField(this.getStyle(), this.font,
                 this.leftPos + SEARCH_X,
                 this.topPos + SEARCH_Y,
                 SEARCH_WIDTH,
-                SEARCH_HEIGHT,
-                Component.literal("Search"));
+                SEARCH_HEIGHT);
         this.searchBox.setMaxLength(64);
+        this.searchBox.setBordered(false);
         this.searchBox.setValue(this.searchQuery);
-        this.searchBox.setSuggestion("\u641c\u7d22\u8bbe\u5907");
+        this.searchBox.setPlaceholder(SEARCH_HINT);
         this.searchBox.setResponder(value -> {
             this.searchQuery = value;
             updateSearchSuggestion();
@@ -303,8 +304,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
             return;
         }
 
-        boolean showSuggestion = !this.searchBox.isFocused() && this.searchBox.getValue().isEmpty();
-        this.searchBox.setSuggestion(showSuggestion ? "\u641c\u7d22\u8bbe\u5907" : "");
+        this.searchBox.setPlaceholder(this.searchBox.isFocused() ? null : SEARCH_HINT);
     }
 
     private String buildSearchIndex(String text) {
