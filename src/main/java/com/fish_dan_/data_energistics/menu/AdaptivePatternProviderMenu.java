@@ -8,11 +8,10 @@ import appeng.client.gui.Icon;
 import appeng.core.localization.Tooltips;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
+import appeng.menu.ToolboxMenu;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.implementations.PatternProviderMenu;
 import appeng.menu.slot.AppEngSlot;
-import appeng.menu.slot.IOptionalSlotHost;
-import appeng.menu.slot.OptionalRestrictedInputSlot;
 import appeng.menu.slot.RestrictedInputSlot;
 import appeng.util.inv.AppEngInternalInventory;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
@@ -24,7 +23,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 
-public class AdaptivePatternProviderMenu extends PatternProviderMenu implements IOptionalSlotHost {
+public class AdaptivePatternProviderMenu extends PatternProviderMenu {
     private static final String ACTION_SET_PAGE = "set_page";
     private static final String ACTION_SET_FILTERED_IMPORT = "set_filtered_import";
     private static final String ACTION_SET_RESONATING_PULL = "set_resonating_pull";
@@ -40,6 +39,7 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
     public static final SlotSemantic STORAGE_ROW_2 = SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_STORAGE_ROW_2", false);
 
     private final AdaptivePatternProviderHost host;
+    private final ToolboxMenu toolbox;
 
     @GuiSync(780)
     public int visiblePatternSlots;
@@ -65,6 +65,7 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
     public AdaptivePatternProviderMenu(int id, Inventory playerInventory, AdaptivePatternProviderHost host) {
         super(ModMenus.ADAPTIVE_PATTERN_PROVIDER.get(), id, playerInventory, host);
         this.host = host;
+        this.toolbox = new ToolboxMenu(this);
         registerClientAction(ACTION_SET_PAGE, Integer.class, this::setPage);
         registerClientAction(ACTION_SET_FILTERED_IMPORT, Boolean.class, this::setAdvancedAeFilteredImport);
         registerClientAction(ACTION_SET_RESONATING_PULL, Boolean.class, this::setResonatingPullEnabled);
@@ -107,7 +108,8 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
 
         var upgrades = this.host.getUpgrades();
         for (int i = 0; i < upgrades.size(); i++) {
-            this.addSlot(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, i), SlotSemantics.UPGRADE);
+            this.addSlot(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, i),
+                    SlotSemantics.UPGRADE);
         }
     }
 
@@ -131,6 +133,7 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
         if (this.isServerSide()) {
             refreshPatternPagination();
         }
+        this.toolbox.tick();
         super.broadcastChanges();
         updatePatternSlotVisibility();
     }
@@ -234,6 +237,10 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
 
     public IUpgradeInventory getUpgrades() {
         return this.host != null ? this.host.getUpgrades() : appeng.api.upgrades.UpgradeInventories.empty();
+    }
+
+    public ToolboxMenu getToolbox() {
+        return this.toolbox;
     }
 
     public int getAe2LtReturnModeOrdinal() {
@@ -490,11 +497,6 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu implements 
         for (int i = DEFAULT_RETURN_SLOTS; i < Math.min(EXPANDED_RETURN_SLOTS, returnInv.size()); i++) {
             this.addSlot(new AppEngSlot(returnInv, i), STORAGE_ROW_2);
         }
-    }
-
-    @Override
-    public boolean isSlotEnabled(int idx) {
-        return this.host != null && idx >= 0 && idx < this.host.getUpgrades().size();
     }
 
     private final class PagedPatternInventory implements InternalInventory {

@@ -1,0 +1,10 @@
+{
+	"format_version": "1.21.11",
+	"credit": "Made with Blockbench",
+	"parent": "ae2:part/pattern_access_terminal_off",
+	"textures": {
+		"lightsBright": "data_energistics:part/universal_terminal_bright",
+		"lightsMedium": "ae2:part/terminal_medium",
+		"lightsDark": "data_energistics:part/universal_terminal_dark"
+	}
+}

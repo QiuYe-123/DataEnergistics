@@ -1,13 +1,13 @@
 {
   "variants": {
     "part=0": {
-      "model": "data_energistics:block/data_distribution_tower"
+      "model": "data_energistics:block/data_distribution_tower_bottom"
     },
     "part=1": {
-      "model": "data_energistics:block/data_distribution_tower"
+      "model": "data_energistics:block/data_distribution_tower_middle"
     },
     "part=2": {
-      "model": "data_energistics:block/data_distribution_tower"
+      "model": "data_energistics:block/data_distribution_tower_top"
     }
   }
 }

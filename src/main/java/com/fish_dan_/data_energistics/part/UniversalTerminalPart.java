@@ -16,6 +16,7 @@ import appeng.parts.PartModel;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.parts.reporting.AbstractTerminalPart;
 import appeng.parts.reporting.CraftingTerminalPart;
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.network.UniversalTerminalStateSyncPayload;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
 import com.mojang.logging.LogUtils;
@@ -52,9 +53,11 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
     private static final String TAG_TERMINAL_DATA = "universal_terminal_data";
     private static final String TAG_APPLIEDE_SHIFT_TO_TRANSMUTE = "appliede_shift_to_transmute";
     @PartModels
-    public static final ResourceLocation MODEL_OFF = ResourceLocation.fromNamespaceAndPath("ae2", "part/terminal_off");
+    public static final ResourceLocation MODEL_OFF =
+            ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/universal_terminal_off");
     @PartModels
-    public static final ResourceLocation MODEL_ON = ResourceLocation.fromNamespaceAndPath("ae2", "part/terminal_on");
+    public static final ResourceLocation MODEL_ON =
+            ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/universal_terminal_on");
     public static final IPartModel MODELS_OFF = new PartModel(MODEL_BASE, MODEL_OFF, MODEL_STATUS_OFF);
     public static final IPartModel MODELS_ON = new PartModel(MODEL_BASE, MODEL_ON, MODEL_STATUS_ON);
     public static final IPartModel MODELS_HAS_CHANNEL = new PartModel(MODEL_BASE, MODEL_ON, MODEL_STATUS_HAS_CHANNEL);

@@ -4,6 +4,7 @@ import appeng.client.gui.Icon;
 import appeng.client.gui.implementations.PatternProviderScreen;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.ToggleButton;
+import appeng.client.gui.widgets.ToolboxPanel;
 import appeng.client.gui.widgets.UpgradesPanel;
 import appeng.api.upgrades.Upgrades;
 import appeng.core.localization.GuiText;
@@ -33,6 +34,9 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
     public AdaptivePatternProviderScreen(AdaptivePatternProviderMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
         this.widgets.add("upgrades", new UpgradesPanel(menu.getSlots(SlotSemantics.UPGRADE), this::getCompatibleUpgrades));
+        if (menu.getToolbox().isPresent()) {
+            this.widgets.add("toolbox", new ToolboxPanel(style, menu.getToolbox().getName()));
+        }
         this.previousPageButton = new ToggleButton(
                 Icon.BACK,
                 Icon.BACK,

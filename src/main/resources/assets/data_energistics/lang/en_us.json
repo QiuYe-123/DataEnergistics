@@ -100,6 +100,8 @@
   "jade.data_energistics.data_distribution_tower.ae": "AE Channels: %s/%s",
   "jade.data_energistics.data_distribution_tower.fe": "Network FE: %s",
   "jade.data_energistics.data_distribution_tower.range": "Range: %s",
+  "jade.data_energistics.data_distribution_tower.status.online": "Device Online",
+  "jade.data_energistics.data_distribution_tower.status.offline": "Device Offline",
   "jade.data_energistics.data_extractor.status.online": "Device Online",
   "jade.data_energistics.data_extractor.status.offline": "Device Offline",
   "jade.data_energistics.data_mimetic_field.status.online": "Device Online",

@@ -100,6 +100,8 @@
   "jade.data_energistics.data_distribution_tower.ae": "AE 频道：%s/%s",
   "jade.data_energistics.data_distribution_tower.fe": "网络 FE：%s",
   "jade.data_energistics.data_distribution_tower.range": "范围：%s",
+  "jade.data_energistics.data_distribution_tower.status.online": "设备在线",
+  "jade.data_energistics.data_distribution_tower.status.offline": "设备离线",
   "jade.data_energistics.data_extractor.status.online": "设备在线",
   "jade.data_energistics.data_extractor.status.offline": "设备离线",
   "jade.data_energistics.data_mimetic_field.status.online": "设备在线",

@@ -3,18 +3,22 @@ package com.fish_dan_.data_energistics.part;
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.parts.IPartItem;
+import appeng.api.parts.IPartModel;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.api.upgrades.UpgradeInventories;
 import appeng.helpers.patternprovider.PatternContainer;
+import appeng.items.parts.PartModels;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuHostLocator;
 import appeng.menu.locator.MenuLocators;
+import appeng.parts.PartModel;
 import appeng.parts.crafting.PatternProviderPart;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
@@ -27,6 +31,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.Nameable;
 import net.minecraft.world.entity.player.Player;
@@ -40,6 +45,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class AdaptivePatternProviderPart extends PatternProviderPart implements InternalInventoryHost, IUpgradeableObject, AdaptivePatternProviderHost {
+    private static final ResourceLocation MODEL_BASE =
+            ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/adaptive_pattern_provider_base");
+
+    @PartModels
+    private static final PartModel MODELS_OFF;
+    @PartModels
+    private static final PartModel MODELS_ON;
+    @PartModels
+    private static final PartModel MODELS_HAS_CHANNEL;
+
+    static {
+        MODELS_OFF = new PartModel(MODEL_BASE,
+                ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/adaptive_pattern_provider_off"));
+        MODELS_ON = new PartModel(MODEL_BASE,
+                ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/adaptive_pattern_provider_on"));
+        MODELS_HAS_CHANNEL = new PartModel(MODEL_BASE,
+                ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/adaptive_pattern_provider_has_channel"));
+    }
+
     @Nullable
     private AdaptivePatternProviderState adaptiveState;
     private final IUpgradeInventory upgrades;
@@ -345,6 +369,17 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     }
 
     @Override
+    public IPartModel getStaticModels() {
+        if (this.isActive() && this.isPowered()) {
+            return MODELS_HAS_CHANNEL;
+        } else if (this.isPowered()) {
+            return MODELS_ON;
+        } else {
+            return MODELS_OFF;
+        }
+    }
+
+    @Override
     public InternalInventory getTerminalPatternInventory() {
         int visibleSlots = Math.max(0, Math.min(getConfiguredPatternSlotCount(), this.getLogic().getPatternInv().size()));
         return this.getLogic().getPatternInv().getSubInventory(0, visibleSlots);
@@ -446,7 +481,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     private IUpgradeInventory createUpgradeInventory() {
         return UpgradeInventories.forMachine(
                 this.getPartItem().asItem(),
-                AdaptivePatternProviderState.APPFLUX_UPGRADE_SLOTS,
+                AdaptivePatternProviderState.BASE_UPGRADE_SLOTS,
                 this::onAdaptiveStateChanged
         );
     }

@@ -2,7 +2,8 @@
   "$schema": "schema.json",
   "includes": [
     "common/common.json",
-    "common/player_inventory.json"
+    "common/player_inventory.json",
+    "common/toolbox.json"
   ],
   "background": {
     "texture": "guis/data_extractor.png",
@@ -34,6 +35,11 @@
       "left": 8,
       "bottom": 29,
       "grid": "HORIZONTAL"
+    },
+    "TOOLBOX": {
+      "right": -20,
+      "bottom": 170,
+      "grid": "BREAK_AFTER_3COLS"
     }
   },
   "text": {
@@ -90,6 +96,12 @@
     "progressBar": {
       "left": 136,
       "top": 31
+    },
+    "toolbox": {
+      "right": -19,
+      "bottom": 176,
+      "width": 59,
+      "height": 66
     },
     "upgrades": {
       "left": 174,

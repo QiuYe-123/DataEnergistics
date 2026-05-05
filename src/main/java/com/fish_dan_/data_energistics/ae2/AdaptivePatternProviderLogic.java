@@ -486,7 +486,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
     }
 
     private boolean pushMeteoritePattern(IMolecularAssemblerSupportedPattern pattern, KeyCounter[] inputHolder) {
-        if (this.worksInRound >= METEORITE_MAX_WORKS_PER_ROUND || super.isBusy() || !this.mainNode.isActive()) {
+        if (this.worksInRound >= getMeteoriteMaxWorksPerRound() || super.isBusy() || !this.mainNode.isActive()) {
             return false;
         }
 
@@ -1541,8 +1541,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
             return false;
         }
 
-        double extracted = energyService.extractAEPower(METEORITE_ENERGY_PER_WORK, Actionable.MODULATE, PowerMultiplier.ONE);
-        if (extracted + 1.0e-9 >= METEORITE_ENERGY_PER_WORK) {
+        double requiredEnergy = getMeteoriteEnergyPerWork();
+        double extracted = energyService.extractAEPower(requiredEnergy, Actionable.MODULATE, PowerMultiplier.ONE);
+        if (extracted + 1.0e-9 >= requiredEnergy) {
             return true;
         }
 
@@ -1551,6 +1552,23 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
         } catch (Throwable ignored) {
         }
         return false;
+    }
+
+    private int getMeteoriteSpeedCardCount() {
+        if (!(this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost)
+                || !adaptivePatternProviderHost.isMeteoriteProviderSelected()) {
+            return 0;
+        }
+
+        return Math.max(0, adaptivePatternProviderHost.getUpgrades().getInstalledUpgrades(appeng.core.definitions.AEItems.SPEED_CARD));
+    }
+
+    private int getMeteoriteMaxWorksPerRound() {
+        return METEORITE_MAX_WORKS_PER_ROUND << Math.min(4, getMeteoriteSpeedCardCount());
+    }
+
+    private double getMeteoriteEnergyPerWork() {
+        return (double) (METEORITE_ENERGY_PER_WORK << Math.min(4, getMeteoriteSpeedCardCount()));
     }
 
     private void installExpandedReturnInventory() {

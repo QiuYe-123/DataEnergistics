@@ -772,7 +772,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     private IUpgradeInventory createUpgradeInventory() {
         return UpgradeInventories.forMachine(
                 getProviderBlock().get(),
-                AdaptivePatternProviderState.APPFLUX_UPGRADE_SLOTS,
+                AdaptivePatternProviderState.BASE_UPGRADE_SLOTS,
                 this::onUpgradesChanged
         );
     }

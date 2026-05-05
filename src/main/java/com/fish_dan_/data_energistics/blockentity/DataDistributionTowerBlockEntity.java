@@ -95,6 +95,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private List<BlockPos> cachedAeDisplayTargets = List.of();
     private long cachedTransferBudgetHint = 0L;
     private boolean showRange = false;
+    private boolean syncedOnline = false;
     private boolean pendingRangeRefresh = false;
     private int indexedChunkRadius = -1;
     private int syncedChunkRadius = 0;
@@ -168,6 +169,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     protected void writeToStream(RegistryFriendlyByteBuf data) {
         super.writeToStream(data);
         data.writeBoolean(this.showRange);
+        data.writeBoolean(isTowerActive());
         data.writeVarInt(computeChunkRadius());
     }
 
@@ -177,6 +179,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         boolean showRange = data.readBoolean();
         if (showRange != this.showRange) {
             this.showRange = showRange;
+            changed = true;
+        }
+        boolean syncedOnline = data.readBoolean();
+        if (syncedOnline != this.syncedOnline) {
+            this.syncedOnline = syncedOnline;
             changed = true;
         }
         int syncedChunkRadius = data.readVarInt();
@@ -191,6 +198,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (this.level == null) {
             return;
         }
+
+        syncClientOnlineState();
 
         if (this.pendingRangeRefresh) {
             applyPendingRangeRefresh();
@@ -278,6 +287,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     public boolean isNetworkNodeOnline() {
+        if (this.level != null && this.level.isClientSide()) {
+            return this.syncedOnline;
+        }
         return isTowerActive();
     }
 
@@ -671,6 +683,18 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     private boolean isTowerActive() {
         return this.getMainNode().isActive();
+    }
+
+    private void syncClientOnlineState() {
+        if (this.level == null || this.level.isClientSide()) {
+            return;
+        }
+
+        boolean online = isTowerActive();
+        if (online != this.syncedOnline) {
+            this.syncedOnline = online;
+            this.markForClientUpdate();
+        }
     }
 
     private int getChunkRadius() {

@@ -19,6 +19,7 @@ public class DataDistributionTowerJadeProvider implements IBlockComponentProvide
     private static final String TAG_AE_MAX = "ae_max";
     private static final String TAG_FE = "fe";
     private static final String TAG_RANGE = "range";
+    private static final String TAG_ONLINE = "online";
 
     @Override
     public ResourceLocation getUid() {
@@ -32,6 +33,12 @@ public class DataDistributionTowerJadeProvider implements IBlockComponentProvide
             return;
         }
 
+        Component statusLine = Component.translatable(
+                serverData.getBoolean(TAG_ONLINE)
+                        ? "jade.data_energistics.data_distribution_tower.status.online"
+                        : "jade.data_energistics.data_distribution_tower.status.offline"
+        );
+        tooltip.add(Math.min(1, tooltip.size()), statusLine);
         tooltip.add(Component.translatable(
                 "jade.data_energistics.data_distribution_tower.ae",
                 serverData.getInt(TAG_AE_USED),
@@ -58,6 +65,7 @@ public class DataDistributionTowerJadeProvider implements IBlockComponentProvide
         data.putInt(TAG_AE_MAX, tower.getMaxChannelCount());
         data.putString(TAG_FE, tower.getEnergyDisplayText());
         data.putInt(TAG_RANGE, tower.getConfiguredChunkRadius());
+        data.putBoolean(TAG_ONLINE, tower.isNetworkNodeOnline());
     }
 
     private static Component formatRangeText(int chunkRadius) {

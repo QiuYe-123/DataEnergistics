@@ -22,6 +22,7 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.EntityBlock;
@@ -36,6 +37,9 @@ import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
@@ -48,6 +52,32 @@ import java.util.List;
 @EventBusSubscriber(modid = Data_Energistics.MODID)
 public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlock {
     public static final IntegerProperty PART = IntegerProperty.create("part", 0, 2);
+    private static final VoxelShape BOTTOM_SHAPE = Shapes.or(
+            Block.box(0, 1, 0, 16, 4, 16),
+            Block.box(2, 0, 2, 14, 8, 14),
+            Block.box(5, 5, 14, 11, 11, 16),
+            Block.box(14, 5, 5, 16, 11, 11),
+            Block.box(5, 5, 0, 11, 11, 2),
+            Block.box(0, 5, 5, 2, 11, 11),
+            Block.box(4, 8, 4, 12, 10, 12),
+            Block.box(6, 10, 6, 10, 16, 10),
+            Block.box(5, 12, 5, 11, 13, 11)
+    );
+    private static final VoxelShape MIDDLE_SHAPE = Shapes.or(
+            Block.box(6, 0, 6, 10, 12, 10),
+            Block.box(4, 12, 4, 12, 16, 12)
+    );
+    private static final VoxelShape TOP_SHAPE = Shapes.or(
+            Block.box(3, 0, 3, 6, 3, 13),
+            Block.box(10, 0, 3, 13, 3, 13),
+            Block.box(6, 0, 3, 10, 3, 6),
+            Block.box(6, 0, 10, 10, 3, 13),
+            Block.box(0, 5, 0, 3, 8, 16),
+            Block.box(13, 5, 0, 16, 8, 16),
+            Block.box(3, 5, 0, 13, 8, 3),
+            Block.box(3, 5, 13, 13, 8, 16),
+            Block.box(5, 10, 5, 11, 16, 11)
+    );
 
     public DataDistributionTowerBlock(BlockBehaviour.Properties properties) {
         super(properties);
@@ -58,6 +88,16 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         super.createBlockStateDefinition(builder);
         builder.add(PART);
+    }
+
+    @Override
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return getPartShape(state);
+    }
+
+    @Override
+    public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return getPartShape(state);
     }
 
     @Nullable
@@ -342,6 +382,14 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
 
     private static boolean canDisassembleWithWrench(ItemStack stack) {
         return InteractionUtil.canWrenchDisassemble(stack) || AEItems.NETWORK_TOOL.is(stack);
+    }
+
+    private static VoxelShape getPartShape(BlockState state) {
+        return switch (state.getValue(PART)) {
+            case 1 -> MIDDLE_SHAPE;
+            case 2 -> TOP_SHAPE;
+            default -> BOTTOM_SHAPE;
+        };
     }
 
     private ItemStack createTowerItemDrop(@Nullable BlockEntity blockEntity, @Nullable Player player) {

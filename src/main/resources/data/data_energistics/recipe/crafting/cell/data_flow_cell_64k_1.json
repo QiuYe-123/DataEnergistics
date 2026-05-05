@@ -1,16 +1,16 @@
 {
   "type": "minecraft:crafting_shaped",
   "pattern": [
-    "ABA",
+    "ACA",
     "CEC",
-    "DDD"
+    "BDB"
   ],
   "key": {
     "A": {
       "item": "ae2:quartz_glass"
     },
     "B": {
-      "item": "data_energistics:data_carrier"
+      "tag": "c:ingots/obsidian"
     },
     "C": {
       "tag": "c:dusts/redstone"

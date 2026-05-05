@@ -10,13 +10,13 @@
       "tag": "c:dusts/redstone"
     },
     "B": {
-      "tag": "c:gems/lapis"
+      "item": "ae2:calculation_processor"
     },
     "C": {
-      "item": "data_energistics:data_carrier"
+      "item": "data_energistics:data_storage_component_1k"
     },
     "D": {
-      "item": "data_energistics:data_carrier"
+      "item": "ae2:quartz_glass"
     }
   },
   "result": {
