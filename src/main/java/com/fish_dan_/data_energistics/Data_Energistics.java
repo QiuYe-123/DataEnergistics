@@ -26,6 +26,7 @@ import com.fish_dan_.data_energistics.client.screen.DataDistributionTowerScreen;
 import com.fish_dan_.data_energistics.client.screen.DataExtractorScreen;
 import com.fish_dan_.data_energistics.client.screen.DataMimeticFieldScreen;
 import com.fish_dan_.data_energistics.client.ModItemColors;
+import com.fish_dan_.data_energistics.client.ModKeyMappings;
 import com.fish_dan_.data_energistics.client.screen.DataRipperScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalCraftingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalMEStorageScreen;
@@ -68,6 +69,7 @@ import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.common.NeoForge;
@@ -276,6 +278,12 @@ public class Data_Energistics {
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenInitPost);
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenRenderPost);
             });
+        }
+
+        @SubscribeEvent
+        public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
+            event.register(ModKeyMappings.OPEN_PATTERN_PROVIDER);
+            event.register(ModKeyMappings.RENAME_PATTERN_PROVIDER);
         }
 
         @SubscribeEvent

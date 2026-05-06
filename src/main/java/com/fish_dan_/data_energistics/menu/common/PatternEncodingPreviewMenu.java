@@ -16,6 +16,10 @@ public interface PatternEncodingPreviewMenu {
 
     void transferEncodedPatternToProvider(long providerId);
 
+    void openPatternProviderMenu(long providerId);
+
+    void renamePatternProvider(long providerId, String name);
+
     record SyncedPatternProviderList(List<SyncedPatternProvider> providers) implements PacketWritable {
         public static final SyncedPatternProviderList EMPTY = new SyncedPatternProviderList(List.of());
 
@@ -50,6 +54,7 @@ public interface PatternEncodingPreviewMenu {
             Component displayName,
             ResourceLocation iconItemId,
             boolean useAeButtonStyle,
+            boolean renameable,
             int patternSlotCount,
             int usedPatternSlotCount) {
 
@@ -58,6 +63,7 @@ public interface PatternEncodingPreviewMenu {
                     data.readLong(),
                     ComponentSerialization.TRUSTED_STREAM_CODEC.decode(data),
                     data.readResourceLocation(),
+                    data.readBoolean(),
                     data.readBoolean(),
                     data.readVarInt(),
                     data.readVarInt());
@@ -68,6 +74,7 @@ public interface PatternEncodingPreviewMenu {
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(data, this.displayName);
             data.writeResourceLocation(this.iconItemId);
             data.writeBoolean(this.useAeButtonStyle);
+            data.writeBoolean(this.renameable);
             data.writeVarInt(this.patternSlotCount);
             data.writeVarInt(this.usedPatternSlotCount);
         }

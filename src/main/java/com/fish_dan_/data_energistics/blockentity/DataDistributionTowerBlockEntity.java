@@ -13,6 +13,9 @@ import appeng.api.networking.pathing.IPathingService;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartItem;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
+import appeng.blockentity.crafting.CraftingBlockEntity;
+import appeng.blockentity.crafting.MolecularAssemblerBlockEntity;
+import appeng.blockentity.crafting.PatternProviderBlockEntity;
 import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.core.AEConfig;
 import appeng.core.definitions.AEItems;
@@ -74,6 +77,14 @@ import java.util.Set;
 
 @EventBusSubscriber(modid = Data_Energistics.MODID)
 public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity implements CustomAdHocChannelHost, InternalInventoryHost {
+    private static final String AE_CRAFTING_BLOCK_ENTITY_PREFIX = "appeng.blockentity.crafting.";
+    private static final String AE_PATTERN_PROVIDER_BLOCK_ENTITY = "appeng.blockentity.crafting.PatternProviderBlockEntity";
+    private static final String NEOECOAE_BLOCK_ENTITY_PREFIX = "cn.dancingsnow.neoecoae.blocks.entity.";
+    private static final Set<String> PREFERRED_ECO_SUBSYSTEM_HOST_CLASSES = Set.of(
+            "cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingSystemBlockEntity",
+            "cn.dancingsnow.neoecoae.blocks.entity.storage.ECOStorageSystemBlockEntity",
+            "cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity"
+    );
     private static final String SHOW_RANGE_TAG = "show_range";
     private static final String LINKED_POSITIONS_TAG = "linked_positions";
     private static final int CACHE_TICKS = 20;
@@ -350,6 +361,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         for (DisplayTarget target : collectDisplayTargets()) {
             BlockPos pos = target.pos();
             BlockEntity blockEntity = this.level.getBlockEntity(pos);
+            if (shouldHideFromBoundTargetDisplay(blockEntity)) {
+                continue;
+            }
             if (appendCableBusSummaries(results, blockEntity, pos, target.kind(), maxEntries)) {
                 if (results.size() >= maxEntries) {
                     break;
@@ -385,36 +399,19 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         CableBusContainer cableBus = cableBusBlockEntity.getCableBus();
-        boolean addedAny = false;
         IPart centerPart = cableBus.getPart(null);
-
-        addedAny |= appendPartSummary(results, centerPart, pos, kind, maxEntries, null, "", "");
-        if (results.size() >= maxEntries) {
-            return true;
+        if (centerPart != null) {
+            return appendPartSummary(results, centerPart, pos, kind, maxEntries, null, "", "");
         }
 
-        ArrayList<CableBusSidePart> sideParts = new ArrayList<>();
         for (var direction : net.minecraft.core.Direction.values()) {
             IPart part = cableBus.getPart(direction);
             if (part != null) {
-                sideParts.add(new CableBusSidePart(part, direction));
+                return appendPartSummary(results, part, pos, kind, maxEntries, direction, "", "");
             }
         }
 
-        for (int i = 0; i < sideParts.size(); i++) {
-            CableBusSidePart sidePart = sideParts.get(i);
-            String prefix = i == sideParts.size() - 1 ? "└ " : "├ ";
-            if (centerPart == null) {
-                prefix = "";
-            }
-            String suffix = "";
-            addedAny |= appendPartSummary(results, sidePart.part(), pos, kind, maxEntries, sidePart.direction(), prefix, suffix);
-            if (results.size() >= maxEntries) {
-                return true;
-            }
-        }
-
-        return addedAny;
+        return false;
     }
 
     private boolean appendPartSummary(List<BoundTargetSummary> results, @Nullable IPart part, BlockPos pos, TargetKind kind,
@@ -521,9 +518,69 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
         }
 
+        collapseAeCraftingDisplayTargets(positions);
+
         ArrayList<DisplayTarget> results = new ArrayList<>(positions.size());
         positions.forEach((pos, kind) -> results.add(new DisplayTarget(pos, kind)));
         return List.copyOf(results);
+    }
+
+    private void collapseAeCraftingDisplayTargets(LinkedHashMap<BlockPos, TargetKind> positions) {
+        if (this.level == null || positions.isEmpty()) {
+            return;
+        }
+
+        ArrayList<BlockPos> craftingPositions = new ArrayList<>();
+        BlockPos representativePos = null;
+        for (Map.Entry<BlockPos, TargetKind> entry : positions.entrySet()) {
+            if (entry.getValue() != TargetKind.AE) {
+                continue;
+            }
+
+            BlockPos pos = entry.getKey();
+            if (!isAeCraftingDisplayComponent(this.level.getBlockEntity(pos))) {
+                continue;
+            }
+
+            craftingPositions.add(pos);
+            if (representativePos == null || compareAeCraftingDisplayTargets(pos, representativePos) < 0) {
+                representativePos = pos;
+            }
+        }
+
+        if (craftingPositions.size() <= 1 || representativePos == null) {
+            return;
+        }
+
+        for (BlockPos pos : craftingPositions) {
+            if (!pos.equals(representativePos)) {
+                positions.remove(pos);
+            }
+        }
+    }
+
+    private int compareAeCraftingDisplayTargets(BlockPos leftPos, BlockPos rightPos) {
+        if (this.level == null) {
+            return compareBlockPos(leftPos, rightPos);
+        }
+
+        int leftPriority = getAeCraftingDisplayPriority(this.level.getBlockEntity(leftPos));
+        int rightPriority = getAeCraftingDisplayPriority(this.level.getBlockEntity(rightPos));
+        if (leftPriority != rightPriority) {
+            return Integer.compare(rightPriority, leftPriority);
+        }
+
+        return compareBlockPos(leftPos, rightPos);
+    }
+
+    private int getAeCraftingDisplayPriority(@Nullable BlockEntity blockEntity) {
+        if (blockEntity instanceof CraftingBlockEntity craftingBlockEntity) {
+            return craftingBlockEntity.isCoreBlock() ? 3 : 2;
+        }
+        if (blockEntity instanceof MolecularAssemblerBlockEntity) {
+            return 1;
+        }
+        return 0;
     }
 
     private String resolveTargetDisplayName(BlockState state, @Nullable BlockEntity blockEntity) {
@@ -643,7 +700,9 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         int added = 0;
-        for (BlockEntity blockEntity : getNearbyBlockEntities()) {
+        ArrayList<BlockEntity> nearbyBlockEntities = new ArrayList<>(getNearbyBlockEntities());
+        nearbyBlockEntities.sort(this::compareLinkTargetPriority);
+        for (BlockEntity blockEntity : nearbyBlockEntities) {
             BlockPos pos = blockEntity.getBlockPos().immutable();
             if (pos.equals(this.worldPosition)) {
                 continue;
@@ -663,8 +722,8 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void processPendingLinks(IGridNode selfNode) {
-        for (Iterator<Map.Entry<BlockPos, Integer>> iterator = this.pendingLinkPositions.entrySet().iterator(); iterator.hasNext(); ) {
-            Map.Entry<BlockPos, Integer> entry = iterator.next();
+        BlockPos bestTargetPos = null;
+        for (Map.Entry<BlockPos, Integer> entry : this.pendingLinkPositions.entrySet()) {
             if (entry.getValue() > 0) {
                 entry.setValue(entry.getValue() - 1);
                 continue;
@@ -675,9 +734,14 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 continue;
             }
 
-            reconnectTarget(selfNode, targetPos);
-            iterator.remove();
-            break;
+            if (bestTargetPos == null || compareLinkTargetPriority(targetPos, bestTargetPos) < 0) {
+                bestTargetPos = targetPos;
+            }
+        }
+
+        if (bestTargetPos != null) {
+            reconnectTarget(selfNode, bestTargetPos);
+            this.pendingLinkPositions.remove(bestTargetPos);
         }
     }
 
@@ -835,7 +899,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             if (hasAnyEnergyCapability(pos)) {
                 endpoints.add(pos);
             }
-            if (hasDisplayableAeParts(blockEntity)) {
+            if (hasDisplayableAeTarget(blockEntity)) {
                 aeDisplayTargets.add(pos);
             }
         }
@@ -876,6 +940,98 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return results;
     }
 
+    private int compareLinkTargetPriority(BlockEntity left, BlockEntity right) {
+        return compareLinkTargetPriority(left.getBlockPos(), right.getBlockPos());
+    }
+
+    private int compareLinkTargetPriority(BlockPos leftPos, BlockPos rightPos) {
+        int leftPriority = getLinkTargetPriority(leftPos);
+        int rightPriority = getLinkTargetPriority(rightPos);
+        if (leftPriority != rightPriority) {
+            return Integer.compare(rightPriority, leftPriority);
+        }
+        return compareBlockPos(leftPos, rightPos);
+    }
+
+    private int getLinkTargetPriority(BlockPos pos) {
+        if (this.level == null) {
+            return 0;
+        }
+        BlockEntity blockEntity = this.level.getBlockEntity(pos);
+        return isPreferredEcoSubsystemHost(blockEntity) ? 1 : 0;
+    }
+
+    private boolean isPreferredEcoSubsystemHost(@Nullable BlockEntity blockEntity) {
+        return blockEntity != null && PREFERRED_ECO_SUBSYSTEM_HOST_CLASSES.contains(blockEntity.getClass().getName());
+    }
+
+    private boolean isEcoSubsystemComponent(@Nullable BlockEntity blockEntity) {
+        return blockEntity != null && blockEntity.getClass().getName().startsWith(NEOECOAE_BLOCK_ENTITY_PREFIX);
+    }
+
+    private boolean isAeCraftingDisplayComponent(@Nullable BlockEntity blockEntity) {
+        if (blockEntity == null) {
+            return false;
+        }
+        String className = blockEntity.getClass().getName();
+        return className.startsWith(AE_CRAFTING_BLOCK_ENTITY_PREFIX)
+                && !AE_PATTERN_PROVIDER_BLOCK_ENTITY.equals(className);
+    }
+
+    private boolean isAeCraftingClusterBridge(@Nullable BlockEntity blockEntity) {
+        return blockEntity instanceof PatternProviderBlockEntity;
+    }
+
+    private boolean isAeCraftingClusterNode(@Nullable BlockEntity blockEntity) {
+        return isAeCraftingDisplayComponent(blockEntity) || isAeCraftingClusterBridge(blockEntity);
+    }
+
+    private boolean isRepresentativeAeCraftingComponent(@Nullable BlockEntity blockEntity) {
+        if (!isAeCraftingDisplayComponent(blockEntity) || this.level == null) {
+            return false;
+        }
+
+        BlockPos startPos = blockEntity.getBlockPos();
+        ArrayDeque<BlockPos> queue = new ArrayDeque<>();
+        HashSet<BlockPos> visited = new HashSet<>();
+        queue.add(startPos);
+        visited.add(startPos);
+        BlockPos representative = startPos;
+
+        while (!queue.isEmpty()) {
+            BlockPos currentPos = queue.removeFirst();
+            if (compareBlockPos(currentPos, representative) < 0) {
+                representative = currentPos;
+            }
+
+            for (var direction : net.minecraft.core.Direction.values()) {
+                BlockPos neighborPos = currentPos.relative(direction);
+                if (!visited.add(neighborPos)) {
+                    continue;
+                }
+
+                BlockEntity neighbor = this.level.getBlockEntity(neighborPos);
+                if (!isAeCraftingClusterNode(neighbor)) {
+                    continue;
+                }
+
+                queue.addLast(neighborPos);
+                if (isAeCraftingDisplayComponent(neighbor) && compareBlockPos(neighborPos, representative) < 0) {
+                    representative = neighborPos;
+                }
+            }
+        }
+
+        return representative.equals(startPos);
+    }
+
+    private boolean shouldHideFromBoundTargetDisplay(@Nullable BlockEntity blockEntity) {
+        if (isEcoSubsystemComponent(blockEntity)) {
+            return !isPreferredEcoSubsystemHost(blockEntity);
+        }
+        return false;
+    }
+
     private boolean hasAnyEnergyCapability(BlockPos pos) {
         for (var direction : net.minecraft.core.Direction.values()) {
             if (getEnergyStorageAt(pos, direction) != null) {
@@ -885,19 +1041,27 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return getEnergyStorageAt(pos, null) != null;
     }
 
-    private boolean hasDisplayableAeParts(BlockEntity blockEntity) {
-        if (!(blockEntity instanceof CableBusBlockEntity cableBusBlockEntity)) {
+    private boolean hasDisplayableAeTarget(BlockEntity blockEntity) {
+        if (this.level == null) {
             return false;
         }
 
-        CableBusContainer cableBus = cableBusBlockEntity.getCableBus();
-        for (var direction : net.minecraft.core.Direction.values()) {
-            if (cableBus.getPart(direction) != null) {
-                return true;
-            }
+        if (shouldHideFromBoundTargetDisplay(blockEntity)) {
+            return false;
         }
 
-        return false;
+        if (blockEntity instanceof CableBusBlockEntity cableBusBlockEntity) {
+            CableBusContainer cableBus = cableBusBlockEntity.getCableBus();
+            for (var direction : net.minecraft.core.Direction.values()) {
+                if (cableBus.getPart(direction) != null) {
+                    return true;
+                }
+            }
+            return cableBus.getPart(null) != null;
+        }
+
+        return this.level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, blockEntity.getBlockPos(), null) != null
+                && !getConnectableNodes(this.level, blockEntity.getBlockPos()).isEmpty();
     }
 
     private boolean isTowerBlock(BlockPos pos) {
@@ -1541,9 +1705,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private record DisplayTarget(BlockPos pos, TargetKind kind) {
-    }
-
-    private record CableBusSidePart(IPart part, net.minecraft.core.Direction direction) {
     }
 
     private class TowerEnergyStorage implements IEnergyStorage {

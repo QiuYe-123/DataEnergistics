@@ -1,59 +1,99 @@
 package com.fish_dan_.data_energistics.client.screen;
 
+import appeng.api.client.AEKeyRendering;
+import appeng.api.config.LockCraftingMode;
+import appeng.api.config.Settings;
+import appeng.api.config.YesNo;
+import appeng.api.stacks.AmountFormat;
+import appeng.api.stacks.GenericStack;
+import appeng.api.upgrades.Upgrades;
+import appeng.client.Point;
+import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.Icon;
+import appeng.client.gui.ICompositeWidget;
+import appeng.client.gui.Tooltip;
 import appeng.client.gui.WidgetContainer;
-import appeng.client.gui.implementations.PatternProviderScreen;
 import appeng.client.gui.style.ScreenStyle;
+import appeng.client.gui.widgets.ServerSettingToggleButton;
 import appeng.client.gui.widgets.ToggleButton;
 import appeng.client.gui.widgets.ToolboxPanel;
 import appeng.client.gui.widgets.UpgradesPanel;
-import appeng.api.upgrades.Upgrades;
 import appeng.core.localization.GuiText;
+import appeng.core.localization.InGameTooltip;
+import appeng.core.network.ServerboundPacket;
+import appeng.core.network.serverbound.ConfigButtonPacket;
 import appeng.menu.SlotSemantics;
 import appeng.menu.slot.AppEngSlot;
 import com.fish_dan_.data_energistics.client.widget.AecsPullModeButton;
 import com.fish_dan_.data_energistics.client.widget.Ae2LtTextureToggleButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
+import net.neoforged.neoforge.network.PacketDistributor;
+import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Field;
-import java.util.List;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
-public class AdaptivePatternProviderScreen extends PatternProviderScreen<AdaptivePatternProviderMenu> {
+public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternProviderMenu> {
     private static final int HIDDEN_SLOT_COORD = -9999;
     private static final Field SLOT_X_FIELD = resolveField(Slot.class, "x");
     private static final Field SLOT_Y_FIELD = resolveField(Slot.class, "y");
     private static final Field WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
     private static final Field WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD = resolveField(WidgetContainer.class, "compositeWidgets");
+
     private final ToggleButton previousPageButton;
     private final ToggleButton nextPageButton;
+    private final ToggleButton showInPatternAccessTerminalButton;
+    private final ServerSettingToggleButton<YesNo> blockingModeButton;
+    private final ServerSettingToggleButton<LockCraftingMode> lockCraftingModeButton;
     private final Ae2LtTextureToggleButton ae2ltModeButton;
     private final Ae2LtTextureToggleButton ae2ltReturnModeButton;
     private final Ae2LtTextureToggleButton ae2ltWirelessStrategyButton;
     private final Ae2LtTextureToggleButton ae2ltWirelessSpeedButton;
     private final DataExtractorToggleButton filteredImportButton;
     private final AecsPullModeButton resonatingPullButton;
-    private final List<Slot> uniqueUpgradeSlots;
+    private final AdaptivePatternProviderLockReason lockReason;
     private final List<Slot> duplicateUpgradeSlots;
     private final List<Slot> duplicateToolboxSlots;
 
     public AdaptivePatternProviderScreen(AdaptivePatternProviderMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
+
+        this.blockingModeButton = new ServerSettingToggleButton<>(Settings.BLOCKING_MODE, YesNo.NO);
+        this.addToLeftToolbar(this.blockingModeButton);
+        this.lockCraftingModeButton = new ServerSettingToggleButton<>(Settings.LOCK_CRAFTING_MODE, LockCraftingMode.NONE);
+        this.addToLeftToolbar(this.lockCraftingModeButton);
+        this.widgets.addOpenPriorityButton();
+        this.showInPatternAccessTerminalButton = new ToggleButton(
+                Icon.PATTERN_ACCESS_SHOW,
+                Icon.PATTERN_ACCESS_HIDE,
+                GuiText.PatternAccessTerminal.text(),
+                GuiText.PatternAccessTerminalHint.text(),
+                btn -> this.selectNextPatternProviderMode()
+        );
+        this.addToLeftToolbar(this.showInPatternAccessTerminalButton);
+        this.lockReason = new AdaptivePatternProviderLockReason(this);
+        this.widgets.add("lockReason", this.lockReason);
+
         var upgradeSlots = splitUniqueSlots(menu.getSlots(SlotSemantics.UPGRADE));
         var toolboxSlots = splitUniqueSlots(menu.getSlots(SlotSemantics.TOOLBOX));
-        this.uniqueUpgradeSlots = upgradeSlots.unique();
         this.duplicateUpgradeSlots = upgradeSlots.duplicates();
         this.duplicateToolboxSlots = toolboxSlots.duplicates();
 
-        installOrReplaceCompositeWidget("upgrades", new UpgradesPanel(this.uniqueUpgradeSlots, this::getCompatibleUpgrades));
+        installOrReplaceCompositeWidget("upgrades", new UpgradesPanel(upgradeSlots.unique(), this::getCompatibleUpgrades));
         if (menu.getToolbox().isPresent() && !hasWidget("toolbox")) {
             this.widgets.add("toolbox", new ToolboxPanel(style, menu.getToolbox().getName()));
         }
@@ -74,6 +114,7 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
         );
         this.addToLeftToolbar(this.previousPageButton);
         this.addToLeftToolbar(this.nextPageButton);
+
         this.ae2ltModeButton = new Ae2LtTextureToggleButton(
                 Ae2LtTextureToggleButton.ButtonType.MODE,
                 ignored -> this.menu.sendToggleAe2LtMode()
@@ -81,11 +122,13 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
         this.ae2ltModeButton.setTooltipOn(List.of(Component.translatable("ae2lt.gui.provider_mode.wireless")));
         this.ae2ltModeButton.setTooltipOff(List.of(Component.translatable("ae2lt.gui.provider_mode.normal")));
         this.addToLeftToolbar(this.ae2ltModeButton);
+
         this.ae2ltReturnModeButton = new Ae2LtTextureToggleButton(
                 Ae2LtTextureToggleButton.ButtonType.AUTO_RETURN,
                 ignored -> this.menu.sendToggleAe2LtReturnMode()
         );
         this.addToLeftToolbar(this.ae2ltReturnModeButton);
+
         this.ae2ltWirelessStrategyButton = new Ae2LtTextureToggleButton(
                 Ae2LtTextureToggleButton.ButtonType.WIRELESS_STRATEGY,
                 ignored -> this.menu.sendToggleAe2LtWirelessDispatchMode()
@@ -93,6 +136,7 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
         this.ae2ltWirelessStrategyButton.setTooltipOn(List.of(Component.translatable("ae2lt.gui.wireless_strategy.even")));
         this.ae2ltWirelessStrategyButton.setTooltipOff(List.of(Component.translatable("ae2lt.gui.wireless_strategy.single")));
         this.addToLeftToolbar(this.ae2ltWirelessStrategyButton);
+
         this.ae2ltWirelessSpeedButton = new Ae2LtTextureToggleButton(
                 Ae2LtTextureToggleButton.ButtonType.SPEED,
                 ignored -> this.menu.sendToggleAe2LtWirelessSpeedMode()
@@ -100,6 +144,7 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
         this.ae2ltWirelessSpeedButton.setTooltipOn(List.of(Component.translatable("ae2lt.gui.wireless_speed.fast")));
         this.ae2ltWirelessSpeedButton.setTooltipOff(List.of(Component.translatable("ae2lt.gui.wireless_speed.normal")));
         this.addToLeftToolbar(this.ae2ltWirelessSpeedButton);
+
         this.filteredImportButton = new DataExtractorToggleButton(
                 Icon.FILTER_ON_EXTRACT_ENABLED,
                 Icon.FILTER_ON_EXTRACT_DISABLED,
@@ -109,6 +154,7 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
                 this::setFilteredImport
         );
         this.addToLeftToolbar(this.filteredImportButton);
+
         this.resonatingPullButton = new AecsPullModeButton(
                 "button.data_energistics.adaptive_pattern_provider.resonating_pull",
                 "button.data_energistics.adaptive_pattern_provider.resonating_pull.enabled",
@@ -118,38 +164,56 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
         this.addToLeftToolbar(this.resonatingPullButton);
     }
 
+    @Override
+    protected void init() {
+        super.init();
+        hideDuplicatedAuxiliarySlots();
+    }
+
+    @Override
     protected void updateBeforeRender() {
         super.updateBeforeRender();
-        hideSlots(this.duplicateUpgradeSlots);
-        hideSlots(this.duplicateToolboxSlots);
+
+        this.lockReason.setVisible(this.menu.getLockCraftingMode() != LockCraftingMode.NONE);
+        this.blockingModeButton.set(this.menu.getBlockingMode());
+        this.lockCraftingModeButton.set(this.menu.getLockCraftingMode());
+        this.showInPatternAccessTerminalButton.setState(this.menu.getShowInAccessTerminal() == YesNo.YES);
+
         boolean multiplePages = this.menu.totalPages > 1;
         this.previousPageButton.visible = multiplePages;
         this.nextPageButton.visible = multiplePages;
         this.previousPageButton.active = multiplePages && this.menu.pageIndex > 0;
         this.nextPageButton.active = multiplePages && this.menu.pageIndex + 1 < this.menu.totalPages;
+
         boolean showFilteredImport = this.menu.isAdvancedAeProviderSelected();
         this.filteredImportButton.visible = showFilteredImport;
         this.filteredImportButton.active = showFilteredImport;
         this.filteredImportButton.setState(this.menu.isAdvancedAeFilteredImportEnabled());
+
         boolean showResonatingPull = this.menu.isResonatingProviderSelected();
         this.resonatingPullButton.setVisibility(showResonatingPull);
         this.resonatingPullButton.setState(this.menu.isResonatingPullEnabled());
+
         boolean showAe2LtControls = this.menu.isAe2LtOverloadedProviderSelected();
         this.ae2ltModeButton.visible = showAe2LtControls;
         this.ae2ltModeButton.active = showAe2LtControls;
         this.ae2ltModeButton.setState(this.menu.isAe2LtWirelessMode());
+
         this.ae2ltReturnModeButton.visible = showAe2LtControls;
         this.ae2ltReturnModeButton.active = showAe2LtControls;
         this.ae2ltReturnModeButton.setTooltipAt(0, List.of(Component.translatable("ae2lt.gui.return_mode.off")));
         this.ae2ltReturnModeButton.setTooltipAt(1, List.of(Component.translatable("ae2lt.gui.return_mode.auto")));
         this.ae2ltReturnModeButton.setTooltipAt(2, List.of(Component.translatable("ae2lt.gui.return_mode.eject")));
         this.ae2ltReturnModeButton.setStateIndex(this.menu.getAe2LtReturnModeOrdinal());
+
         this.ae2ltWirelessStrategyButton.visible = showAe2LtControls && this.menu.isAe2LtWirelessMode();
         this.ae2ltWirelessStrategyButton.active = showAe2LtControls && this.menu.isAe2LtWirelessMode();
         this.ae2ltWirelessStrategyButton.setState(this.menu.isAe2LtEvenDistributionMode());
+
         this.ae2ltWirelessSpeedButton.visible = showAe2LtControls && this.menu.isAe2LtWirelessMode();
         this.ae2ltWirelessSpeedButton.active = showAe2LtControls && this.menu.isAe2LtWirelessMode();
         this.ae2ltWirelessSpeedButton.setState(this.menu.isAe2LtFastSpeedMode());
+
         this.setTextContent("dialog_title", this.menu.getProviderDisplayName());
         this.setTextContent("page_info", Component.translatable(
                 "screen.data_energistics.adaptive_pattern_provider.page",
@@ -188,6 +252,12 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
         this.menu.sendSetResonatingPullEnabled(enabled);
     }
 
+    private void selectNextPatternProviderMode() {
+        boolean backwards = this.isHandlingRightClick();
+        ServerboundPacket message = new ConfigButtonPacket(Settings.PATTERN_ACCESS_TERMINAL, backwards);
+        PacketDistributor.sendToServer(message);
+    }
+
     private List<Component> getCompatibleUpgrades() {
         ArrayList<Component> list = new ArrayList<>();
         list.add(GuiText.CompatibleUpgrades.text());
@@ -195,7 +265,12 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
         return list;
     }
 
-    private void hideSlots(List<Slot> slots) {
+    private void hideDuplicatedAuxiliarySlots() {
+        hideSlots(this.duplicateUpgradeSlots);
+        hideSlots(this.duplicateToolboxSlots);
+    }
+
+    private static void hideSlots(List<Slot> slots) {
         for (var slot : slots) {
             if (slot instanceof AppEngSlot appEngSlot) {
                 appEngSlot.setActive(false);
@@ -265,5 +340,76 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
     }
 
     private record SlotBuckets(List<Slot> unique, List<Slot> duplicates) {
+    }
+
+    private static final class AdaptivePatternProviderLockReason implements ICompositeWidget {
+        private final AdaptivePatternProviderScreen screen;
+        private boolean visible;
+        private int x;
+        private int y;
+
+        private AdaptivePatternProviderLockReason(AdaptivePatternProviderScreen screen) {
+            this.screen = screen;
+        }
+
+        public void setPosition(Point position) {
+            this.x = position.getX();
+            this.y = position.getY();
+        }
+
+        public void setSize(int width, int height) {
+        }
+
+        public Rect2i getBounds() {
+            return new Rect2i(this.x, this.y, 126, 16);
+        }
+
+        public boolean isVisible() {
+            return this.visible;
+        }
+
+        public void setVisible(boolean visible) {
+            this.visible = visible;
+        }
+
+        public void drawForegroundLayer(GuiGraphics guiGraphics, Rect2i bounds, Point mouse) {
+            Icon icon;
+            Component lockStatusText;
+            if (this.screen.menu.getCraftingLockedReason() == LockCraftingMode.NONE) {
+                icon = Icon.UNLOCKED;
+                lockStatusText = GuiText.CraftingLockIsUnlocked.text()
+                        .setStyle(Style.EMPTY.withColor(Mth.color(0.49019608F, 0.6627451F, 0.8235294F)));
+            } else {
+                icon = Icon.LOCKED;
+                lockStatusText = GuiText.CraftingLockIsLocked.text()
+                        .setStyle(Style.EMPTY.withColor(Mth.color(0.75686276F, 0.25882354F, 0.29411766F)));
+            }
+
+            icon.getBlitter().dest(this.x, this.y).blit(guiGraphics);
+            guiGraphics.drawString(Minecraft.getInstance().font, lockStatusText, this.x + 15, this.y + 5, -1, false);
+        }
+
+        public @Nullable Tooltip getTooltip(int mouseX, int mouseY) {
+            MutableComponent tooltip = switch (this.screen.menu.getCraftingLockedReason()) {
+                case NONE -> null;
+                case LOCK_UNTIL_PULSE -> InGameTooltip.CraftingLockedUntilPulse.text();
+                case LOCK_WHILE_HIGH -> InGameTooltip.CraftingLockedByRedstoneSignal.text();
+                case LOCK_WHILE_LOW -> InGameTooltip.CraftingLockedByLackOfRedstoneSignal.text();
+                case LOCK_UNTIL_RESULT -> {
+                    GenericStack stack = this.screen.menu.getUnlockStack();
+                    Component stackName;
+                    Component stackAmount;
+                    if (stack != null) {
+                        stackName = AEKeyRendering.getDisplayName(stack.what());
+                        stackAmount = Component.literal(stack.what().formatAmount(stack.amount(), AmountFormat.FULL));
+                    } else {
+                        stackName = Component.literal("ERROR");
+                        stackAmount = Component.literal("ERROR");
+                    }
+                    yield InGameTooltip.CraftingLockedUntilResult.text(stackName, stackAmount);
+                }
+            };
+            return tooltip != null ? new Tooltip(tooltip) : null;
+        }
     }
 }

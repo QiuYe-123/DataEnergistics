@@ -73,8 +73,11 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     private static final String AE2LT_OVERLOAD_PATTERN = "overload_pattern";
     private static final String APPLIED_CREATE_NAMESPACE = "appliedcreate";
     private static final String EXTENDEDAE_NAMESPACE = "extendedae";
+    private static final String EXTENDEDAE_PLUS_NAMESPACE = "extendedae_plus";
     private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID =
             ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_NAMESPACE, "assembler_matrix_speed");
+    private static final ResourceLocation EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID =
+            ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_PLUS_NAMESPACE, "assembler_matrix_speed_plus");
     private static final String EXTENDEDAE_ASSEMBLER_MATRIX_NAME_KEY = "gui.extendedae.assembler_matrix";
     private static final Set<String> EXTENDEDAE_ASSEMBLER_MATRIX_COMPONENTS = Set.of(
             "assembler_matrix_wall",
@@ -83,6 +86,10 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             "assembler_matrix_crafter",
             "assembler_matrix_pattern",
             "assembler_matrix_speed");
+    private static final Set<String> EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_COMPONENTS = Set.of(
+            "assembler_matrix_crafter_plus",
+            "assembler_matrix_pattern_plus",
+            "assembler_matrix_speed_plus");
     private static final ResourceLocation APPFLUX_INDUCTION_CARD_ID =
             ResourceLocation.fromNamespaceAndPath("appflux", "induction_card");
     private static final String TERMINAL_GROUP_LOCKED_SUFFIX_SUFFIX = ".terminal_hidden_slots";
@@ -1036,12 +1043,14 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             BlockPos pos) {
         ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock());
         if (blockId == null
-                || !EXTENDEDAE_NAMESPACE.equals(blockId.getNamespace())
-                || !EXTENDEDAE_ASSEMBLER_MATRIX_COMPONENTS.contains(blockId.getPath())) {
+                || !isAssemblerMatrixComponent(blockId)) {
             return null;
         }
 
         var speedBlock = BuiltInRegistries.BLOCK.getOptional(EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID).orElse(null);
+        if (speedBlock == null) {
+            speedBlock = BuiltInRegistries.BLOCK.getOptional(EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID).orElse(null);
+        }
         if (speedBlock == null) {
             return null;
         }
@@ -1055,6 +1064,13 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
                 AEItemKey.of(iconStack),
                 Component.translatable(EXTENDEDAE_ASSEMBLER_MATRIX_NAME_KEY),
                 List.of());
+    }
+
+    private static boolean isAssemblerMatrixComponent(ResourceLocation blockId) {
+        return (EXTENDEDAE_NAMESPACE.equals(blockId.getNamespace())
+                && EXTENDEDAE_ASSEMBLER_MATRIX_COMPONENTS.contains(blockId.getPath()))
+                || (EXTENDEDAE_PLUS_NAMESPACE.equals(blockId.getNamespace())
+                && EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_COMPONENTS.contains(blockId.getPath()));
     }
 
     public static boolean isPatternProviderAttachment(Level level, BlockPos pos, @Nullable Direction side) {

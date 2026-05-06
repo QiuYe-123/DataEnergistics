@@ -11,17 +11,23 @@ import appeng.api.networking.security.IActionHost;
 import appeng.api.storage.StorageHelper;
 import appeng.api.storage.ITerminalHost;
 import appeng.api.stacks.AEItemKey;
+import appeng.blockentity.crafting.PatternProviderBlockEntity;
 import appeng.core.definitions.AEItems;
 import appeng.helpers.IPatternTerminalMenuHost;
 import appeng.helpers.patternprovider.PatternContainer;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.me.common.MEStorageMenu;
 import appeng.menu.me.items.PatternEncodingTermMenu;
+import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import appeng.menu.slot.RestrictedInputSlot;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
+import com.fish_dan_.data_energistics.integration.ExtendedAePlusCompat;
+import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
@@ -42,6 +48,12 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     @Unique
     private static final String DATA_ENERGISTICS_ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER =
             "dataEnergistics$transferEncodedPatternToProvider";
+    @Unique
+    private static final String DATA_ENERGISTICS_ACTION_OPEN_PATTERN_PROVIDER_MENU =
+            "dataEnergistics$openPatternProviderMenu";
+    @Unique
+    private static final String DATA_ENERGISTICS_ACTION_RENAME_PATTERN_PROVIDER =
+            "dataEnergistics$renamePatternProvider";
     @Unique
     private static final int DATA_ENERGISTICS_PATTERN_PROVIDER_SYNC_INTERVAL_TICKS = 5;
 
@@ -123,6 +135,45 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Override
+    public void openPatternProviderMenu(long providerId) {
+        if (this.isClientSide()) {
+            sendClientAction(DATA_ENERGISTICS_ACTION_OPEN_PATTERN_PROVIDER_MENU, providerId);
+            return;
+        }
+
+        var providers = PatternProviderSyncHelper.findProvidersById(this.dataEnergistics$syncedPatternProvidersById, providerId);
+        if (providers == null || providers.isEmpty()) {
+            dataEnergistics$syncPatternProvidersFromNetwork();
+            providers = PatternProviderSyncHelper.findProvidersById(this.dataEnergistics$syncedPatternProvidersById, providerId);
+            if (providers == null || providers.isEmpty()) {
+                return;
+            }
+        }
+
+        PatternProviderMenuOpenHelper.openProviderGroup(providers, this.getPlayer());
+    }
+
+    @Override
+    public void renamePatternProvider(long providerId, String name) {
+        if (this.isClientSide()) {
+            sendClientAction(DATA_ENERGISTICS_ACTION_RENAME_PATTERN_PROVIDER,
+                    providerId + "\n" + (name == null ? "" : name));
+            return;
+        }
+
+        var providers = PatternProviderSyncHelper.findProvidersById(this.dataEnergistics$syncedPatternProvidersById, providerId);
+        if (providers == null || providers.isEmpty()) {
+            dataEnergistics$syncPatternProvidersFromNetwork();
+            providers = PatternProviderSyncHelper.findProvidersById(this.dataEnergistics$syncedPatternProvidersById, providerId);
+            if (providers == null || providers.isEmpty()) {
+                return;
+            }
+        }
+
+        dataEnergistics$renamePatternProvider(providers.getFirst(), name);
+    }
+
+    @Override
     public void setPendingPatternSource(@Nullable ResourceLocation workstationId) {
         if (this.isClientSide()) {
             sendClientAction(PatternEncodingSourceHelper.ACTION_SET_PATTERN_SOURCE,
@@ -152,7 +203,12 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 this::dataEnergistics$setPendingPatternSourceFromClient);
         registerClientAction(DATA_ENERGISTICS_ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER, Long.class,
                 this::dataEnergistics$transferEncodedPatternToProviderFromClient);
+        registerClientAction(DATA_ENERGISTICS_ACTION_OPEN_PATTERN_PROVIDER_MENU, Long.class,
+                this::dataEnergistics$openPatternProviderMenuFromClient);
+        registerClientAction(DATA_ENERGISTICS_ACTION_RENAME_PATTERN_PROVIDER, String.class,
+                this::dataEnergistics$renamePatternProviderFromClient);
         if (this.isServerSide()) {
+            dataEnergistics$clearExtendedAePlusBlankPatternSlot();
             dataEnergistics$syncBlankPatternCountFromNetwork();
             dataEnergistics$syncPatternProvidersFromNetwork();
             this.dataEnergistics$lastPatternProviderSyncTick = this.getPlayer().tickCount;
@@ -164,6 +220,13 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         if (this.isServerSide()) {
             dataEnergistics$syncBlankPatternCountFromNetwork();
             dataEnergistics$syncPatternProvidersIfNeeded();
+        }
+    }
+
+    @Inject(method = "broadcastChanges", at = @At("TAIL"))
+    private void dataEnergistics$clearExtendedAePlusAutoFilledBlankPatterns(CallbackInfo ci) {
+        if (this.isServerSide()) {
+            dataEnergistics$clearExtendedAePlusBlankPatternSlot();
         }
     }
 
@@ -223,6 +286,48 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         if (providerId != null) {
             transferEncodedPatternToProvider(providerId);
         }
+    }
+
+    @Unique
+    private void dataEnergistics$openPatternProviderMenuFromClient(Long providerId) {
+        if (providerId != null) {
+            openPatternProviderMenu(providerId);
+        }
+    }
+
+    @Unique
+    private void dataEnergistics$renamePatternProviderFromClient(String payload) {
+        if (payload == null) {
+            return;
+        }
+        int separator = payload.indexOf('\n');
+        if (separator < 0) {
+            return;
+        }
+
+        try {
+            long providerId = Long.parseLong(payload.substring(0, separator));
+            String name = payload.substring(separator + 1);
+            renamePatternProvider(providerId, name);
+        } catch (NumberFormatException ignored) {
+        }
+    }
+
+    @Unique
+    private void dataEnergistics$renamePatternProvider(PatternContainer provider, @Nullable String name) {
+        if (!PatternProviderSyncHelper.isRenameableProvider(provider)) {
+            return;
+        }
+
+        String sanitized = name == null ? "" : name.trim();
+        Component customName = sanitized.isEmpty() ? null : Component.literal(sanitized);
+        if (!PatternProviderNameHelper.setCustomName(provider, customName)) {
+            return;
+        }
+
+        PatternProviderNameHelper.syncRename(provider);
+
+        dataEnergistics$syncPatternProvidersFromNetwork();
     }
 
     @Unique
@@ -304,6 +409,37 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                         blankPatternKey,
                         1,
                         this.getActionSource()) > 0;
+    }
+
+    @Unique
+    private void dataEnergistics$clearExtendedAePlusBlankPatternSlot() {
+        if (!ExtendedAePlusCompat.isLoaded()) {
+            return;
+        }
+
+        ItemStack slotStack = this.blankPatternSlot.getItem();
+        if (!AEItems.BLANK_PATTERN.is(slotStack) || slotStack.isEmpty()) {
+            return;
+        }
+
+        if (this.canInteractWithGrid()) {
+            var blankPatternKey = AEItemKey.of(AEItems.BLANK_PATTERN);
+            if (blankPatternKey != null) {
+                long returned = StorageHelper.poweredInsert(
+                        this.energySource,
+                        this.storage,
+                        blankPatternKey,
+                        slotStack.getCount(),
+                        this.getActionSource());
+                if (returned > 0) {
+                    slotStack.shrink((int) Math.min(returned, slotStack.getCount()));
+                }
+            }
+        }
+
+        if (slotStack.isEmpty()) {
+            this.blankPatternSlot.set(ItemStack.EMPTY);
+        }
     }
 
     @Unique

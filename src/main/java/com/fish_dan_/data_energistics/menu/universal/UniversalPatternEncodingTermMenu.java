@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.menu.universal;
 
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.lang.reflect.Field;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -28,17 +28,22 @@ import appeng.api.networking.security.IActionHost;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.storage.StorageHelper;
+import appeng.blockentity.crafting.PatternProviderBlockEntity;
 import appeng.core.definitions.AEItems;
+import appeng.menu.locator.MenuLocators;
 import appeng.menu.SlotSemantics;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
+import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.common.PatternProviderMenuOpenHelper;
 import com.fish_dan_.data_energistics.menu.common.PatternProviderSyncHelper;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.network.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
+import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -46,6 +51,8 @@ import net.neoforged.neoforge.network.PacketDistributor;
 public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         implements UniversalTerminalMenuBridge, PatternEncodingPreviewMenu {
     private static final String ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER = "transferEncodedPatternToProvider";
+    private static final String ACTION_OPEN_PATTERN_PROVIDER_MENU = "openPatternProviderMenu";
+    private static final String ACTION_RENAME_PATTERN_PROVIDER = "renamePatternProvider";
     private static final Field FALLBACK_NETWORK_BLANK_PATTERN_COUNT_FIELD =
             resolveInheritedField("dataEnergistics$networkBlankPatternCount");
     private static final Field FALLBACK_SYNCED_PATTERN_PROVIDERS_FIELD =
@@ -80,6 +87,10 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         this.host = host;
         registerClientAction(ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER, Long.class,
                 this::transferEncodedPatternToProviderFromClient);
+        registerClientAction(ACTION_OPEN_PATTERN_PROVIDER_MENU, Long.class,
+                this::openPatternProviderMenuFromClient);
+        registerClientAction(ACTION_RENAME_PATTERN_PROVIDER, String.class,
+                this::renamePatternProviderFromClient);
         syncTerminalState();
         syncBlankPatternCountFromNetwork();
         syncPatternProvidersIfNeeded(true);
@@ -187,6 +198,44 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
         encodedPatternInv.setItemDirect(0, remainder.isEmpty() ? ItemStack.EMPTY : remainder);
         syncPatternProvidersFromNetwork();
+    }
+
+    @Override
+    public void openPatternProviderMenu(long providerId) {
+        if (this.isClientSide()) {
+            sendClientAction(ACTION_OPEN_PATTERN_PROVIDER_MENU, providerId);
+            return;
+        }
+
+        var providers = PatternProviderSyncHelper.findProvidersById(this.syncedPatternProvidersById, providerId);
+        if (providers == null || providers.isEmpty()) {
+            syncPatternProvidersFromNetwork();
+            providers = PatternProviderSyncHelper.findProvidersById(this.syncedPatternProvidersById, providerId);
+            if (providers == null || providers.isEmpty()) {
+                return;
+            }
+        }
+
+        PatternProviderMenuOpenHelper.openProviderGroup(providers, this.getPlayer());
+    }
+
+    @Override
+    public void renamePatternProvider(long providerId, String name) {
+        if (this.isClientSide()) {
+            sendClientAction(ACTION_RENAME_PATTERN_PROVIDER, providerId + "\n" + (name == null ? "" : name));
+            return;
+        }
+
+        var providers = PatternProviderSyncHelper.findProvidersById(this.syncedPatternProvidersById, providerId);
+        if (providers == null || providers.isEmpty()) {
+            syncPatternProvidersFromNetwork();
+            providers = PatternProviderSyncHelper.findProvidersById(this.syncedPatternProvidersById, providerId);
+            if (providers == null || providers.isEmpty()) {
+                return;
+            }
+        }
+
+        renamePatternProvider(providers.getFirst(), name);
     }
 
     @Override
@@ -299,6 +348,45 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         if (providerId != null) {
             transferEncodedPatternToProvider(providerId);
         }
+    }
+
+    private void openPatternProviderMenuFromClient(Long providerId) {
+        if (providerId != null) {
+            openPatternProviderMenu(providerId);
+        }
+    }
+
+    private void renamePatternProviderFromClient(String payload) {
+        if (payload == null) {
+            return;
+        }
+        int separator = payload.indexOf('\n');
+        if (separator < 0) {
+            return;
+        }
+
+        try {
+            long providerId = Long.parseLong(payload.substring(0, separator));
+            String name = payload.substring(separator + 1);
+            renamePatternProvider(providerId, name);
+        } catch (NumberFormatException ignored) {
+        }
+    }
+
+    private void renamePatternProvider(appeng.helpers.patternprovider.PatternContainer provider, @Nullable String name) {
+        if (!PatternProviderSyncHelper.isRenameableProvider(provider)) {
+            return;
+        }
+
+        String sanitized = name == null ? "" : name.trim();
+        var customName = sanitized.isEmpty() ? null : net.minecraft.network.chat.Component.literal(sanitized);
+        if (!PatternProviderNameHelper.setCustomName(provider, customName)) {
+            return;
+        }
+
+        PatternProviderNameHelper.syncRename(provider);
+
+        syncPatternProvidersFromNetwork();
     }
 
     @Nullable

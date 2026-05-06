@@ -104,6 +104,7 @@ dependencies {
 
     implementation "curse.maven:emi-580555:6420931"
     implementation "curse.maven:jei-238222:7420587"
+    runtimeOnly "curse.maven:ae2-jei-integration-1074338:7727898"
     implementation "curse.maven:jade-324717:7545219"
 
     implementation "curse.maven:guideme-1173950:7127444"
@@ -126,7 +127,21 @@ dependencies {
     implementation "curse.maven:neo-eco-ae-extension-1460639:7884362"
 
 
-    implementation "curse.maven:extendedae-plus-1337639:7960385"
+    compileOnly "curse.maven:extendedae-plus-1337639:7960385"
+    runtimeOnly "curse.maven:extendedae-plus-1337639:7960385"
+
+    implementation "curse.maven:applied-flux-965012:7429565"
+
+    implementation "curse.maven:applied-pneumatics-1355087:7723695"
+    implementation "curse.maven:pneumaticcraft-repressurized-281849:7830507"
+
+    implementation "curse.maven:applied-create-1474758:7945860"
+    implementation "curse.maven:kotlin-for-forge-351264:7471280"
+    implementation "curse.maven:create-328085:7963363"
+
+    implementation "curse.maven:mega-cells-622112:7952621"
+    implementation "curse.maven:cloth-config-348521:5729127"
+
 
     // Example mod dependency using a mod jar from ./libs with a flat dir repository
     // This maps to ./libs/coolmod-${mc_version}-${coolmod_version}.jar

@@ -8,6 +8,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.LongSupplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -23,6 +24,7 @@ import appeng.parts.crafting.PatternProviderPart;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
+import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -34,12 +36,17 @@ public final class PatternProviderSyncHelper {
     private static final Pattern TOKEN_SPLITTER = Pattern.compile("[^\\p{IsAlphabetic}\\p{IsDigit}\\p{IsIdeographic}]+");
     private static final Pattern NEOECOAE_TIER_TOKEN = Pattern.compile("([fl]\\d+)", Pattern.CASE_INSENSITIVE);
     private static final String EXTENDEDAE_ASSEMBLER_MATRIX_NAME_KEY = "gui.extendedae.assembler_matrix";
+    private static final String EXTENDEDAE_PLUS_NAMESPACE = "extendedae_plus";
     private static final String NEOECOAE_NAMESPACE = "neoecoae";
+    private static final String APPLIED_PNEUMATICS_NAMESPACE = "appliedpneumatics";
     private static final String NEOECOAE_CRAFTING_SYSTEM_PATH = "eco_crafting_system";
     private static final String NEOECOAE_CRAFTING_SYSTEM_PREFIX = "crafting_system_";
     private static final String NEOECOAE_CRAFTING_WORKER_PATH = "crafting_worker";
     private static final String NEOECOAE_CRAFTING_PATTERN_BUS_PATH = "crafting_pattern_bus";
     private static final String NEOECOAE_ECO_CRAFTING_WORKER_PATH = "eco_crafting_worker";
+    private static final String APPLIED_PNEUMATICS_AMADRON_PROCESS_STATION_PATH = "me_amadron_process_station";
+    private static final String APPLIED_PNEUMATICS_AMADRON_EXTENDED_PROCESS_STATION_PATH =
+            "me_amadron_extended_process_station";
     private static final ResourceLocation CRAFTING_TABLE_ID = ResourceLocation.withDefaultNamespace("crafting_table");
     private static final ResourceLocation STONECUTTER_ID = ResourceLocation.withDefaultNamespace("stonecutter");
     private static final ResourceLocation SMITHING_TABLE_ID = ResourceLocation.withDefaultNamespace("smithing_table");
@@ -47,12 +54,24 @@ public final class PatternProviderSyncHelper {
             ResourceLocation.fromNamespaceAndPath("ae2", "molecular_assembler");
     private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID =
             ResourceLocation.fromNamespaceAndPath("extendedae", "assembler_matrix_speed");
+    private static final ResourceLocation EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID =
+            ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_PLUS_NAMESPACE, "assembler_matrix_speed_plus");
     private static final ResourceLocation EXTENDEDAE_CRYSTAL_ASSEMBLER_ID =
             ResourceLocation.fromNamespaceAndPath("extendedae", "crystal_assembler");
     private static final ResourceLocation EXTENDEDAE_EX_MOLECULAR_ASSEMBLER_ID =
             ResourceLocation.fromNamespaceAndPath("extendedae", "ex_molecular_assembler");
+    private static final ResourceLocation AE2CS_RESONATING_PATTERN_PROVIDER_ID =
+            ResourceLocation.fromNamespaceAndPath("ae2cs", "resonating_pattern_provider");
+    private static final ResourceLocation AE2CS_EXTENDED_RESONATING_PATTERN_PROVIDER_ID =
+            ResourceLocation.fromNamespaceAndPath("ae2cs", "extended_resonating_pattern_provider");
+    private static final ResourceLocation AE2CS_EX_RESONATING_PATTERN_PROVIDER_ID =
+            ResourceLocation.fromNamespaceAndPath("ae2cs", "ex_resonating_pattern_provider");
     private static final ResourceLocation AE2CS_METEORITE_PATTERN_PROVIDER_ID =
             ResourceLocation.fromNamespaceAndPath("ae2cs", "meteorite_pattern_provider");
+    private static final Set<String> EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_PATHS = Set.of(
+            "assembler_matrix_crafter_plus",
+            "assembler_matrix_pattern_plus",
+            "assembler_matrix_speed_plus");
 
     private PatternProviderSyncHelper() {
     }
@@ -105,6 +124,7 @@ public final class PatternProviderSyncHelper {
                     provider.displayName(),
                     provider.iconItemId(),
                     provider.useAeButtonStyle(),
+                    provider.renameable(),
                     provider.patternSlotCount(),
                     provider.usedPatternSlotCount()));
         }
@@ -224,6 +244,7 @@ public final class PatternProviderSyncHelper {
                 displayName,
                 iconItemId,
                 shouldUseAeButtonStyle(container),
+                isRenameableProvider(container),
                 patternInventory.size(),
                 usedPatternSlots,
                 getPreferredProviderScore(container, displayName, iconItemId, patternInventory.size(), usedPatternSlots,
@@ -252,14 +273,50 @@ public final class PatternProviderSyncHelper {
         return isProviderContainer(container);
     }
 
+    public static boolean isRenameableProvider(PatternContainer container) {
+        if (container == null || isAssemblerMatrixPatternContainer(container) || !isProviderContainer(container)) {
+            return false;
+        }
+
+        if (isNeoEcoCraftingSubsystemContainer(container)) {
+            return false;
+        }
+
+        return PatternProviderNameHelper.canRename(container)
+                || PatternProviderNameHelper.getCustomName(container) != null;
+    }
+
     private static boolean isAssemblerMatrixPatternContainer(PatternContainer container) {
-        return container.getClass().getSimpleName().equals("TileAssemblerMatrixPattern");
+        if (container.getClass().getSimpleName().equals("TileAssemblerMatrixPattern")) {
+            return true;
+        }
+
+        ResourceLocation terminalIconItemId = resolveTerminalIconItemId(container);
+        if (terminalIconItemId != null && isAssemblerMatrixPlusIcon(terminalIconItemId)) {
+            return true;
+        }
+
+        ResourceLocation providerIconItemId = resolveBaseProviderIconItemId(container);
+        return isAssemblerMatrixPlusIcon(providerIconItemId);
+    }
+
+    private static boolean isAssemblerMatrixPlusIcon(@Nullable ResourceLocation iconItemId) {
+        return iconItemId != null
+                && EXTENDEDAE_PLUS_NAMESPACE.equals(iconItemId.getNamespace())
+                && EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_PATHS.contains(iconItemId.getPath());
     }
 
     private static boolean isNeoEcoCraftingSubsystemContainer(DiscoveredPatternProvider provider) {
         return isNeoEcoCraftingSubsystemIcon(provider.iconItemId())
                 || isNeoEcoCraftingSubsystemClassName(provider.container())
                 || isNeoEcoCraftingSubsystemName(provider.displayName().getString());
+    }
+
+    private static boolean isNeoEcoCraftingSubsystemContainer(PatternContainer container) {
+        return isNeoEcoCraftingSubsystemIcon(resolveTerminalIconItemId(container))
+                || isNeoEcoCraftingSubsystemIcon(resolveBaseProviderIconItemId(container))
+                || isNeoEcoCraftingSubsystemClassName(container)
+                || isNeoEcoCraftingSubsystemName(resolveProviderDisplayName(container).getString());
     }
 
     private static List<AggregatedPatternProvider> aggregateDiscoveredProviders(
@@ -317,6 +374,16 @@ public final class PatternProviderSyncHelper {
             return Component.translatable(EXTENDEDAE_ASSEMBLER_MATRIX_NAME_KEY);
         }
 
+        ItemStack ae2CsResolvedIcon = resolveAe2CsResolvedProviderIcon(container);
+        if (!ae2CsResolvedIcon.isEmpty()) {
+            return ae2CsResolvedIcon.getHoverName();
+        }
+
+        ItemStack appliedPneumaticsIcon = resolveAppliedPneumaticsMainMenuIcon(container);
+        if (!appliedPneumaticsIcon.isEmpty()) {
+            return appliedPneumaticsIcon.getHoverName();
+        }
+
         if (container instanceof AdaptivePatternProviderHost adaptiveHost) {
             var attachedGroup = adaptiveHost.getPrimaryAttachedMachineGroup();
             if (attachedGroup != null && attachedGroup.name() != null) {
@@ -344,6 +411,15 @@ public final class PatternProviderSyncHelper {
 
     private static ResourceLocation resolveProviderIconItemId(PatternContainer container) {
         ItemStack icon = resolveProviderIcon(container);
+        ResourceLocation iconItemId = BuiltInRegistries.ITEM.getKey(icon.getItem());
+        if (iconItemId != null) {
+            return iconItemId;
+        }
+        return BuiltInRegistries.ITEM.getKey(Items.AIR);
+    }
+
+    private static ResourceLocation resolveBaseProviderIconItemId(PatternContainer container) {
+        ItemStack icon = resolveBaseProviderIcon(container);
         ResourceLocation iconItemId = BuiltInRegistries.ITEM.getKey(icon.getItem());
         if (iconItemId != null) {
             return iconItemId;
@@ -381,12 +457,29 @@ public final class PatternProviderSyncHelper {
     private static ItemStack resolveProviderIcon(PatternContainer container) {
         if (isAssemblerMatrixPatternContainer(container)) {
             var speedBlock = BuiltInRegistries.BLOCK.getOptional(EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID).orElse(null);
+            if (speedBlock == null) {
+                speedBlock = BuiltInRegistries.BLOCK.getOptional(EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID).orElse(null);
+            }
             if (speedBlock != null) {
                 ItemStack speedCore = speedBlock.asItem().getDefaultInstance();
                 if (!speedCore.isEmpty()) {
                     return speedCore;
                 }
             }
+        }
+
+        return resolveBaseProviderIcon(container);
+    }
+
+    private static ItemStack resolveBaseProviderIcon(PatternContainer container) {
+        ItemStack ae2CsResolvedIcon = resolveAe2CsResolvedProviderIcon(container);
+        if (!ae2CsResolvedIcon.isEmpty()) {
+            return ae2CsResolvedIcon;
+        }
+
+        ItemStack appliedPneumaticsIcon = resolveAppliedPneumaticsMainMenuIcon(container);
+        if (!appliedPneumaticsIcon.isEmpty()) {
+            return appliedPneumaticsIcon;
         }
 
         if (container instanceof AdaptivePatternProviderHost adaptiveHost) {
@@ -448,6 +541,70 @@ public final class PatternProviderSyncHelper {
         return ItemStack.EMPTY;
     }
 
+    private static ItemStack resolveAe2CsResolvedProviderIcon(PatternContainer container) {
+        if (!isAe2CsResonatingProviderContainer(container)) {
+            return ItemStack.EMPTY;
+        }
+
+        ResourceLocation providerId = getAe2CsResonatingProviderItemId(container);
+        return providerId == null ? ItemStack.EMPTY : createRegistryItemStack(providerId);
+    }
+
+    @Nullable
+    private static ResourceLocation getAe2CsResonatingProviderItemId(PatternContainer container) {
+        if (!isAe2CsResonatingProviderContainer(container)) {
+            return null;
+        }
+
+        int slotCount = getProviderPatternSlotCapacity(container);
+        return slotCount > 9 ? AE2CS_EXTENDED_RESONATING_PATTERN_PROVIDER_ID : AE2CS_RESONATING_PATTERN_PROVIDER_ID;
+    }
+
+    private static boolean isAe2CsResonatingProviderContainer(PatternContainer container) {
+        String className = container.getClass().getName().toLowerCase(Locale.ROOT);
+        return className.contains("io.github.lounode.ae2cs")
+                && className.contains("resonatingpatternprovider");
+    }
+
+    private static int getProviderPatternSlotCapacity(PatternContainer container) {
+        try {
+            var inventory = container.getTerminalPatternInventory();
+            return inventory == null ? 0 : inventory.size();
+        } catch (Exception ignored) {
+            return 0;
+        }
+    }
+
+    private static ItemStack createRegistryItemStack(ResourceLocation itemId) {
+        var item = BuiltInRegistries.ITEM.getOptional(itemId).orElse(null);
+        if (item != null && item != Items.AIR) {
+            return item.getDefaultInstance();
+        }
+
+        var block = BuiltInRegistries.BLOCK.getOptional(itemId).orElse(null);
+        return block == null ? ItemStack.EMPTY : block.asItem().getDefaultInstance();
+    }
+
+    private static ItemStack resolveAppliedPneumaticsMainMenuIcon(PatternContainer container) {
+        ItemStack reflectedIcon = resolveMainMenuIconReflectively(container);
+        if (reflectedIcon.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+
+        ResourceLocation iconItemId = BuiltInRegistries.ITEM.getKey(reflectedIcon.getItem());
+        if (iconItemId == null || !APPLIED_PNEUMATICS_NAMESPACE.equals(iconItemId.getNamespace())) {
+            return ItemStack.EMPTY;
+        }
+
+        String path = iconItemId.getPath();
+        if (!APPLIED_PNEUMATICS_AMADRON_PROCESS_STATION_PATH.equals(path)
+                && !APPLIED_PNEUMATICS_AMADRON_EXTENDED_PROCESS_STATION_PATH.equals(path)) {
+            return ItemStack.EMPTY;
+        }
+
+        return reflectedIcon;
+    }
+
     private static int countUsedPatternSlots(appeng.api.inventories.InternalInventory inventory) {
         int usedSlots = 0;
         for (int slot = 0; slot < inventory.size(); slot++) {
@@ -472,6 +629,11 @@ public final class PatternProviderSyncHelper {
             }
         }
 
+        int exactProviderPriority = getExactProviderMatchPriority(container, displayName, iconItemId, preferredWorkstationId);
+        if (exactProviderPriority > 0) {
+            return exactProviderPriority;
+        }
+
         String providerName = normalizeForMatch(displayName.getString());
         String providerIconName = normalizeForMatch(iconItemId.toString());
         if (providerName.isEmpty() && providerIconName.isEmpty()) {
@@ -492,6 +654,20 @@ public final class PatternProviderSyncHelper {
                 || sharesKeyword(providerIconName, workstationId)
                 ? 1
                 : 0;
+    }
+
+    private static int getExactProviderMatchPriority(PatternContainer container, Component displayName,
+                                                     ResourceLocation iconItemId, ResourceLocation preferredWorkstationId) {
+        if (isAppliedPneumaticsAmadronExtendedStation(preferredWorkstationId)) {
+            return isAppliedPneumaticsAmadronExtendedStation(container, displayName, iconItemId) ? 35 : 0;
+        }
+        if (isAppliedPneumaticsAmadronStation(preferredWorkstationId)) {
+            if (isAppliedPneumaticsAmadronExtendedStation(container, displayName, iconItemId)) {
+                return 35;
+            }
+            return isAppliedPneumaticsAmadronStation(container, displayName, iconItemId) ? 25 : 0;
+        }
+        return 0;
     }
 
     private static boolean isWorkbenchFamily(ResourceLocation workstationId) {
@@ -544,6 +720,45 @@ public final class PatternProviderSyncHelper {
         String normalizedName = normalizeForMatch(displayName.getString());
         return normalizedName.contains("自装配式样板供应器")
                 || normalizedName.contains("meteoritepatternprovider");
+    }
+
+    private static boolean isAppliedPneumaticsAmadronStation(ResourceLocation workstationId) {
+        return APPLIED_PNEUMATICS_NAMESPACE.equals(workstationId.getNamespace())
+                && APPLIED_PNEUMATICS_AMADRON_PROCESS_STATION_PATH.equals(workstationId.getPath());
+    }
+
+    private static boolean isAppliedPneumaticsAmadronExtendedStation(ResourceLocation workstationId) {
+        return APPLIED_PNEUMATICS_NAMESPACE.equals(workstationId.getNamespace())
+                && APPLIED_PNEUMATICS_AMADRON_EXTENDED_PROCESS_STATION_PATH.equals(workstationId.getPath());
+    }
+
+    private static boolean isAppliedPneumaticsAmadronStation(PatternContainer container, Component displayName,
+                                                             ResourceLocation iconItemId) {
+        return matchesAppliedPneumaticsMachine(container, displayName, iconItemId,
+                APPLIED_PNEUMATICS_AMADRON_PROCESS_STATION_PATH, "meamadronprocessstation");
+    }
+
+    private static boolean isAppliedPneumaticsAmadronExtendedStation(PatternContainer container, Component displayName,
+                                                                     ResourceLocation iconItemId) {
+        return matchesAppliedPneumaticsMachine(container, displayName, iconItemId,
+                APPLIED_PNEUMATICS_AMADRON_EXTENDED_PROCESS_STATION_PATH, "meamadronextendedprocessstation");
+    }
+
+    private static boolean matchesAppliedPneumaticsMachine(PatternContainer container, Component displayName,
+                                                           ResourceLocation iconItemId, String expectedPath,
+                                                           String normalizedNameToken) {
+        if (APPLIED_PNEUMATICS_NAMESPACE.equals(iconItemId.getNamespace())
+                && expectedPath.equals(iconItemId.getPath())) {
+            return true;
+        }
+
+        String normalizedName = normalizeForMatch(displayName.getString());
+        if (normalizedName.contains(normalizedNameToken)) {
+            return true;
+        }
+
+        String className = normalizeForMatch(container.getClass().getName());
+        return className.contains(normalizedNameToken);
     }
 
     private static boolean isNeoEcoCraftingSubsystemIcon(@Nullable ResourceLocation iconItemId) {
@@ -675,6 +890,7 @@ public final class PatternProviderSyncHelper {
             Component displayName,
             ResourceLocation iconItemId,
             boolean useAeButtonStyle,
+            boolean renameable,
             int patternSlotCount,
             int usedPatternSlotCount,
             int preferredScore) {
@@ -686,6 +902,7 @@ public final class PatternProviderSyncHelper {
         private Component displayName;
         private ResourceLocation iconItemId;
         private boolean useAeButtonStyle;
+        private boolean renameable;
         private int patternSlotCount;
         private int usedPatternSlotCount;
         private int preferredScore;
@@ -698,6 +915,7 @@ public final class PatternProviderSyncHelper {
             this.displayName = provider.displayName();
             this.iconItemId = provider.iconItemId();
             this.useAeButtonStyle = provider.useAeButtonStyle();
+            this.renameable = provider.renameable();
             this.representationPriority = getRepresentationPriority(provider);
         }
 
@@ -708,6 +926,7 @@ public final class PatternProviderSyncHelper {
             this.usedPatternSlotCount += provider.usedPatternSlotCount();
             this.preferredScore = Math.max(this.preferredScore, provider.preferredScore());
             this.useAeButtonStyle |= provider.useAeButtonStyle();
+            this.renameable |= provider.renameable();
             int incomingPriority = getRepresentationPriority(provider);
             if (incomingPriority > this.representationPriority) {
                 this.displayName = provider.displayName();
@@ -735,6 +954,10 @@ public final class PatternProviderSyncHelper {
 
         private boolean useAeButtonStyle() {
             return this.useAeButtonStyle;
+        }
+
+        private boolean renameable() {
+            return this.renameable;
         }
 
         private int patternSlotCount() {

@@ -1,30 +1,37 @@
 package com.fish_dan_.data_energistics.menu;
 
+import appeng.api.config.LockCraftingMode;
+import appeng.api.config.Settings;
+import appeng.api.config.YesNo;
+import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.inventories.InternalInventory;
+import appeng.api.stacks.GenericStack;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.Upgrades;
-import appeng.api.crafting.PatternDetailsHelper;
-import appeng.client.gui.Icon;
+import appeng.api.util.IConfigurableObject;
 import appeng.core.localization.Tooltips;
+import appeng.helpers.patternprovider.PatternProviderLogic;
+import appeng.menu.AEBaseMenu;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
 import appeng.menu.ToolboxMenu;
 import appeng.menu.guisync.GuiSync;
-import appeng.menu.implementations.PatternProviderMenu;
 import appeng.menu.slot.AppEngSlot;
 import appeng.menu.slot.RestrictedInputSlot;
+import appeng.menu.slot.RestrictedInputSlot.PlacableItemType;
+import appeng.util.ConfigMenuInventory;
 import appeng.util.inv.AppEngInternalInventory;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import it.unimi.dsi.fastutil.shorts.ShortSet;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
-public class AdaptivePatternProviderMenu extends PatternProviderMenu {
+public class AdaptivePatternProviderMenu extends AEBaseMenu {
     private static final String ACTION_SET_PAGE = "set_page";
     private static final String ACTION_SET_FILTERED_IMPORT = "set_filtered_import";
     private static final String ACTION_SET_RESONATING_PULL = "set_resonating_pull";
@@ -35,13 +42,28 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
     private static final int SLOTS_PER_PAGE = 36;
     private static final int DEFAULT_RETURN_SLOTS = 9;
     private static final int EXPANDED_RETURN_SLOTS = 18;
-    public static final SlotSemantic PROVIDER_INPUT = SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_PROVIDER", false);
-    public static final SlotSemantic PAGE_PATTERN = SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_PAGE_PATTERN", false);
-    public static final SlotSemantic STORAGE_ROW_2 = SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_STORAGE_ROW_2", false);
+
+    public static final SlotSemantic PROVIDER_INPUT =
+            SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_PROVIDER", false);
+    public static final SlotSemantic PAGE_PATTERN =
+            SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_PAGE_PATTERN", false);
+    public static final SlotSemantic STORAGE_ROW_2 =
+            SlotSemantics.register("ADAPTIVE_PATTERN_PROVIDER_STORAGE_ROW_2", false);
 
     private final AdaptivePatternProviderHost host;
+    private final PatternProviderLogic logic;
     private final ToolboxMenu toolbox;
 
+    @GuiSync(3)
+    public YesNo blockingMode = YesNo.NO;
+    @GuiSync(4)
+    public YesNo showInAccessTerminal = YesNo.YES;
+    @GuiSync(5)
+    public LockCraftingMode lockCraftingMode = LockCraftingMode.NONE;
+    @GuiSync(6)
+    public LockCraftingMode craftingLockedReason = LockCraftingMode.NONE;
+    @GuiSync(7)
+    public GenericStack unlockStack;
     @GuiSync(780)
     public int visiblePatternSlots;
     @GuiSync(781)
@@ -66,7 +88,9 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
     public AdaptivePatternProviderMenu(int id, Inventory playerInventory, AdaptivePatternProviderHost host) {
         super(ModMenus.ADAPTIVE_PATTERN_PROVIDER.get(), id, playerInventory, host);
         this.host = host;
+        this.logic = host != null ? host.getLogic() : null;
         this.toolbox = new ToolboxMenu(this);
+
         registerClientAction(ACTION_SET_PAGE, Integer.class, this::setPage);
         registerClientAction(ACTION_SET_FILTERED_IMPORT, Boolean.class, this::setAdvancedAeFilteredImport);
         registerClientAction(ACTION_SET_RESONATING_PULL, Boolean.class, this::setResonatingPullEnabled);
@@ -75,53 +99,30 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
         registerClientAction(ACTION_TOGGLE_AE2LT_WIRELESS_DISPATCH, this::toggleAe2LtWirelessDispatchMode);
         registerClientAction(ACTION_TOGGLE_AE2LT_WIRELESS_SPEED, this::toggleAe2LtWirelessSpeedMode);
 
-        // Disable the real underlying pattern slots. We expose paged proxy slots below.
-        for (var slot : this.getSlots(SlotSemantics.ENCODED_PATTERN)) {
-            if (slot instanceof AppEngSlot appEngSlot) {
-                appEngSlot.setActive(false);
-                appEngSlot.setSlotEnabled(false);
-            }
-        }
-
-        this.visiblePatternSlots = host != null ? host.getPatternSlotCountForMenu() : 0;
-        this.advancedAeFilteredImport = host != null && host.isAdvancedAeFilteredImportEnabled();
-        syncStateFromHost();
         addUpgradeSlots();
         addPatternPageSlots();
-        addExpandedReturnSlots();
+        addReturnSlots();
+        addProviderSlot();
+        this.createPlayerInventorySlots(playerInventory);
 
-        var providerSlot = new ProviderSuffixSlot(
-                host != null ? host.getProviderInventory() : new AppEngInternalInventory(1),
-                0,
-                host
-        );
-        providerSlot.setEmptyTooltip(() -> Tooltips.slotTooltip(
-                Component.translatable("tooltip.data_energistics.adaptive_pattern_provider.provider_slot")
-        ));
-        this.addSlot(providerSlot, PROVIDER_INPUT);
+        refreshPatternPagination();
+        loadSettingsFromHost();
         updatePatternSlotVisibility();
     }
 
-    private void addUpgradeSlots() {
-        if (this.host == null) {
+    @Override
+    public void onSlotChange(Slot slot) {
+        super.onSlotChange(slot);
+        if (slot == null) {
             return;
         }
 
-        var upgrades = this.host.getUpgrades();
-        for (int i = 0; i < upgrades.size(); i++) {
-            this.addSlot(new RestrictedInputSlot(RestrictedInputSlot.PlacableItemType.UPGRADES, upgrades, i),
-                    SlotSemantics.UPGRADE);
-        }
-    }
-
-    @Override
-    public void onSlotChange(net.minecraft.world.inventory.Slot slot) {
-        super.onSlotChange(slot);
-        if (slot != null && this.getSlotSemantic(slot) == PROVIDER_INPUT) {
+        var semantic = this.getSlotSemantic(slot);
+        if (semantic == PROVIDER_INPUT) {
             returnOverflowPatternsToPlayer();
             refreshPatternPagination();
             updatePatternSlotVisibility();
-        } else if (slot != null && this.getSlotSemantic(slot) == SlotSemantics.UPGRADE) {
+        } else if (semantic == SlotSemantics.UPGRADE) {
             returnOverflowProvidersToPlayer();
             returnOverflowPatternsToPlayer();
             refreshPatternPagination();
@@ -132,8 +133,10 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
     @Override
     public void broadcastChanges() {
         if (this.isServerSide()) {
+            loadSettingsFromHost();
             refreshPatternPagination();
         }
+
         this.toolbox.tick();
         super.broadcastChanges();
         updatePatternSlotVisibility();
@@ -143,6 +146,11 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
     public void onServerDataSync(ShortSet updatedFields) {
         super.onServerDataSync(updatedFields);
         updatePatternSlotVisibility();
+    }
+
+    @Override
+    protected boolean canSlotsBeHidden(SlotSemantic semantic) {
+        return semantic == SlotSemantics.ENCODED_PATTERN;
     }
 
     @Override
@@ -158,6 +166,17 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
 
         var semantic = this.getSlotSemantic(slot);
         if (semantic == PAGE_PATTERN || semantic == PROVIDER_INPUT) {
+            return super.quickMoveStack(player, idx);
+        }
+
+        if (semantic == SlotSemantics.UPGRADE
+                && !this.isPlayerSideSlot(slot)
+                && Upgrades.isUpgradeCardItem(slot.getItem())) {
+            moveUpgradeCardIntoToolbox(slot);
+            if (!slot.hasItem()) {
+                return ItemStack.EMPTY;
+            }
+
             return super.quickMoveStack(player, idx);
         }
 
@@ -178,27 +197,28 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
         return super.quickMoveStack(player, idx);
     }
 
-    public void sendSetPage(int pageIndex) {
-        sendClientAction(ACTION_SET_PAGE, pageIndex);
-    }
-
-    public Component getProviderDisplayName() {
-        if (this.host != null) {
-            return this.host.getGuiDisplayName();
+    private void moveUpgradeCardIntoToolbox(Slot slot) {
+        ItemStack original = slot.getItem();
+        if (original.isEmpty()) {
+            return;
         }
 
-        ItemStack providerStack = getProviderStack();
-        return !providerStack.isEmpty()
-                ? providerStack.getHoverName()
-                : Component.translatable("block.data_energistics.adaptive_pattern_provider");
+        ItemStack working = original.copy();
+        moveIntoSemanticSlots(SlotSemantics.TOOLBOX, working);
+        int moved = original.getCount() - working.getCount();
+        if (moved <= 0) {
+            return;
+        }
+
+        original.shrink(moved);
+        slot.setChanged();
+        if (original.isEmpty()) {
+            slot.set(ItemStack.EMPTY);
+        }
     }
 
-    public boolean isAdvancedAeProviderSelected() {
-        return this.host != null && this.host.supportsFilteredImportToggle();
-    }
-
-    public boolean isAdvancedAeFilteredImportEnabled() {
-        return this.advancedAeFilteredImport;
+    public void sendSetPage(int pageIndex) {
+        sendClientAction(ACTION_SET_PAGE, pageIndex);
     }
 
     public void sendSetAdvancedAeFilteredImport(boolean enabled) {
@@ -206,46 +226,9 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
         sendClientAction(ACTION_SET_FILTERED_IMPORT, enabled);
     }
 
-    public boolean isAe2LtOverloadedProviderSelected() {
-        return this.host != null && this.host.isAe2LightningTechOverloadedProviderSelected();
-    }
-
-    public boolean isResonatingProviderSelected() {
-        return this.resonatingProviderSelected;
-    }
-
-    public boolean isResonatingPullEnabled() {
-        return this.resonatingPullEnabled;
-    }
-
     public void sendSetResonatingPullEnabled(boolean enabled) {
         this.resonatingPullEnabled = enabled;
         sendClientAction(ACTION_SET_RESONATING_PULL, enabled);
-    }
-
-    public boolean isAe2LtWirelessMode() {
-        return this.ae2ltProviderMode == AdaptivePatternProviderBlockEntity.Ae2LtProviderMode.WIRELESS.ordinal();
-    }
-
-    public boolean isAe2LtEvenDistributionMode() {
-        return this.ae2ltWirelessDispatchMode
-                == AdaptivePatternProviderBlockEntity.Ae2LtWirelessDispatchMode.EVEN_DISTRIBUTION.ordinal();
-    }
-
-    public boolean isAe2LtFastSpeedMode() {
-        return this.ae2ltWirelessSpeedMode == AdaptivePatternProviderBlockEntity.Ae2LtWirelessSpeedMode.FAST.ordinal();
-    }
-
-    public IUpgradeInventory getUpgrades() {
-        return this.host != null ? this.host.getUpgrades() : appeng.api.upgrades.UpgradeInventories.empty();
-    }
-
-    public ToolboxMenu getToolbox() {
-        return this.toolbox;
-    }
-
-    public int getAe2LtReturnModeOrdinal() {
-        return this.ae2ltReturnMode;
     }
 
     public void sendToggleAe2LtMode() {
@@ -264,10 +247,105 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
         sendClientAction(ACTION_TOGGLE_AE2LT_WIRELESS_SPEED);
     }
 
+    public Component getProviderDisplayName() {
+        if (this.host != null) {
+            return this.host.getGuiDisplayName();
+        }
+
+        ItemStack providerStack = getProviderStack();
+        return !providerStack.isEmpty()
+                ? providerStack.getHoverName()
+                : Component.translatable("block.data_energistics.adaptive_pattern_provider");
+    }
+
+    public ToolboxMenu getToolbox() {
+        return this.toolbox;
+    }
+
+    public PatternProviderLogic getLogic() {
+        return this.logic;
+    }
+
+    public IUpgradeInventory getUpgrades() {
+        return this.host != null ? this.host.getUpgrades() : appeng.api.upgrades.UpgradeInventories.empty();
+    }
+
+    public YesNo getBlockingMode() {
+        return this.blockingMode;
+    }
+
+    public YesNo getShowInAccessTerminal() {
+        return this.showInAccessTerminal;
+    }
+
+    public LockCraftingMode getLockCraftingMode() {
+        return this.lockCraftingMode;
+    }
+
+    public LockCraftingMode getCraftingLockedReason() {
+        return this.craftingLockedReason;
+    }
+
+    public GenericStack getUnlockStack() {
+        return this.unlockStack;
+    }
+
+    public boolean isAdvancedAeProviderSelected() {
+        return this.host != null && this.host.supportsFilteredImportToggle();
+    }
+
+    public boolean isAdvancedAeFilteredImportEnabled() {
+        return this.advancedAeFilteredImport;
+    }
+
+    public boolean isAe2LtOverloadedProviderSelected() {
+        return this.host != null && this.host.isAe2LightningTechOverloadedProviderSelected();
+    }
+
+    public boolean isResonatingProviderSelected() {
+        return this.resonatingProviderSelected;
+    }
+
+    public boolean isResonatingPullEnabled() {
+        return this.resonatingPullEnabled;
+    }
+
+    public boolean isAe2LtWirelessMode() {
+        return this.ae2ltProviderMode == AdaptivePatternProviderBlockEntity.Ae2LtProviderMode.WIRELESS.ordinal();
+    }
+
+    public boolean isAe2LtEvenDistributionMode() {
+        return this.ae2ltWirelessDispatchMode
+                == AdaptivePatternProviderBlockEntity.Ae2LtWirelessDispatchMode.EVEN_DISTRIBUTION.ordinal();
+    }
+
+    public boolean isAe2LtFastSpeedMode() {
+        return this.ae2ltWirelessSpeedMode == AdaptivePatternProviderBlockEntity.Ae2LtWirelessSpeedMode.FAST.ordinal();
+    }
+
+    public int getAe2LtReturnModeOrdinal() {
+        return this.ae2ltReturnMode;
+    }
+
+    private void loadSettingsFromHost() {
+        if (this.host instanceof IConfigurableObject configurableObject) {
+            var configManager = configurableObject.getConfigManager();
+            this.blockingMode = configManager.getSetting(Settings.BLOCKING_MODE);
+            this.showInAccessTerminal = configManager.getSetting(Settings.PATTERN_ACCESS_TERMINAL);
+            this.lockCraftingMode = configManager.getSetting(Settings.LOCK_CRAFTING_MODE);
+        }
+
+        if (this.logic != null) {
+            this.craftingLockedReason = this.logic.getCraftingLockedReason();
+            this.unlockStack = this.logic.getUnlockStack();
+        }
+    }
+
     private void setPage(Integer pageIndex) {
         if (pageIndex == null) {
             return;
         }
+
         this.pageIndex = Math.max(0, Math.min(pageIndex, Math.max(0, this.totalPages - 1)));
         updatePatternSlotVisibility();
         broadcastChanges();
@@ -346,6 +424,63 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
         }
     }
 
+    private void syncStateFromHost() {
+        if (this.host == null) {
+            return;
+        }
+
+        this.resonatingProviderSelected = this.host.isResonatingProviderSelected();
+        this.resonatingPullEnabled = this.host.isResonatingPullEnabled();
+        this.ae2ltProviderMode = this.host.getAe2LtProviderMode().ordinal();
+        this.ae2ltReturnMode = this.host.getAe2LtReturnMode().ordinal();
+        this.ae2ltWirelessDispatchMode = this.host.getAe2LtWirelessDispatchMode().ordinal();
+        this.ae2ltWirelessSpeedMode = this.host.getAe2LtWirelessSpeedMode().ordinal();
+    }
+
+    private void addUpgradeSlots() {
+        if (this.host == null) {
+            return;
+        }
+
+        var upgrades = this.host.getUpgrades();
+        for (int i = 0; i < upgrades.size(); i++) {
+            this.addSlot(new RestrictedInputSlot(PlacableItemType.UPGRADES, upgrades, i), SlotSemantics.UPGRADE);
+        }
+    }
+
+    private void addPatternPageSlots() {
+        for (int i = 0; i < SLOTS_PER_PAGE; i++) {
+            this.addSlot(new PagedPatternSlot(i), PAGE_PATTERN);
+        }
+    }
+
+    private void addReturnSlots() {
+        if (this.logic == null) {
+            return;
+        }
+
+        ConfigMenuInventory returnInv = this.logic.getReturnInv().createMenuWrapper();
+        for (int i = 0; i < Math.min(DEFAULT_RETURN_SLOTS, returnInv.size()); i++) {
+            this.addSlot(new AppEngSlot(returnInv, i), SlotSemantics.STORAGE);
+        }
+
+        for (int i = DEFAULT_RETURN_SLOTS; i < Math.min(EXPANDED_RETURN_SLOTS, returnInv.size()); i++) {
+            this.addSlot(new AppEngSlot(returnInv, i), STORAGE_ROW_2);
+        }
+    }
+
+    private void addProviderSlot() {
+        var providerSlot = new ProviderSuffixSlot(
+                this.host != null ? this.host.getProviderInventory() : new AppEngInternalInventory(1),
+                0,
+                this.host
+        );
+        providerSlot.setEmptyTooltip(() -> Tooltips.slotTooltip(
+                Component.translatable("tooltip.data_energistics.adaptive_pattern_provider.provider_slot")
+        ));
+        this.addSlot(providerSlot, PROVIDER_INPUT);
+    }
+
     private void returnOverflowPatternsToPlayer() {
         if (this.logic == null) {
             return;
@@ -397,11 +532,10 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
             }
         }
 
-        boolean showStorageRow2 = true;
         for (var slot : this.getSlots(STORAGE_ROW_2)) {
             if (slot instanceof AppEngSlot appEngSlot) {
-                appEngSlot.setActive(showStorageRow2);
-                appEngSlot.setSlotEnabled(showStorageRow2);
+                appEngSlot.setActive(true);
+                appEngSlot.setSlotEnabled(true);
             }
         }
     }
@@ -431,11 +565,6 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
         }
 
         return stack.getCount() < initialCount;
-    }
-
-    private boolean isPatternLike(ItemStack stack) {
-        return PatternDetailsHelper.isEncodedPattern(stack)
-                || AdaptivePatternProviderBlockEntity.isAe2LightningTechOverloadPatternStack(stack);
     }
 
     private void moveIntoSemanticSlots(SlotSemantic semantic, ItemStack stack) {
@@ -470,34 +599,15 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
         }
     }
 
-    private void syncStateFromHost() {
-        if (this.host == null) {
-            return;
-        }
-
-        this.resonatingProviderSelected = this.host.isResonatingProviderSelected();
-        this.resonatingPullEnabled = this.host.isResonatingPullEnabled();
-        this.ae2ltProviderMode = this.host.getAe2LtProviderMode().ordinal();
-        this.ae2ltReturnMode = this.host.getAe2LtReturnMode().ordinal();
-        this.ae2ltWirelessDispatchMode = this.host.getAe2LtWirelessDispatchMode().ordinal();
-        this.ae2ltWirelessSpeedMode = this.host.getAe2LtWirelessSpeedMode().ordinal();
+    private boolean isPatternLike(ItemStack stack) {
+        return PatternDetailsHelper.isEncodedPattern(stack)
+                || AdaptivePatternProviderBlockEntity.isAe2LightningTechOverloadPatternStack(stack);
     }
 
-    private void addPatternPageSlots() {
-        for (int i = 0; i < SLOTS_PER_PAGE; i++) {
-            this.addSlot(new PagedPatternSlot(i), PAGE_PATTERN);
-        }
-    }
-
-    private void addExpandedReturnSlots() {
-        if (this.logic == null) {
-            return;
-        }
-
-        var returnInv = this.logic.getReturnInv().createMenuWrapper();
-        for (int i = DEFAULT_RETURN_SLOTS; i < Math.min(EXPANDED_RETURN_SLOTS, returnInv.size()); i++) {
-            this.addSlot(new AppEngSlot(returnInv, i), STORAGE_ROW_2);
-        }
+    private boolean shouldAllowLightningTechOverloadPattern(ItemStack stack) {
+        return AdaptivePatternProviderBlockEntity.isAe2LightningTechOverloadPatternStack(stack)
+                && this.host != null
+                && this.host.isAe2LightningTechOverloadedProviderSelected();
     }
 
     private final class PagedPatternInventory implements InternalInventory {
@@ -559,7 +669,8 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
         private final int slotOnPage;
 
         private PagedPatternSlot(int slotOnPage) {
-            super(PlacableItemType.PROVIDER_PATTERN,
+            super(
+                    PlacableItemType.PROVIDER_PATTERN,
                     new PagedPatternInventory(
                             AdaptivePatternProviderMenu.this.logic != null
                                     ? AdaptivePatternProviderMenu.this.logic.getPatternInv()
@@ -586,25 +697,19 @@ public class AdaptivePatternProviderMenu extends PatternProviderMenu {
         }
 
         @Override
-        public boolean mayPickup(net.minecraft.world.entity.player.Player player) {
+        public boolean mayPickup(Player player) {
             return getBackingIndex() < AdaptivePatternProviderMenu.this.visiblePatternSlots && super.mayPickup(player);
         }
-    }
-
-    private boolean shouldAllowLightningTechOverloadPattern(ItemStack stack) {
-        return AdaptivePatternProviderBlockEntity.isAe2LightningTechOverloadPatternStack(stack)
-                && this.host != null
-                && this.host.isAe2LightningTechOverloadedProviderSelected();
     }
 
     private static final class ProviderSuffixSlot extends RestrictedInputSlot {
         private final AdaptivePatternProviderHost host;
 
-        private ProviderSuffixSlot(appeng.api.inventories.InternalInventory inv, int slot, AdaptivePatternProviderHost host) {
+        private ProviderSuffixSlot(InternalInventory inv, int slot, AdaptivePatternProviderHost host) {
             super(PlacableItemType.INSCRIBER_INPUT, inv, slot);
             this.host = host;
             this.setStackLimit(host != null ? host.getProviderSlotLimit() : 4);
-            this.setIcon(Icon.PLACEMENT_BLOCK);
+            this.setIcon(appeng.client.gui.Icon.PLACEMENT_BLOCK);
         }
 
         @Override
