@@ -35,6 +35,8 @@ public final class PatternEncodingSourceHelper {
     private static final ResourceLocation AE2_CHARGER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
     private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID =
             ResourceLocation.fromNamespaceAndPath("extendedae", "assembler_matrix_speed");
+    private static final ResourceLocation EXTENDEDAE_CRYSTAL_ASSEMBLER_ID =
+            ResourceLocation.fromNamespaceAndPath("extendedae", "crystal_assembler");
     private static final Map<String, ResourceLocation> RECIPE_TYPE_TO_WORKSTATION = Map.ofEntries(
             Map.entry("minecraft:crafting", CRAFTING_TABLE_ID),
             Map.entry("minecraft:smelting", FURNACE_ID),
@@ -45,7 +47,7 @@ public final class PatternEncodingSourceHelper {
             Map.entry("minecraft:smithing", SMITHING_TABLE_ID),
             Map.entry("ae2:inscriber", AE2_INSCRIBER_ID),
             Map.entry("ae2:charger", AE2_CHARGER_ID),
-            Map.entry("extendedae:crystal_assembler", EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID));
+            Map.entry("extendedae:crystal_assembler", EXTENDEDAE_CRYSTAL_ASSEMBLER_ID));
 
     private PatternEncodingSourceHelper() {
     }

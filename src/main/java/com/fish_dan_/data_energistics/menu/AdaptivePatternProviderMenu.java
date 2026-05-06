@@ -21,6 +21,7 @@ import it.unimi.dsi.fastutil.shorts.ShortSet;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
 public class AdaptivePatternProviderMenu extends PatternProviderMenu {

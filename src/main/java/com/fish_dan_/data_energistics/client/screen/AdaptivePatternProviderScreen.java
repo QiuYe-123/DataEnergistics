@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen;
 
 import appeng.client.gui.Icon;
+import appeng.client.gui.WidgetContainer;
 import appeng.client.gui.implementations.PatternProviderScreen;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.ToggleButton;
@@ -9,19 +10,29 @@ import appeng.client.gui.widgets.UpgradesPanel;
 import appeng.api.upgrades.Upgrades;
 import appeng.core.localization.GuiText;
 import appeng.menu.SlotSemantics;
+import appeng.menu.slot.AppEngSlot;
 import com.fish_dan_.data_energistics.client.widget.AecsPullModeButton;
 import com.fish_dan_.data_energistics.client.widget.Ae2LtTextureToggleButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 
-import java.util.ArrayList;
+import java.lang.reflect.Field;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class AdaptivePatternProviderScreen extends PatternProviderScreen<AdaptivePatternProviderMenu> {
+    private static final int HIDDEN_SLOT_COORD = -9999;
+    private static final Field SLOT_X_FIELD = resolveField(Slot.class, "x");
+    private static final Field SLOT_Y_FIELD = resolveField(Slot.class, "y");
+    private static final Field WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
+    private static final Field WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD = resolveField(WidgetContainer.class, "compositeWidgets");
     private final ToggleButton previousPageButton;
     private final ToggleButton nextPageButton;
     private final Ae2LtTextureToggleButton ae2ltModeButton;
@@ -30,13 +41,23 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
     private final Ae2LtTextureToggleButton ae2ltWirelessSpeedButton;
     private final DataExtractorToggleButton filteredImportButton;
     private final AecsPullModeButton resonatingPullButton;
+    private final List<Slot> uniqueUpgradeSlots;
+    private final List<Slot> duplicateUpgradeSlots;
+    private final List<Slot> duplicateToolboxSlots;
 
     public AdaptivePatternProviderScreen(AdaptivePatternProviderMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
-        this.widgets.add("upgrades", new UpgradesPanel(menu.getSlots(SlotSemantics.UPGRADE), this::getCompatibleUpgrades));
-        if (menu.getToolbox().isPresent()) {
+        var upgradeSlots = splitUniqueSlots(menu.getSlots(SlotSemantics.UPGRADE));
+        var toolboxSlots = splitUniqueSlots(menu.getSlots(SlotSemantics.TOOLBOX));
+        this.uniqueUpgradeSlots = upgradeSlots.unique();
+        this.duplicateUpgradeSlots = upgradeSlots.duplicates();
+        this.duplicateToolboxSlots = toolboxSlots.duplicates();
+
+        installOrReplaceCompositeWidget("upgrades", new UpgradesPanel(this.uniqueUpgradeSlots, this::getCompatibleUpgrades));
+        if (menu.getToolbox().isPresent() && !hasWidget("toolbox")) {
             this.widgets.add("toolbox", new ToolboxPanel(style, menu.getToolbox().getName()));
         }
+
         this.previousPageButton = new ToggleButton(
                 Icon.BACK,
                 Icon.BACK,
@@ -99,8 +120,13 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
 
     protected void updateBeforeRender() {
         super.updateBeforeRender();
-        this.previousPageButton.active = this.menu.pageIndex > 0;
-        this.nextPageButton.active = this.menu.pageIndex + 1 < this.menu.totalPages;
+        hideSlots(this.duplicateUpgradeSlots);
+        hideSlots(this.duplicateToolboxSlots);
+        boolean multiplePages = this.menu.totalPages > 1;
+        this.previousPageButton.visible = multiplePages;
+        this.nextPageButton.visible = multiplePages;
+        this.previousPageButton.active = multiplePages && this.menu.pageIndex > 0;
+        this.nextPageButton.active = multiplePages && this.menu.pageIndex + 1 < this.menu.totalPages;
         boolean showFilteredImport = this.menu.isAdvancedAeProviderSelected();
         this.filteredImportButton.visible = showFilteredImport;
         this.filteredImportButton.active = showFilteredImport;
@@ -124,8 +150,6 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
         this.ae2ltWirelessSpeedButton.visible = showAe2LtControls && this.menu.isAe2LtWirelessMode();
         this.ae2ltWirelessSpeedButton.active = showAe2LtControls && this.menu.isAe2LtWirelessMode();
         this.ae2ltWirelessSpeedButton.setState(this.menu.isAe2LtFastSpeedMode());
-        this.previousPageButton.visible = true;
-        this.nextPageButton.visible = true;
         this.setTextContent("dialog_title", this.menu.getProviderDisplayName());
         this.setTextContent("page_info", Component.translatable(
                 "screen.data_energistics.adaptive_pattern_provider.page",
@@ -169,5 +193,77 @@ public class AdaptivePatternProviderScreen extends PatternProviderScreen<Adaptiv
         list.add(GuiText.CompatibleUpgrades.text());
         list.addAll(Upgrades.getTooltipLinesForMachine(this.menu.getUpgrades().getUpgradableItem()));
         return list;
+    }
+
+    private void hideSlots(List<Slot> slots) {
+        for (var slot : slots) {
+            if (slot instanceof AppEngSlot appEngSlot) {
+                appEngSlot.setActive(false);
+                appEngSlot.setSlotEnabled(false);
+            }
+            setSlotPosition(slot, HIDDEN_SLOT_COORD, HIDDEN_SLOT_COORD);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void installOrReplaceCompositeWidget(String id, Object widget) {
+        try {
+            Map<String, Object> compositeWidgets =
+                    (Map<String, Object>) WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD.get(this.widgets);
+            compositeWidgets.put(id, widget);
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException("Could not replace AE2 composite widget: " + id, e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean hasWidget(String id) {
+        try {
+            Map<String, AbstractWidget> widgets =
+                    (Map<String, AbstractWidget>) WIDGET_CONTAINER_WIDGETS_FIELD.get(this.widgets);
+            if (widgets.containsKey(id)) {
+                return true;
+            }
+
+            Map<String, ?> compositeWidgets =
+                    (Map<String, ?>) WIDGET_CONTAINER_COMPOSITE_WIDGETS_FIELD.get(this.widgets);
+            return compositeWidgets.containsKey(id);
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException("Could not inspect AE2 widget container", e);
+        }
+    }
+
+    private static SlotBuckets splitUniqueSlots(List<Slot> slots) {
+        Map<String, Slot> uniqueByBackingSlot = new LinkedHashMap<>();
+        List<Slot> duplicates = new ArrayList<>();
+        for (var slot : slots) {
+            String key = System.identityHashCode(slot.container) + ":" + slot.getContainerSlot();
+            if (uniqueByBackingSlot.putIfAbsent(key, slot) != null) {
+                duplicates.add(slot);
+            }
+        }
+        return new SlotBuckets(List.copyOf(uniqueByBackingSlot.values()), List.copyOf(duplicates));
+    }
+
+    private static void setSlotPosition(Slot slot, int x, int y) {
+        try {
+            SLOT_X_FIELD.setInt(slot, x);
+            SLOT_Y_FIELD.setInt(slot, y);
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException("Could not reposition duplicate slot", e);
+        }
+    }
+
+    private static Field resolveField(Class<?> owner, String name) {
+        try {
+            Field field = owner.getDeclaredField(name);
+            field.setAccessible(true);
+            return field;
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Could not resolve field " + owner.getSimpleName() + "." + name, e);
+        }
+    }
+
+    private record SlotBuckets(List<Slot> unique, List<Slot> duplicates) {
     }
 }

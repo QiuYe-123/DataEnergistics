@@ -39,9 +39,12 @@ public final class AdaptivePatternProviderState {
     public static final int BASE_UPGRADE_SLOTS = 6;
     private static final int MAX_NETWORK_SAFE_MENU_SLOTS = Short.MAX_VALUE + 1;
     // The menu already carries the hidden backing pattern slots from the base AE2 menu.
-    // Leave headroom for the toolbox slots so container_set_slot never overflows short slot ids.
+    // Extra slots from toolbox / addon behavior can still push the synchronized slot count
+    // over the signed-short packet range, so keep an explicit safety buffer here.
     private static final int FIXED_MENU_SLOT_OVERHEAD = 36 + 18 + 1 + 36 + (BASE_UPGRADE_SLOTS * 2) + 3;
-    public static final int MAX_PATTERN_SLOTS = MAX_NETWORK_SAFE_MENU_SLOTS - FIXED_MENU_SLOT_OVERHEAD;
+    private static final int MENU_SLOT_SAFETY_MARGIN = 64;
+    public static final int MAX_PATTERN_SLOTS =
+            MAX_NETWORK_SAFE_MENU_SLOTS - FIXED_MENU_SLOT_OVERHEAD - MENU_SLOT_SAFETY_MARGIN;
 
     private final AppEngInternalInventory providerInventory;
     private final IntSupplier providerSlotLimit;

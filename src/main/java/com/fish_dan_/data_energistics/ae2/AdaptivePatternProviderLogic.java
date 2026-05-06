@@ -31,6 +31,7 @@ import appeng.me.helpers.MachineSource;
 import appeng.util.inv.AppEngInternalInventory;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.integration.Ae2LtRuntimeBridge;
+import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import net.minecraft.core.HolderLookup;
@@ -38,14 +39,21 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingInput;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.properties.Property;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Field;
@@ -72,6 +80,12 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
             "com.moakiee.ae2lt.logic.AllowedOutputFilter";
     private static final String AE2CS_GENERIC_STACK_INV_HELPER_CLASS =
             "io.github.lounode.ae2cs.api.util.GenericStackInvHelper";
+    private static final String CREATE_MECHANICAL_CRAFTER_BE_CLASS =
+            "com.simibubi.create.content.kinetics.crafter.MechanicalCrafterBlockEntity";
+    private static final String CREATE_RECIPE_GRID_HANDLER_CLASS =
+            "com.simibubi.create.content.kinetics.crafter.RecipeGridHandler";
+    private static final String CREATE_MECHANICAL_CRAFTER_BLOCK_CLASS =
+            "com.simibubi.create.content.kinetics.crafter.MechanicalCrafterBlock";
     private static final int METEORITE_ENERGY_PER_WORK = 50;
     private static final int METEORITE_MAX_WORKS_PER_ROUND = 8;
     private static final int EXPANDED_RETURN_SLOTS = 18;
@@ -218,6 +232,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
 
         if (isAdvancedAeDirectionalPattern(patternDetails)) {
             return pushAdvancedAeDirectionalPattern(patternDetails, inputHolder);
+        }
+
+        if (isAppliedCreateMechanicalProviderSelected() && pushAppliedCreateMechanicalPattern(patternDetails, inputHolder)) {
+            return true;
         }
 
         if (isMeteoritePatternProvider() && patternDetails instanceof IMolecularAssemblerSupportedPattern molecularAssemblerSupportedPattern) {
@@ -584,6 +602,12 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
                 && adaptivePatternProviderHost.isAe2LightningTechOverloadedProviderSelected();
     }
 
+    private boolean isAppliedCreateMechanicalProviderSelected() {
+        return AppliedCreateCompat.isMechanicalProviderSupportEnabled()
+                && this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
+                && adaptivePatternProviderHost.isAppliedCreateMechanicalProviderSelected();
+    }
+
     private boolean isMeteoritePatternProvider() {
         return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
                 && adaptivePatternProviderHost.isMeteoriteProviderSelected();
@@ -671,9 +695,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
     }
 
     private boolean tryPushAdvancedDirectionalToWirelessConnection(IPatternDetails patternDetails,
-                                                                   KeyCounter[] inputHolder,
-                                                                   AdaptiveWirelessConnection connection,
-                                                                   ServerLevel targetLevel) {
+                                                                    KeyCounter[] inputHolder,
+                                                                    AdaptiveWirelessConnection connection,
+                                                                    ServerLevel targetLevel) {
         BlockEntity targetBlockEntity = targetLevel.getBlockEntity(connection.pos());
         if (targetBlockEntity == null || !patternDetails.supportsPushInputsToExternalInventory()) {
             return false;
@@ -722,6 +746,64 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
         return true;
     }
 
+    private boolean pushAppliedCreateMechanicalPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
+        if (super.isBusy() || !this.mainNode.isActive() || !getAvailablePatterns().contains(patternDetails)) {
+            return false;
+        }
+
+        if (getCraftingLockedReason() != LockCraftingMode.NONE) {
+            return false;
+        }
+
+        var blockEntity = this.host.getBlockEntity();
+        Level level = blockEntity.getLevel();
+        if (level == null) {
+            return super.pushPattern(patternDetails, inputHolder);
+        }
+
+        GenericStack primaryOutput = patternDetails.getPrimaryOutput();
+        if (primaryOutput == null || !(primaryOutput.what() instanceof AEItemKey primaryOutputKey)) {
+            return super.pushPattern(patternDetails, inputHolder);
+        }
+
+        List<AppliedCreateRecipeInfo> recipes = collectAppliedCreateRecipeInfos(level, primaryOutputKey.toStack());
+        if (recipes.isEmpty()) {
+            return super.pushPattern(patternDetails, inputHolder);
+        }
+
+        List<ItemStack> flattenedInputs = flattenAppliedCreateInputs(inputHolder);
+        if (flattenedInputs.isEmpty()) {
+            return super.pushPattern(patternDetails, inputHolder);
+        }
+
+        BlockPos providerPos = blockEntity.getBlockPos();
+        for (Direction side : this.host.getTargets()) {
+            BlockEntity adjacentBlockEntity = level.getBlockEntity(providerPos.relative(side));
+            if (!isMechanicalCrafterBlockEntity(adjacentBlockEntity)) {
+                continue;
+            }
+
+            List<?> crafterChain = getAllMechanicalCraftersOfChain(adjacentBlockEntity);
+            if (crafterChain == null || crafterChain.isEmpty()) {
+                continue;
+            }
+
+            Map<GridCoord, Object> crafterGrid = computeCrafterGridPositions(crafterChain);
+            if (crafterGrid == null) {
+                continue;
+            }
+
+            if (!tryPushAppliedCreateRecipe(recipes, crafterChain, crafterGrid, flattenedInputs)) {
+                continue;
+            }
+
+            invokePatternSuccess(patternDetails);
+            return true;
+        }
+
+        return super.pushPattern(patternDetails, inputHolder);
+    }
+
     @SuppressWarnings("unchecked")
     private List<GenericStack> getSparseInputs(IPatternDetails patternDetails) {
         try {
@@ -763,6 +845,303 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
 
     private boolean isBlockedByMode(PatternProviderTarget target) {
         return this.isBlocking() && target.containsPatternInput(getPatternInputs());
+    }
+
+    private List<AppliedCreateRecipeInfo> collectAppliedCreateRecipeInfos(Level level, ItemStack expectedOutput) {
+        ArrayList<AppliedCreateRecipeInfo> recipes = new ArrayList<>();
+        HolderLookup.Provider registries = level.registryAccess();
+
+        var mechanicalRecipeType = BuiltInRegistries.RECIPE_TYPE.getOptional(
+                ResourceLocation.fromNamespaceAndPath("create", "mechanical_crafting"))
+                .orElse(null);
+        if (mechanicalRecipeType instanceof RecipeType<?> rawMechanicalType) {
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            List<RecipeHolder<?>> recipeHolders = (List) level.getRecipeManager().getAllRecipesFor((RecipeType) rawMechanicalType);
+            for (RecipeHolder<?> holder : recipeHolders) {
+                Object recipe = holder.value();
+                try {
+                    ItemStack result = (ItemStack) recipe.getClass()
+                            .getMethod("getResultItem", HolderLookup.Provider.class)
+                            .invoke(recipe, registries);
+                    if (!ItemStack.isSameItemSameComponents(result, expectedOutput)) {
+                        continue;
+                    }
+                    int width = (Integer) recipe.getClass().getMethod("getWidth").invoke(recipe);
+                    int height = (Integer) recipe.getClass().getMethod("getHeight").invoke(recipe);
+                    @SuppressWarnings("unchecked")
+                    List<Ingredient> ingredients = (List<Ingredient>) recipe.getClass().getMethod("getIngredients").invoke(recipe);
+                    recipes.add(new AppliedCreateRecipeInfo(width, height, ingredients));
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
+        for (RecipeHolder<net.minecraft.world.item.crafting.CraftingRecipe> holder
+                : level.getRecipeManager().getAllRecipesFor(RecipeType.CRAFTING)) {
+            if (!(holder.value() instanceof ShapedRecipe shapedRecipe)) {
+                continue;
+            }
+            if (!ItemStack.isSameItemSameComponents(shapedRecipe.getResultItem(registries), expectedOutput)) {
+                continue;
+            }
+            recipes.add(new AppliedCreateRecipeInfo(
+                    shapedRecipe.getWidth(),
+                    shapedRecipe.getHeight(),
+                    shapedRecipe.getIngredients()));
+        }
+
+        return recipes;
+    }
+
+    private List<ItemStack> flattenAppliedCreateInputs(KeyCounter[] inputHolder) {
+        ArrayList<ItemStack> stacks = new ArrayList<>();
+        for (KeyCounter input : inputHolder) {
+            for (var entry : input) {
+                if (!(entry.getKey() instanceof AEItemKey itemKey)) {
+                    continue;
+                }
+                int amount = (int) Math.min(Integer.MAX_VALUE, entry.getLongValue());
+                for (int i = 0; i < amount; i++) {
+                    stacks.add(itemKey.toStack(1));
+                }
+            }
+        }
+        return stacks;
+    }
+
+    @Nullable
+    private Map<GridCoord, Object> computeCrafterGridPositions(List<?> crafters) {
+        if (crafters.isEmpty()) {
+            return null;
+        }
+
+        Set<Object> crafterSet = new HashSet<>(crafters);
+        Map<Object, Object> parentByCrafter = new HashMap<>();
+        for (Object crafter : crafters) {
+            Object target = getTargetingCrafter(crafter);
+            parentByCrafter.put(crafter, target != null && crafterSet.contains(target) ? target : null);
+        }
+
+        Object root = null;
+        for (Object crafter : crafters) {
+            if (parentByCrafter.get(crafter) == null) {
+                root = crafter;
+                break;
+            }
+        }
+        if (root == null) {
+            return null;
+        }
+
+        Map<Object, GridCoord> rawPositions = new HashMap<>();
+        ArrayList<Object> queue = new ArrayList<>();
+        Set<Object> visited = new HashSet<>();
+        rawPositions.put(root, new GridCoord(0, 0));
+        queue.add(root);
+        visited.add(root);
+
+        while (!queue.isEmpty()) {
+            Object current = queue.removeFirst();
+            GridCoord currentCoord = rawPositions.get(current);
+            if (currentCoord == null) {
+                continue;
+            }
+
+            for (Object candidate : crafters) {
+                if (visited.contains(candidate) || parentByCrafter.get(candidate) != current) {
+                    continue;
+                }
+
+                String pointingName = getCrafterPointingName(candidate);
+                int dx = switch (pointingName) {
+                    case "RIGHT" -> 1;
+                    case "LEFT" -> -1;
+                    default -> 0;
+                };
+                int dy = switch (pointingName) {
+                    case "UP" -> 1;
+                    case "DOWN" -> -1;
+                    default -> 0;
+                };
+
+                rawPositions.put(candidate, new GridCoord(currentCoord.x() + dx, currentCoord.y() + dy));
+                visited.add(candidate);
+                queue.add(candidate);
+            }
+        }
+
+        if (rawPositions.size() != crafters.size()) {
+            return null;
+        }
+
+        int minX = Integer.MAX_VALUE;
+        int minY = Integer.MAX_VALUE;
+        for (GridCoord coord : rawPositions.values()) {
+            minX = Math.min(minX, coord.x());
+            minY = Math.min(minY, coord.y());
+        }
+
+        Map<GridCoord, Object> normalized = new HashMap<>();
+        for (Map.Entry<Object, GridCoord> entry : rawPositions.entrySet()) {
+            GridCoord coord = entry.getValue();
+            normalized.put(new GridCoord(coord.x() - minX, coord.y() - minY), entry.getKey());
+        }
+        return normalized;
+    }
+
+    private boolean tryPushAppliedCreateRecipe(List<AppliedCreateRecipeInfo> recipes,
+                                               List<?> crafterChain,
+                                               Map<GridCoord, Object> crafterGrid,
+                                               List<ItemStack> flattenedInputs) {
+        int gridWidth = 0;
+        int gridHeight = 0;
+        for (GridCoord coord : crafterGrid.keySet()) {
+            gridWidth = Math.max(gridWidth, coord.x() + 1);
+            gridHeight = Math.max(gridHeight, coord.y() + 1);
+        }
+
+        for (AppliedCreateRecipeInfo recipe : recipes) {
+            int width = recipe.width();
+            int height = recipe.height();
+            if (width > gridWidth || height > gridHeight) {
+                continue;
+            }
+
+            for (int offsetX = 0; offsetX <= gridWidth - width; offsetX++) {
+                for (int offsetY = 0; offsetY <= gridHeight - height; offsetY++) {
+                    ArrayList<AppliedCreateSlotAssignment> assignments = new ArrayList<>();
+                    ArrayList<ItemStack> remainingInputs = new ArrayList<>(flattenedInputs);
+                    boolean matched = true;
+
+                    for (int row = 0; row < height && matched; row++) {
+                        for (int col = 0; col < width; col++) {
+                            int ingredientIndex = col + row * width;
+                            Ingredient ingredient = ingredientIndex < recipe.ingredients().size()
+                                    ? recipe.ingredients().get(ingredientIndex)
+                                    : null;
+                            if (ingredient == null || ingredient.isEmpty()) {
+                                continue;
+                            }
+
+                            int gridX = col + offsetX;
+                            int gridY = row + offsetY;
+                            Object crafter = crafterGrid.get(new GridCoord(gridX, gridY));
+                            if (crafter == null) {
+                                matched = false;
+                                break;
+                            }
+
+                            int inputIndex = findMatchingAppliedCreateInput(remainingInputs, ingredient);
+                            if (inputIndex < 0) {
+                                matched = false;
+                                break;
+                            }
+
+                            ItemStack inputStack = remainingInputs.get(inputIndex);
+                            ItemStack simulatedRemainder = insertIntoCrafter(crafter, inputStack.copy(), true);
+                            if (!simulatedRemainder.isEmpty()) {
+                                matched = false;
+                                break;
+                            }
+
+                            assignments.add(new AppliedCreateSlotAssignment(crafter, inputStack.copy()));
+                            remainingInputs.remove(inputIndex);
+                        }
+                    }
+
+                    if (!matched) {
+                        continue;
+                    }
+
+                    for (AppliedCreateSlotAssignment assignment : assignments) {
+                        insertIntoCrafter(assignment.crafter(), assignment.stack(), false);
+                    }
+
+                    Object firstCrafter = crafterChain.isEmpty() ? null : crafterChain.getFirst();
+                    if (firstCrafter != null) {
+                        triggerCrafterRecipeCheck(firstCrafter);
+                    }
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private int findMatchingAppliedCreateInput(List<ItemStack> inputs, Ingredient ingredient) {
+        for (int i = 0; i < inputs.size(); i++) {
+            if (ingredient.test(inputs.get(i))) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private String getCrafterPointingName(Object crafter) {
+        try {
+            Object blockState = crafter.getClass().getMethod("getBlockState").invoke(crafter);
+            Object pointingProperty = Class.forName(CREATE_MECHANICAL_CRAFTER_BLOCK_CLASS).getField("POINTING").get(null);
+            Object pointing = blockState.getClass()
+                    .getMethod("getValue", Property.class)
+                    .invoke(blockState, pointingProperty);
+            return String.valueOf(pointing);
+        } catch (Exception ignored) {
+            return "UP";
+        }
+    }
+
+    private ItemStack insertIntoCrafter(Object crafter, ItemStack stack, boolean simulate) {
+        try {
+            Object inventory = crafter.getClass().getMethod("getInventory").invoke(crafter);
+            Object result = inventory.getClass()
+                    .getMethod("insertItem", int.class, ItemStack.class, boolean.class)
+                    .invoke(inventory, 0, stack, simulate);
+            return result instanceof ItemStack itemStack ? itemStack : stack;
+        } catch (Exception ignored) {
+            return stack;
+        }
+    }
+
+    private void triggerCrafterRecipeCheck(Object crafter) {
+        try {
+            crafter.getClass().getMethod("checkCompletedRecipe", boolean.class).invoke(crafter, true);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private boolean isMechanicalCrafterBlockEntity(@Nullable Object value) {
+        if (value == null) {
+            return false;
+        }
+        try {
+            return Class.forName(CREATE_MECHANICAL_CRAFTER_BE_CLASS).isInstance(value);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    @Nullable
+    private List<?> getAllMechanicalCraftersOfChain(Object crafter) {
+        try {
+            Class<?> crafterClass = Class.forName(CREATE_MECHANICAL_CRAFTER_BE_CLASS);
+            Class<?> handlerClass = Class.forName(CREATE_RECIPE_GRID_HANDLER_CLASS);
+            Object result = handlerClass.getMethod("getAllCraftersOfChain", crafterClass).invoke(null, crafter);
+            return result instanceof List<?> list ? list : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    @Nullable
+    private Object getTargetingCrafter(Object crafter) {
+        try {
+            Class<?> crafterClass = Class.forName(CREATE_MECHANICAL_CRAFTER_BE_CLASS);
+            Class<?> handlerClass = Class.forName(CREATE_RECIPE_GRID_HANDLER_CLASS);
+            return handlerClass.getMethod("getTargetingCrafter", crafterClass).invoke(null, crafter);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private Set<AEKey> getPatternInputs() {
@@ -1695,6 +2074,15 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
     }
 
     private record FallbackTarget(Direction direction, PatternProviderTarget target) {
+    }
+
+    private record GridCoord(int x, int y) {
+    }
+
+    private record AppliedCreateRecipeInfo(int width, int height, List<Ingredient> ingredients) {
+    }
+
+    private record AppliedCreateSlotAssignment(Object crafter, ItemStack stack) {
     }
 
     private final class Ticker implements IGridTickable {

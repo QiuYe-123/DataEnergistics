@@ -26,6 +26,7 @@ import appeng.api.inventories.InternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 import com.fish_dan_.data_energistics.integration.Ae2LtCompat;
+import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModMenus;
@@ -70,6 +71,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     private static final String AE2LT_NAMESPACE = "ae2lt";
     private static final String AE2LT_OVERLOADED_PATTERN_PROVIDER = "overloaded_pattern_provider";
     private static final String AE2LT_OVERLOAD_PATTERN = "overload_pattern";
+    private static final String APPLIED_CREATE_NAMESPACE = "appliedcreate";
     private static final String EXTENDEDAE_NAMESPACE = "extendedae";
     private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID =
             ResourceLocation.fromNamespaceAndPath(EXTENDEDAE_NAMESPACE, "assembler_matrix_speed");
@@ -204,6 +206,16 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     public boolean isAe2LightningTechOverloadedProviderSelected() {
         ProviderProfile profile = getProviderProfile();
         return profile != null && profile.kind() == ProviderKind.AE2LT_OVERLOADED;
+    }
+
+    @Override
+    public boolean isAppliedCreateMechanicalProviderSelected() {
+        if (!AppliedCreateCompat.isMechanicalProviderSupportEnabled()) {
+            return false;
+        }
+        ProviderProfile profile = getProviderProfile();
+        return profile != null && (profile.kind() == ProviderKind.APPLIED_CREATE_ANDESITE
+                || profile.kind() == ProviderKind.APPLIED_CREATE_BRASS);
     }
 
     @Override
@@ -567,6 +579,11 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             return profile;
         }
 
+        profile = resolveAppliedCreateProfile(stack);
+        if (profile != null) {
+            return profile;
+        }
+
         profile = resolvePartProviderProfile(stack);
         if (profile != null) {
             return profile;
@@ -662,6 +679,36 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
 
         ItemStack icon = new ItemStack(stack.getItem());
         return new ProviderProfile(ProviderKind.AE2LT_OVERLOADED, EXTENDED_PATTERN_SLOTS, icon, AEItemKey.of(icon), icon.getHoverName());
+    }
+
+    @Nullable
+    private static ProviderProfile resolveAppliedCreateProfile(ItemStack stack) {
+        if (!AppliedCreateCompat.isMechanicalProviderSupportEnabled()) {
+            return null;
+        }
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        if (itemId == null || !APPLIED_CREATE_NAMESPACE.equals(itemId.getNamespace())) {
+            return null;
+        }
+
+        String path = itemId.getPath();
+        int slotCount = switch (path) {
+            case "andesite_pattern_provider" -> BASE_PATTERN_SLOTS;
+            case "brass_pattern_provider" -> EXTENDED_PATTERN_SLOTS;
+            default -> -1;
+        };
+
+        if (slotCount <= 0) {
+            return null;
+        }
+
+        ItemStack icon = new ItemStack(stack.getItem());
+        ProviderKind kind = switch (path) {
+            case "andesite_pattern_provider" -> ProviderKind.APPLIED_CREATE_ANDESITE;
+            case "brass_pattern_provider" -> ProviderKind.APPLIED_CREATE_BRASS;
+            default -> ProviderKind.UNKNOWN;
+        };
+        return new ProviderProfile(kind, slotCount, icon, AEItemKey.of(icon), icon.getHoverName());
     }
 
     @Nullable
@@ -1045,6 +1092,8 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
         ADVANCED_SMALL,
         ADVANCED_EXTENDED,
         AE2LT_OVERLOADED,
+        APPLIED_CREATE_ANDESITE,
+        APPLIED_CREATE_BRASS,
         RESONATING,
         EXTENDED_RESONATING,
         METEORITE

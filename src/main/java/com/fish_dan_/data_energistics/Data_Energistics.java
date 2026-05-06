@@ -314,9 +314,13 @@ public class Data_Energistics {
         }
 
         private static Screen maybeReplaceNativePatternEncodingScreen(Screen currentScreen, boolean applyImmediately) {
-            if (!(currentScreen instanceof PatternEncodingTermScreen<?> screen)) {
+            // Only replace AE2's native screen. Addons such as AE2WTLib subclass PatternEncodingTermScreen
+            // and manage their own upgrade/toolbox layout, which breaks if we swap in our AE2-specific screen.
+            if (currentScreen == null || currentScreen.getClass() != PatternEncodingTermScreen.class) {
                 return null;
             }
+
+            var screen = (PatternEncodingTermScreen<?>) currentScreen;
 
             if (currentScreen instanceof PatternEncodingPreviewScreen<?>) {
                 return null;

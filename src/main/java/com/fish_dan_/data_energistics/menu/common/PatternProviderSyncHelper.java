@@ -47,6 +47,8 @@ public final class PatternProviderSyncHelper {
             ResourceLocation.fromNamespaceAndPath("ae2", "molecular_assembler");
     private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID =
             ResourceLocation.fromNamespaceAndPath("extendedae", "assembler_matrix_speed");
+    private static final ResourceLocation EXTENDEDAE_CRYSTAL_ASSEMBLER_ID =
+            ResourceLocation.fromNamespaceAndPath("extendedae", "crystal_assembler");
     private static final ResourceLocation EXTENDEDAE_EX_MOLECULAR_ASSEMBLER_ID =
             ResourceLocation.fromNamespaceAndPath("extendedae", "ex_molecular_assembler");
     private static final ResourceLocation AE2CS_METEORITE_PATTERN_PROVIDER_ID =
@@ -497,6 +499,7 @@ public final class PatternProviderSyncHelper {
                 || STONECUTTER_ID.equals(workstationId)
                 || SMITHING_TABLE_ID.equals(workstationId)
                 || AE2_MOLECULAR_ASSEMBLER_ID.equals(workstationId)
+                || EXTENDEDAE_CRYSTAL_ASSEMBLER_ID.equals(workstationId)
                 || EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID.equals(workstationId);
     }
 

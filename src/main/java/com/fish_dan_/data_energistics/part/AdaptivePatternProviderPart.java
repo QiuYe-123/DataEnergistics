@@ -25,6 +25,7 @@ import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandl
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
+import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -193,6 +194,16 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     public boolean isAe2LightningTechOverloadedProviderSelected() {
         return AdaptivePatternProviderBlockEntity.getResolvedProviderKind(getProviderStack())
                 == AdaptivePatternProviderBlockEntity.ProviderKind.AE2LT_OVERLOADED;
+    }
+
+    @Override
+    public boolean isAppliedCreateMechanicalProviderSelected() {
+        if (!AppliedCreateCompat.isMechanicalProviderSupportEnabled()) {
+            return false;
+        }
+        var kind = AdaptivePatternProviderBlockEntity.getResolvedProviderKind(getProviderStack());
+        return kind == AdaptivePatternProviderBlockEntity.ProviderKind.APPLIED_CREATE_ANDESITE
+                || kind == AdaptivePatternProviderBlockEntity.ProviderKind.APPLIED_CREATE_BRASS;
     }
 
     @Override

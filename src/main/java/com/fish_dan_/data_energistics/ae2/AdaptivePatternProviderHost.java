@@ -39,6 +39,8 @@ public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, I
 
     boolean isResonatingProviderSelected();
 
+    boolean isAppliedCreateMechanicalProviderSelected();
+
     boolean supportsFilteredImportToggle();
 
     AdaptivePatternProviderBlockEntity.Ae2LtProviderMode getAe2LtProviderMode();
