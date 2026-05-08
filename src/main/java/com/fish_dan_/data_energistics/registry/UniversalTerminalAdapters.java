@@ -27,7 +27,9 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
 import java.lang.reflect.Field;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 public final class UniversalTerminalAdapters {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -78,7 +80,8 @@ public final class UniversalTerminalAdapters {
             return;
         }
         discovered = true;
-        registerOptionalReflectiveAdapters();
+        Map<String, Item> partItemsByClassName = collectPartItemsByClassName();
+        registerOptionalReflectiveAdapters(partItemsByClassName);
 
         for (Item item : BuiltInRegistries.ITEM) {
             if (!(item instanceof IPartItem<?> partItem)) {
@@ -126,6 +129,16 @@ public final class UniversalTerminalAdapters {
             ));
             LOGGER.info("Auto-registered wrapped universal terminal adapter for {}", itemId);
         }
+    }
+
+    private static Map<String, Item> collectPartItemsByClassName() {
+        Map<String, Item> partItemsByClassName = new HashMap<>();
+        for (Item item : BuiltInRegistries.ITEM) {
+            if (item instanceof IPartItem<?> partItem) {
+                partItemsByClassName.putIfAbsent(partItem.getPartClass().getName(), item);
+            }
+        }
+        return partItemsByClassName;
     }
 
     private static DetectedTerminalProfile detectProfile(Class<?> partClass) {
@@ -283,14 +296,15 @@ public final class UniversalTerminalAdapters {
                 .replace("container", "");
     }
 
-    private static void registerOptionalReflectiveAdapters() {
+    private static void registerOptionalReflectiveAdapters(Map<String, Item> partItemsByClassName) {
         registerReflectiveAdapter(
                 "com.glodblock.github.extendedae.common.parts.PartExPatternAccessTerminal",
                 "com.glodblock.github.extendedae.container.ContainerExPatternTerminal",
                 "TYPE",
                 UniversalTerminalConfigProfile.PATTERN_ACCESS,
                 true,
-                UniversalTerminalAdapters::createPatternAccessConfigManager
+                UniversalTerminalAdapters::createPatternAccessConfigManager,
+                partItemsByClassName
         );
         registerReflectiveAdapter(
                 "com.almostreliable.merequester.terminal.RequesterTerminalPart",
@@ -298,7 +312,8 @@ public final class UniversalTerminalAdapters {
                 "REQUESTER_TERMINAL_MENU",
                 UniversalTerminalConfigProfile.STANDARD,
                 true,
-                null
+                null,
+                partItemsByClassName
         );
         registerReflectiveAdapter(
                 "net.pedroksl.advanced_ae.common.parts.QuantumCrafterTerminalPart",
@@ -306,7 +321,8 @@ public final class UniversalTerminalAdapters {
                 "QUANTUM_CRAFTER_TERMINAL",
                 UniversalTerminalConfigProfile.STANDARD,
                 true,
-                UniversalTerminalAdapters::createQuantumCrafterConfigManager
+                UniversalTerminalAdapters::createQuantumCrafterConfigManager,
+                partItemsByClassName
         );
     }
 
@@ -315,7 +331,8 @@ public final class UniversalTerminalAdapters {
                                                   String menuFieldName,
                                                   UniversalTerminalConfigProfile configProfile,
                                                   boolean requiresCustomMenuLocator,
-                                                  @Nullable java.util.function.Function<Runnable, IConfigManager> configManagerFactory) {
+                                                  @Nullable java.util.function.Function<Runnable, IConfigManager> configManagerFactory,
+                                                  Map<String, Item> partItemsByClassName) {
         var menuTypeSupplier = resolveMenuTypeSupplier(menuOwnerClassName, menuFieldName);
         if (menuTypeSupplier == null) {
             LOGGER.warn("Skipping universal terminal compat for {} because {}#{} could not be resolved",
@@ -323,15 +340,17 @@ public final class UniversalTerminalAdapters {
             return;
         }
 
-        registerReflectiveAdapter(partClassName, menuTypeSupplier, configProfile, requiresCustomMenuLocator, configManagerFactory);
+        registerReflectiveAdapter(partClassName, menuTypeSupplier, configProfile, requiresCustomMenuLocator,
+                configManagerFactory, partItemsByClassName);
     }
 
     private static void registerReflectiveAdapter(String partClassName,
                                                   java.util.function.Supplier<net.minecraft.world.inventory.MenuType<?>> menuTypeSupplier,
                                                   UniversalTerminalConfigProfile configProfile,
                                                   boolean requiresCustomMenuLocator,
-                                                  @Nullable java.util.function.Function<Runnable, IConfigManager> configManagerFactory) {
-        Item terminalItem = findPartItem(partClassName);
+                                                  @Nullable java.util.function.Function<Runnable, IConfigManager> configManagerFactory,
+                                                  Map<String, Item> partItemsByClassName) {
+        Item terminalItem = partItemsByClassName.get(partClassName);
         if (terminalItem == null) {
             return;
         }
@@ -356,15 +375,6 @@ public final class UniversalTerminalAdapters {
                 configManagerFactory
         ));
         LOGGER.info("Registered reflected universal terminal adapter for {} using wrapped menu type", itemId);
-    }
-
-    private static @Nullable Item findPartItem(String partClassName) {
-        for (Item item : BuiltInRegistries.ITEM) {
-            if (item instanceof IPartItem<?> partItem && partItem.getPartClass().getName().equals(partClassName)) {
-                return item;
-            }
-        }
-        return null;
     }
 
     private static @Nullable java.util.function.Supplier<net.minecraft.world.inventory.MenuType<?>> resolveMenuTypeSupplier(

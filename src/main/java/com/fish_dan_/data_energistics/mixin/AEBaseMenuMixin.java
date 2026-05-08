@@ -16,7 +16,8 @@ public abstract class AEBaseMenuMixin {
     private void dataEnergistics$preventBlankPatternSlotInsertion(Slot slot, ItemStack stack,
                                                                   CallbackInfoReturnable<Boolean> cir) {
         if ((Object) this instanceof PatternEncodingTermMenu patternEncodingTermMenu
-                && patternEncodingTermMenu.getSlotSemantic(slot) == SlotSemantics.BLANK_PATTERN) {
+                && patternEncodingTermMenu.getSlotSemantic(slot) == SlotSemantics.BLANK_PATTERN
+                && !slot.hasItem()) {
             cir.setReturnValue(false);
         }
     }

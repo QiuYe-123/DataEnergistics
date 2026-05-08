@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataFlowGeneratorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataFrameworkBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.bus.api.IEventBus;
@@ -21,6 +22,11 @@ public final class ModBlockEntities {
             BLOCK_ENTITY_TYPES.register(
                     "data_flow_generator",
                     () -> BlockEntityType.Builder.of(DataFlowGeneratorBlockEntity::new, ModBlocks.DATA_FLOW_GENERATOR.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataSolarPanelBlockEntity>> DATA_SOLAR_PANEL_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register(
+                    "me_solar_panel",
+                    () -> BlockEntityType.Builder.of(DataSolarPanelBlockEntity::new, ModBlocks.DATA_SOLAR_PANEL.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataExtractorBlockEntity>> DATA_EXTRACTOR_BLOCK_ENTITY =
             BLOCK_ENTITY_TYPES.register(

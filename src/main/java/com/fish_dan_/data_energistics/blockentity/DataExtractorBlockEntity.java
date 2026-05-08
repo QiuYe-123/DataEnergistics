@@ -72,6 +72,8 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     public static final int BASE_WORK_INTERVAL_SECONDS = 5;
     public static final int MIN_WORK_INTERVAL_SECONDS = 1;
     public static final int WORK_INTERVAL_TICKS = BASE_WORK_INTERVAL_SECONDS * 20;
+    public static final int DROP_COLLECTION_INTERVAL_TICKS = 5;
+    public static final int TARGET_SCAN_INTERVAL_TICKS = 5;
     public static final int DATA_FLOW_PER_CYCLE = 100;
     public static final int DAMAGE_PER_CYCLE = 5;
     public static final double AE_POWER_PER_TICK = 160.0;
@@ -82,6 +84,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     public static final int BASE_TARGET_LIMIT = 20;
     public static final int TARGET_LIMIT_PER_CAPACITY_CARD = 5;
     private static final int DEBUFF_DURATION_TICKS = 60;
+    private static final int DEBUFF_REAPPLY_INTERVAL_TICKS = 10;
     private static final int STORAGE_SLOTS = 3;
     private static final int INPUT_SLOT = 0;
     private static final int OUTPUT_SLOT = 1;
@@ -144,6 +147,11 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     private DataExtractorDropRoutingMode dropRoutingMode = DataExtractorDropRoutingMode.OFF;
     private int syncedCapacityCardCount;
     private int workTicks;
+    private int dropCollectionCooldown;
+    private int targetScanCooldown;
+    private int debuffCooldown;
+    private AABB cachedCoverageAabb;
+    private List<LivingEntity> cachedTargets = List.of();
 
     public DataExtractorBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -184,6 +192,11 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         this.dropRoutingMode = DataExtractorDropRoutingMode.fromOrdinal(data.getInt(DROP_ROUTING_MODE_TAG));
         this.syncedCapacityCardCount = computeCapacityCardCount(this.upgrades);
         this.workTicks = Math.max(0, data.getInt(WORK_PROGRESS_TAG));
+        this.dropCollectionCooldown = 0;
+        this.targetScanCooldown = 0;
+        this.debuffCooldown = 0;
+        this.cachedCoverageAabb = null;
+        this.cachedTargets = List.of();
     }
 
     @Override
@@ -291,7 +304,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         recordOreSample();
         tryOutputCompletedCarrier();
         performWork();
-        collectDroppedItems();
+        tickDroppedItemCollection();
         refillEnergyCache();
         updateOnlineState();
     }
@@ -391,7 +404,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     }
 
     public int getTargetCount() {
-        return getEntitiesInRange().size();
+        return getTargets().size();
     }
 
     public boolean setRedstoneControlled(boolean enabled) {
@@ -429,6 +442,10 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     }
 
     public AABB getCoverageAabb() {
+        if (this.cachedCoverageAabb != null) {
+            return this.cachedCoverageAabb;
+        }
+
         int capacityCardCount = getCapacityCardCount();
         int horizontalExpansion = capacityCardCount;
         int verticalRange = BASE_VERTICAL_RANGE + capacityCardCount * RANGE_PER_CAPACITY_CARD;
@@ -441,10 +458,11 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         int maxZ = this.worldPosition.getZ() + BASE_HORIZONTAL_RANGE + horizontalExpansion + 1;
 
         if (this.level == null) {
-            return new AABB(minX, minY, minZ, maxX, maxY, maxZ);
+            this.cachedCoverageAabb = new AABB(minX, minY, minZ, maxX, maxY, maxZ);
+            return this.cachedCoverageAabb;
         }
 
-        return new AABB(
+        this.cachedCoverageAabb = new AABB(
                 minX,
                 Math.max(this.level.getMinBuildHeight(), minY),
                 minZ,
@@ -452,6 +470,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
                 Math.min(this.level.getMaxBuildHeight(), maxY),
                 maxZ
         );
+        return this.cachedCoverageAabb;
     }
 
     private void performWork() {
@@ -511,16 +530,30 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
             return List.of();
         }
 
-        return serverLevel.getEntitiesOfClass(
-                LivingEntity.class,
-                getCoverageAabb(),
-                entity -> entity.isAlive() && !(entity instanceof Player));
+        if (this.targetScanCooldown > 0) {
+            this.targetScanCooldown--;
+        } else {
+            this.cachedTargets = List.copyOf(serverLevel.getEntitiesOfClass(
+                    LivingEntity.class,
+                    getCoverageAabb(),
+                    entity -> entity.isAlive() && !(entity instanceof Player)));
+            this.targetScanCooldown = TARGET_SCAN_INTERVAL_TICKS - 1;
+        }
+
+        return this.cachedTargets;
     }
 
     private void applyDebuffs(List<LivingEntity> targets) {
         if (!(this.level instanceof ServerLevel)) {
             return;
         }
+
+        if (this.debuffCooldown > 0) {
+            this.debuffCooldown--;
+            return;
+        }
+
+        this.debuffCooldown = DEBUFF_REAPPLY_INTERVAL_TICKS - 1;
 
         for (LivingEntity entity : targets) {
             entity.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, DEBUFF_DURATION_TICKS, 2, false, true, true));
@@ -556,6 +589,21 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
                 itemEntity.setItem(remaining);
             }
         }
+    }
+
+    private void tickDroppedItemCollection() {
+        if (this.dropRoutingMode == DataExtractorDropRoutingMode.OFF) {
+            this.dropCollectionCooldown = 0;
+            return;
+        }
+
+        if (this.dropCollectionCooldown > 0) {
+            this.dropCollectionCooldown--;
+            return;
+        }
+
+        this.dropCollectionCooldown = DROP_COLLECTION_INTERVAL_TICKS - 1;
+        collectDroppedItems();
     }
 
     private ItemStack routeDroppedItem(ItemStack stack, List<IItemHandler> adjacentHandlers, @Nullable MEStorage networkStorage) {
@@ -998,8 +1046,16 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         if (currentPower > this.getInternalMaxPower()) {
             this.extractAEPower(currentPower - this.getInternalMaxPower(), Actionable.MODULATE, PowerMultiplier.ONE);
         }
+        invalidateTargetCache();
         this.saveChanges();
         this.markForClientUpdate();
+    }
+
+    private void invalidateTargetCache() {
+        this.targetScanCooldown = 0;
+        this.debuffCooldown = 0;
+        this.cachedCoverageAabb = null;
+        this.cachedTargets = List.of();
     }
 
     private void updateOnlineState() {

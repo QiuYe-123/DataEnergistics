@@ -25,6 +25,6 @@ public abstract class EmiEncodePatternHandlerMixin {
             return;
         }
 
-        PatternEncodingSourceHelper.rememberTransferSource(menu, holder);
+        PatternEncodingSourceHelper.rememberTransferSource(menu, holder, emiRecipe);
     }
 }

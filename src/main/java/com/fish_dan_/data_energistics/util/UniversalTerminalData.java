@@ -81,14 +81,14 @@ public final class UniversalTerminalData {
         List<TerminalEntry> entries = readEntries(stack, registries);
         List<Component> lines = new ArrayList<>();
         if (entries.isEmpty()) {
-            return lines;
+            return List.of();
         }
 
         lines.add(Component.translatable("item.data_energistics.universal_terminal.desc"));
         for (TerminalEntry entry : entries) {
-            lines.add(Component.literal(" - ").append(entry.stack().getHoverName()));
+            lines.add(Component.literal(" - ").append(entry.stack().getHoverName().copy()));
         }
-        return lines;
+        return List.copyOf(lines);
     }
 
     public static List<String> getInstalledTerminalNames(ItemStack stack, HolderLookup.Provider registries) {
@@ -136,7 +136,7 @@ public final class UniversalTerminalData {
 
     public static Component getTerminalDisplayName(String terminalName) {
         ItemStack icon = getMenuIcon(terminalName);
-        return icon.isEmpty() ? Component.literal(terminalName) : icon.getHoverName();
+        return icon.isEmpty() ? Component.literal(terminalName) : icon.getHoverName().copy();
     }
 
     public static MenuType<?> getMenuType(String terminalName) {

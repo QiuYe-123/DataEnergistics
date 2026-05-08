@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "lit=false": {
+      "model": "data_energistics:block/me_solar_panel_off"
+    },
+    "lit=true": {
+      "model": "data_energistics:block/me_solar_panel_on"
+    }
+  }
+}

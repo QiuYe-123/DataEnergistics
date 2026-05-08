@@ -29,6 +29,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.AE2FluxIntegration;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.mojang.logging.LogUtils;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -62,6 +63,7 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -77,8 +79,7 @@ import java.util.Set;
 
 @EventBusSubscriber(modid = Data_Energistics.MODID)
 public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity implements CustomAdHocChannelHost, InternalInventoryHost {
-    private static final String AE_CRAFTING_BLOCK_ENTITY_PREFIX = "appeng.blockentity.crafting.";
-    private static final String AE_PATTERN_PROVIDER_BLOCK_ENTITY = "appeng.blockentity.crafting.PatternProviderBlockEntity";
+    private static final Logger LOGGER = LogUtils.getLogger();
     private static final String NEOECOAE_BLOCK_ENTITY_PREFIX = "cn.dancingsnow.neoecoae.blocks.entity.";
     private static final Set<String> PREFERRED_ECO_SUBSYSTEM_HOST_CLASSES = Set.of(
             "cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingSystemBlockEntity",
@@ -87,8 +88,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     );
     private static final String SHOW_RANGE_TAG = "show_range";
     private static final String LINKED_POSITIONS_TAG = "linked_positions";
-    private static final int CACHE_TICKS = 20;
     private static final int INITIAL_PENDING_DELAY = 2;
+    private static final int INITIAL_DISCOVERY_STAGGER_TICKS = 10;
+    private static final int TRANSFER_SUBSTEPS_PER_TICK = 5;
+    private static final int CLUSTER_CACHE_TICKS = 10;
+    private static final int DIAGNOSTIC_LOG_INTERVAL_TICKS = 100;
     private static final double BASE_IDLE_POWER_USAGE = 4.0;
     private static final double IDLE_POWER_USAGE_PER_ADDITIONAL_CHUNK = 8.0;
     private static final int BOOSTERS_PER_CHUNK_RING = 8;
@@ -100,14 +104,49 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private final Map<BlockPos, Integer> pendingLinkPositions = new LinkedHashMap<>();
     private final Set<BlockPos> linkedPositions = new LinkedHashSet<>();
     private final Map<BlockPos, List<IGridConnection>> linkedConnections = new HashMap<>();
+    private final Map<BlockPos, EnergyQuerySummary> cachedExtractQuerySummaries = new HashMap<>();
+    private final Map<BlockPos, ReceiverQuerySummary> cachedReceiveQuerySummaries = new HashMap<>();
+    private final Map<BlockPos, Integer> extractRoundRobinCursor = new HashMap<>();
+    private final Map<BlockPos, Integer> receiveRoundRobinCursor = new HashMap<>();
+    private final Map<BlockPos, TowerEnergyStorage> cachedEnergyStorageViews = new HashMap<>();
+    private final Map<ExtractSimulationKey, Integer> cachedSimulatedExtracts = new HashMap<>();
     private final AppEngInternalInventory wirelessBoosters = new AppEngInternalInventory(this, 1);
     private long lastEndpointCacheTick = Long.MIN_VALUE;
+    private long lastClusterCacheTick = Long.MIN_VALUE;
     private List<BlockPos> cachedEndpoints = List.of();
     private List<BlockPos> cachedAeDisplayTargets = List.of();
+    private List<DataDistributionTowerBlockEntity> cachedTowerCluster = List.of();
+    private List<EnergyEndpoint> cachedReceiveEnergyEndpoints = List.of();
+    private List<EnergyEndpoint> cachedExtractEnergyEndpoints = List.of();
+    private boolean endpointCacheValid;
+    private boolean receiveEndpointResolutionValid;
+    private boolean extractEndpointResolutionValid;
+    private BlockPos cachedClusterCoordinatorPos;
     private long cachedTransferBudgetHint = 0L;
+    private long cachedSimulatedExtractTick = Long.MIN_VALUE;
+    private long diagnosticWindowStartTick = Long.MIN_VALUE;
+    private int diagnosticRealExtractCalls;
+    private int diagnosticSimulatedExtractCalls;
+    private int diagnosticReceiveCalls;
+    private int diagnosticGetStoredCalls;
+    private int diagnosticGetMaxStoredCalls;
+    private int diagnosticCanExtractCalls;
+    private int diagnosticCanReceiveCalls;
+    private int diagnosticSimulatedCacheHits;
+    private int diagnosticSimulatedCacheMisses;
+    private long diagnosticRequestedRealExtract;
+    private long diagnosticReturnedRealExtract;
+    private long diagnosticRequestedSimulatedExtract;
+    private long diagnosticReturnedSimulatedExtract;
+    private long diagnosticRequestedReceive;
+    private long diagnosticReturnedReceive;
+    private int diagnosticMaxExtractEndpoints;
+    private int diagnosticMaxReceiveEndpoints;
     private boolean showRange = false;
     private boolean syncedOnline = false;
     private boolean pendingRangeRefresh = false;
+    private boolean pendingInitialDiscovery = false;
+    private int pendingInitialDiscoveryDelay = 0;
     private int indexedChunkRadius = -1;
     private int syncedChunkRadius = 0;
 
@@ -127,7 +166,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             registerInChunkIndex();
             invalidateEndpointCache();
             requeuePersistedLinks();
-            scanNearbyConnectableNodes();
+            scheduleInitialDiscoveryIfNeeded();
         }
     }
 
@@ -210,7 +249,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return;
         }
 
+        emitDiagnosticLogIfNeeded();
+
         syncClientOnlineState();
+
+        processPendingInitialDiscovery();
 
         if (this.pendingRangeRefresh) {
             applyPendingRangeRefresh();
@@ -232,7 +275,14 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
     public IEnergyStorage getEnergyStorageForQuery(BlockPos accessPos, @Nullable net.minecraft.core.Direction side) {
         BlockPos excludedPos = side == null ? null : accessPos.relative(side);
-        return new TowerEnergyStorage(excludedPos);
+        BlockPos normalizedExcludedPos = normalizeExcludedPos(excludedPos);
+        if (normalizedExcludedPos == null) {
+            return this.cachedEnergyStorageViews.computeIfAbsent(null, ignored -> new TowerEnergyStorage(null));
+        }
+        return this.cachedEnergyStorageViews.computeIfAbsent(
+                normalizedExcludedPos,
+                pos -> new TowerEnergyStorage(pos)
+        );
     }
 
     public boolean toggleRangeDisplay() {
@@ -399,19 +449,32 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         CableBusContainer cableBus = cableBusBlockEntity.getCableBus();
+        boolean appended = false;
         IPart centerPart = cableBus.getPart(null);
         if (centerPart != null) {
-            return appendPartSummary(results, centerPart, pos, kind, maxEntries, null, "", "");
-        }
-
-        for (var direction : net.minecraft.core.Direction.values()) {
-            IPart part = cableBus.getPart(direction);
-            if (part != null) {
-                return appendPartSummary(results, part, pos, kind, maxEntries, direction, "", "");
+            appended = appendPartSummary(results, centerPart, pos, kind, maxEntries, null, "", "");
+            if (results.size() >= maxEntries) {
+                return appended;
             }
         }
 
-        return false;
+        ArrayList<CableBusDisplayPart> sideParts = new ArrayList<>();
+        for (var direction : net.minecraft.core.Direction.values()) {
+            IPart part = cableBus.getPart(direction);
+            if (part != null) {
+                sideParts.add(new CableBusDisplayPart(part, direction));
+            }
+        }
+
+        for (int i = 0; i < sideParts.size() && results.size() < maxEntries; i++) {
+            CableBusDisplayPart sidePart = sideParts.get(i);
+            String prefix = centerPart != null ? (i == sideParts.size() - 1 ? "└" : "├") : "";
+            if (appendPartSummary(results, sidePart.part(), pos, kind, maxEntries, sidePart.direction(), prefix, "")) {
+                appended = true;
+            }
+        }
+
+        return appended;
     }
 
     private boolean appendPartSummary(List<BoundTargetSummary> results, @Nullable IPart part, BlockPos pos, TargetKind kind,
@@ -531,29 +594,34 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         ArrayList<BlockPos> craftingPositions = new ArrayList<>();
-        BlockPos representativePos = null;
+        HashMap<BlockPos, BlockPos> clusterRepresentatives = new HashMap<>();
         for (Map.Entry<BlockPos, TargetKind> entry : positions.entrySet()) {
             if (entry.getValue() != TargetKind.AE) {
                 continue;
             }
 
             BlockPos pos = entry.getKey();
-            if (!isAeCraftingDisplayComponent(this.level.getBlockEntity(pos))) {
+            BlockEntity blockEntity = this.level.getBlockEntity(pos);
+            if (!isAeCraftingClusterComponent(blockEntity)) {
+                continue;
+            }
+
+            BlockPos representativePos = findAeCraftingClusterRepresentative(blockEntity);
+            if (representativePos == null) {
                 continue;
             }
 
             craftingPositions.add(pos);
-            if (representativePos == null || compareAeCraftingDisplayTargets(pos, representativePos) < 0) {
-                representativePos = pos;
-            }
+            clusterRepresentatives.put(pos, representativePos);
         }
 
-        if (craftingPositions.size() <= 1 || representativePos == null) {
+        if (craftingPositions.size() <= 1) {
             return;
         }
 
         for (BlockPos pos : craftingPositions) {
-            if (!pos.equals(representativePos)) {
+            BlockPos representativePos = clusterRepresentatives.get(pos);
+            if (representativePos != null && !pos.equals(representativePos)) {
                 positions.remove(pos);
             }
         }
@@ -574,13 +642,20 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private int getAeCraftingDisplayPriority(@Nullable BlockEntity blockEntity) {
-        if (blockEntity instanceof CraftingBlockEntity craftingBlockEntity) {
-            return craftingBlockEntity.isCoreBlock() ? 3 : 2;
-        }
         if (blockEntity instanceof MolecularAssemblerBlockEntity) {
             return 1;
         }
+        if (blockEntity instanceof CraftingBlockEntity craftingBlockEntity) {
+            return craftingBlockEntity.isCoreBlock() ? 3 : 2;
+        }
+        if (isReflectiveAeCraftingDisplayComponent(blockEntity)) {
+            return isReflectiveAeCraftingCoreBlock(blockEntity) ? 3 : 2;
+        }
         return 0;
+    }
+
+    private boolean isAeCraftingClusterComponent(@Nullable BlockEntity blockEntity) {
+        return isAeCraftingDisplayComponent(blockEntity) && !(blockEntity instanceof MolecularAssemblerBlockEntity);
     }
 
     private String resolveTargetDisplayName(BlockState state, @Nullable BlockEntity blockEntity) {
@@ -722,7 +797,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private void processPendingLinks(IGridNode selfNode) {
-        BlockPos bestTargetPos = null;
+        ArrayList<BlockPos> readyTargets = new ArrayList<>();
         for (Map.Entry<BlockPos, Integer> entry : this.pendingLinkPositions.entrySet()) {
             if (entry.getValue() > 0) {
                 entry.setValue(entry.getValue() - 1);
@@ -730,18 +805,22 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
 
             BlockPos targetPos = entry.getKey();
-            if (!this.level.isLoaded(targetPos)) {
-                continue;
-            }
-
-            if (bestTargetPos == null || compareLinkTargetPriority(targetPos, bestTargetPos) < 0) {
-                bestTargetPos = targetPos;
+            if (this.level.isLoaded(targetPos)) {
+                readyTargets.add(targetPos);
             }
         }
 
-        if (bestTargetPos != null) {
-            reconnectTarget(selfNode, bestTargetPos);
-            this.pendingLinkPositions.remove(bestTargetPos);
+        if (readyTargets.isEmpty()) {
+            return;
+        }
+
+        readyTargets.sort(this::compareLinkTargetPriority);
+        int remainingChannels = Math.max(0, getMaxLinkChannels() - selfNode.getUsedChannels());
+        int maxReconnectsThisTick = remainingChannels <= 0 ? 1 : Math.min(remainingChannels, readyTargets.size());
+        for (int i = 0; i < maxReconnectsThisTick; i++) {
+            BlockPos targetPos = readyTargets.get(i);
+            reconnectTarget(selfNode, targetPos);
+            this.pendingLinkPositions.remove(targetPos);
         }
     }
 
@@ -856,6 +935,32 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.lastEndpointCacheTick = Long.MIN_VALUE;
         this.cachedEndpoints = List.of();
         this.cachedAeDisplayTargets = List.of();
+        this.endpointCacheValid = false;
+        invalidateResolvedEnergyEndpointCache();
+    }
+
+    private void invalidateClusterCache() {
+        this.lastClusterCacheTick = Long.MIN_VALUE;
+        this.cachedTowerCluster = List.of();
+        this.cachedClusterCoordinatorPos = null;
+        invalidateResolvedEnergyEndpointCache();
+    }
+
+    private void invalidateResolvedEnergyEndpointCache() {
+        this.cachedReceiveEnergyEndpoints = List.of();
+        this.cachedExtractEnergyEndpoints = List.of();
+        this.receiveEndpointResolutionValid = false;
+        this.extractEndpointResolutionValid = false;
+        this.extractRoundRobinCursor.clear();
+        this.receiveRoundRobinCursor.clear();
+        invalidateEnergyQueryCache();
+    }
+
+    private void invalidateEnergyQueryCache() {
+        this.cachedExtractQuerySummaries.clear();
+        this.cachedReceiveQuerySummaries.clear();
+        this.cachedSimulatedExtracts.clear();
+        this.cachedSimulatedExtractTick = Long.MIN_VALUE;
     }
 
     private List<BlockPos> getCachedEndpoints() {
@@ -863,8 +968,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return List.of();
         }
 
-        long gameTime = this.level.getGameTime();
-        if (this.cachedEndpoints.isEmpty() || gameTime - this.lastEndpointCacheTick >= CACHE_TICKS) {
+        if (!this.endpointCacheValid) {
             refreshEndpointCache();
         }
         return this.cachedEndpoints;
@@ -875,8 +979,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return List.of();
         }
 
-        long gameTime = this.level.getGameTime();
-        if (this.cachedAeDisplayTargets.isEmpty() || gameTime - this.lastEndpointCacheTick >= CACHE_TICKS) {
+        if (!this.endpointCacheValid) {
             refreshEndpointCache();
         }
         return this.cachedAeDisplayTargets;
@@ -907,6 +1010,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.cachedEndpoints = List.copyOf(endpoints);
         this.cachedAeDisplayTargets = List.copyOf(aeDisplayTargets);
         this.lastEndpointCacheTick = this.level.getGameTime();
+        this.endpointCacheValid = true;
     }
 
     private List<BlockEntity> getNearbyBlockEntities() {
@@ -970,12 +1074,17 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     }
 
     private boolean isAeCraftingDisplayComponent(@Nullable BlockEntity blockEntity) {
-        if (blockEntity == null) {
+        if (blockEntity == null || blockEntity instanceof PatternProviderBlockEntity) {
             return false;
         }
-        String className = blockEntity.getClass().getName();
-        return className.startsWith(AE_CRAFTING_BLOCK_ENTITY_PREFIX)
-                && !AE_PATTERN_PROVIDER_BLOCK_ENTITY.equals(className);
+        if (blockEntity instanceof CraftingBlockEntity || blockEntity instanceof MolecularAssemblerBlockEntity) {
+            return true;
+        }
+        Block block = blockEntity.getBlockState().getBlock();
+        if (block.getClass().getName().contains("CraftingUnitBlock")) {
+            return true;
+        }
+        return isReflectiveAeCraftingDisplayComponent(blockEntity);
     }
 
     private boolean isAeCraftingClusterBridge(@Nullable BlockEntity blockEntity) {
@@ -986,9 +1095,45 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return isAeCraftingDisplayComponent(blockEntity) || isAeCraftingClusterBridge(blockEntity);
     }
 
-    private boolean isRepresentativeAeCraftingComponent(@Nullable BlockEntity blockEntity) {
-        if (!isAeCraftingDisplayComponent(blockEntity) || this.level == null) {
+    private boolean isReflectiveAeCraftingDisplayComponent(@Nullable BlockEntity blockEntity) {
+        if (blockEntity == null) {
             return false;
+        }
+
+        Class<?> type = blockEntity.getClass();
+        String className = type.getName();
+        return className.contains("Crafting")
+                && hasZeroArgMethod(type, "isCoreBlock")
+                && hasZeroArgMethod(type, "getStorageBytes")
+                && hasZeroArgMethod(type, "getAcceleratorThreads");
+    }
+
+    private boolean isReflectiveAeCraftingCoreBlock(@Nullable BlockEntity blockEntity) {
+        if (blockEntity == null || !hasZeroArgMethod(blockEntity.getClass(), "isCoreBlock")) {
+            return false;
+        }
+
+        try {
+            Object value = blockEntity.getClass().getMethod("isCoreBlock").invoke(blockEntity);
+            return value instanceof Boolean bool && bool;
+        } catch (ReflectiveOperationException ignored) {
+            return false;
+        }
+    }
+
+    private boolean hasZeroArgMethod(Class<?> type, String methodName) {
+        try {
+            type.getMethod(methodName);
+            return true;
+        } catch (NoSuchMethodException ignored) {
+            return false;
+        }
+    }
+
+    @Nullable
+    private BlockPos findAeCraftingClusterRepresentative(@Nullable BlockEntity blockEntity) {
+        if (!isAeCraftingClusterComponent(blockEntity) || this.level == null) {
+            return null;
         }
 
         BlockPos startPos = blockEntity.getBlockPos();
@@ -1000,7 +1145,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         while (!queue.isEmpty()) {
             BlockPos currentPos = queue.removeFirst();
-            if (compareBlockPos(currentPos, representative) < 0) {
+            if (compareAeCraftingDisplayTargets(currentPos, representative) < 0) {
                 representative = currentPos;
             }
 
@@ -1011,25 +1156,61 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 }
 
                 BlockEntity neighbor = this.level.getBlockEntity(neighborPos);
-                if (!isAeCraftingClusterNode(neighbor)) {
+                if (!isAeCraftingClusterComponent(neighbor) && !isAeCraftingClusterBridge(neighbor)) {
                     continue;
                 }
 
                 queue.addLast(neighborPos);
-                if (isAeCraftingDisplayComponent(neighbor) && compareBlockPos(neighborPos, representative) < 0) {
-                    representative = neighborPos;
-                }
             }
         }
 
-        return representative.equals(startPos);
+        return representative;
+    }
+
+    private boolean isRepresentativeAeCraftingComponent(@Nullable BlockEntity blockEntity) {
+        if (!isAeCraftingClusterComponent(blockEntity) || this.level == null) {
+            return false;
+        }
+
+        BlockPos representative = findAeCraftingClusterRepresentative(blockEntity);
+        return representative != null && representative.equals(blockEntity.getBlockPos());
     }
 
     private boolean shouldHideFromBoundTargetDisplay(@Nullable BlockEntity blockEntity) {
         if (isEcoSubsystemComponent(blockEntity)) {
             return !isPreferredEcoSubsystemHost(blockEntity);
         }
+        if (isAeCraftingNoiseTarget(blockEntity)) {
+            return true;
+        }
         return false;
+    }
+
+    private boolean isAeCraftingNoiseTarget(@Nullable BlockEntity blockEntity) {
+        if (blockEntity == null || this.level == null) {
+            return false;
+        }
+        if (isAeCraftingDisplayComponent(blockEntity) || blockEntity instanceof PatternProviderBlockEntity) {
+            return false;
+        }
+        if (blockEntity instanceof CableBusBlockEntity cableBusBlockEntity) {
+            return false;
+        } else if (this.level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, blockEntity.getBlockPos(), null) == null) {
+            return false;
+        }
+
+        BlockPos pos = blockEntity.getBlockPos();
+        for (var direction : net.minecraft.core.Direction.values()) {
+            BlockEntity neighbor = this.level.getBlockEntity(pos.relative(direction));
+            if (isAeCraftingClusterNode(neighbor)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasDisplayableCableBusPart(CableBusContainer cableBus) {
+        return hasAnyCableBusPart(cableBus);
     }
 
     private boolean hasAnyEnergyCapability(BlockPos pos) {
@@ -1051,17 +1232,46 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         if (blockEntity instanceof CableBusBlockEntity cableBusBlockEntity) {
-            CableBusContainer cableBus = cableBusBlockEntity.getCableBus();
-            for (var direction : net.minecraft.core.Direction.values()) {
-                if (cableBus.getPart(direction) != null) {
-                    return true;
-                }
-            }
-            return cableBus.getPart(null) != null;
+            return hasAnyCableBusPart(cableBusBlockEntity.getCableBus());
         }
 
-        return this.level.getCapability(AECapabilities.IN_WORLD_GRID_NODE_HOST, blockEntity.getBlockPos(), null) != null
-                && !getConnectableNodes(this.level, blockEntity.getBlockPos()).isEmpty();
+        if (isAeCraftingDisplayComponent(blockEntity)) {
+            return true;
+        }
+
+        if (blockEntity instanceof PatternProviderBlockEntity) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean hasWhitelistedCableBusDisplayPart(CableBusContainer cableBus) {
+        if (cableBus.getPart(null) != null) {
+            return true;
+        }
+
+        for (var direction : net.minecraft.core.Direction.values()) {
+            if (cableBus.getPart(direction) != null) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean hasAnyCableBusPart(CableBusContainer cableBus) {
+        if (cableBus.getPart(null) != null) {
+            return true;
+        }
+
+        for (var direction : net.minecraft.core.Direction.values()) {
+            if (cableBus.getPart(direction) != null) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private boolean isTowerBlock(BlockPos pos) {
@@ -1097,6 +1307,11 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return List.of(this);
         }
 
+        long gameTime = this.level.getGameTime();
+        if (!this.cachedTowerCluster.isEmpty() && gameTime - this.lastClusterCacheTick < CLUSTER_CACHE_TICKS) {
+            return this.cachedTowerCluster;
+        }
+
         ArrayList<DataDistributionTowerBlockEntity> towers = new ArrayList<>();
         ArrayDeque<DataDistributionTowerBlockEntity> queue = new ArrayDeque<>();
         HashSet<BlockPos> visited = new HashSet<>();
@@ -1119,16 +1334,44 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
         }
 
-        return towers;
+        this.cachedTowerCluster = List.copyOf(towers);
+        this.lastClusterCacheTick = gameTime;
+        this.cachedClusterCoordinatorPos = findCoordinatorPos(towers);
+        return this.cachedTowerCluster;
     }
 
     private List<EnergyEndpoint> collectEnergyEndpoints(boolean forReceive, @Nullable BlockPos excludedPos) {
+        return excludeEnergyEndpoint(getCachedResolvedEnergyEndpoints(forReceive), excludedPos);
+    }
+
+    private List<EnergyEndpoint> collectEnergyEndpoints(List<DataDistributionTowerBlockEntity> towers, boolean forReceive) {
+        return resolveEnergyEndpoints(towers, forReceive);
+    }
+
+    private List<EnergyEndpoint> getCachedResolvedEnergyEndpoints(boolean forReceive) {
+        if (this.level == null) {
+            return List.of();
+        }
+
+        if (forReceive) {
+            if (!this.receiveEndpointResolutionValid) {
+                this.cachedReceiveEnergyEndpoints = List.copyOf(resolveEnergyEndpoints(collectTowerCluster(), true));
+                this.receiveEndpointResolutionValid = true;
+            }
+            return this.cachedReceiveEnergyEndpoints;
+        }
+
+        if (!this.extractEndpointResolutionValid) {
+            this.cachedExtractEnergyEndpoints = List.copyOf(resolveEnergyEndpoints(collectTowerCluster(), false));
+            this.extractEndpointResolutionValid = true;
+        }
+        return this.cachedExtractEnergyEndpoints;
+    }
+
+    private List<EnergyEndpoint> resolveEnergyEndpoints(List<DataDistributionTowerBlockEntity> towers, boolean forReceive) {
         LinkedHashMap<BlockPos, IEnergyStorage> endpoints = new LinkedHashMap<>();
-        for (DataDistributionTowerBlockEntity tower : collectTowerCluster()) {
+        for (DataDistributionTowerBlockEntity tower : towers) {
             for (BlockPos pos : tower.getCachedEndpoints()) {
-                if (excludedPos != null && excludedPos.equals(pos)) {
-                    continue;
-                }
                 if (endpoints.containsKey(pos)) {
                     continue;
                 }
@@ -1145,40 +1388,77 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return result;
     }
 
-    private boolean isClusterCoordinator() {
-        List<DataDistributionTowerBlockEntity> towers = collectTowerCluster();
-        DataDistributionTowerBlockEntity coordinator = this;
-        for (DataDistributionTowerBlockEntity tower : towers) {
-            if (compareBlockPos(tower.worldPosition, coordinator.worldPosition) < 0) {
-                coordinator = tower;
+    private List<EnergyEndpoint> excludeEnergyEndpoint(List<EnergyEndpoint> endpoints, @Nullable BlockPos excludedPos) {
+        if (excludedPos == null || endpoints.isEmpty()) {
+            return endpoints;
+        }
+
+        ArrayList<EnergyEndpoint> filtered = new ArrayList<>(endpoints.size());
+        for (EnergyEndpoint endpoint : endpoints) {
+            if (!excludedPos.equals(endpoint.pos())) {
+                filtered.add(endpoint);
             }
         }
-        return coordinator == this;
+        return filtered;
+    }
+
+    private boolean isClusterCoordinator() {
+        List<DataDistributionTowerBlockEntity> towers = collectTowerCluster();
+        if (towers.isEmpty()) {
+            return true;
+        }
+        return this.worldPosition.equals(this.cachedClusterCoordinatorPos);
+    }
+
+    private static BlockPos findCoordinatorPos(List<DataDistributionTowerBlockEntity> towers) {
+        if (towers.isEmpty()) {
+            return null;
+        }
+
+        BlockPos coordinatorPos = towers.getFirst().worldPosition;
+        for (int i = 1; i < towers.size(); i++) {
+            BlockPos candidatePos = towers.get(i).worldPosition;
+            if (compareBlockPos(candidatePos, coordinatorPos) < 0) {
+                coordinatorPos = candidatePos;
+            }
+        }
+        return coordinatorPos;
     }
 
     private void performActiveRangeTransfer() {
-        long remainingBudget = getTransferBudgetPerTick();
-        this.cachedTransferBudgetHint = remainingBudget;
+        long transferBudget = getTransferBudgetPerTick();
+        this.cachedTransferBudgetHint = transferBudget * TRANSFER_SUBSTEPS_PER_TICK;
+        if (transferBudget <= 0) {
+            return;
+        }
+
+        List<EnergyEndpoint> extractEndpoints = getCachedResolvedEnergyEndpoints(false);
+        List<EnergyEndpoint> receiveEndpoints = getCachedResolvedEnergyEndpoints(true);
+        performSingleRangeTransferStep(transferBudget, extractEndpoints, receiveEndpoints);
+    }
+
+    private void performSingleRangeTransferStep(long budget, List<EnergyEndpoint> extractEndpoints,
+                                                List<EnergyEndpoint> receiveEndpoints) {
+        long remainingBudget = budget;
 
         if (AE2FluxIntegration.isAvailable() && remainingBudget > 0) {
             long simulatedExtract = Math.min(remainingBudget,
                     AE2FluxIntegration.extractEnergyFromOwnNetwork(this, remainingBudget, true));
             if (simulatedExtract > 0) {
-                long simulatedInsert = distributeEnergyInRange(simulatedExtract, true, null);
+                long simulatedInsert = distributeEnergyInRange(simulatedExtract, true, null, receiveEndpoints);
                 if (simulatedInsert > 0) {
                     long transferAmount = Math.min(simulatedExtract, simulatedInsert);
                     long actuallyExtracted = Math.min(transferAmount,
                             AE2FluxIntegration.extractEnergyFromOwnNetwork(this, transferAmount, false));
                     if (actuallyExtracted > 0) {
-                        long actuallyInserted = distributeEnergyInRange(actuallyExtracted, false, null);
+                        long actuallyInserted = distributeEnergyInRange(actuallyExtracted, false, null, receiveEndpoints);
                         remainingBudget -= Math.min(actuallyExtracted, actuallyInserted);
                     }
                 }
             }
         }
 
-        List<EnergyEndpoint> sources = collectEnergyEndpoints(false, null);
-        for (EnergyEndpoint source : sources) {
+        for (EnergyEndpoint source : extractEndpoints) {
             if (remainingBudget <= 0) {
                 break;
             }
@@ -1194,7 +1474,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 continue;
             }
 
-            long simulatedInsert = distributeEnergyInRange(simulatedExtract, true, source.pos());
+            long simulatedInsert = distributeEnergyInRange(simulatedExtract, true, source.pos(), receiveEndpoints);
             if (simulatedInsert <= 0) {
                 continue;
             }
@@ -1205,83 +1485,93 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                 continue;
             }
 
-            long actuallyInserted = distributeEnergyInRange(actuallyExtracted, false, source.pos());
+            long actuallyInserted = distributeEnergyInRange(actuallyExtracted, false, source.pos(), receiveEndpoints);
             remainingBudget -= Math.min(actuallyExtracted, actuallyInserted);
         }
     }
 
-    private long distributeEnergyInRange(long amount, boolean simulate, @Nullable BlockPos excludedPos) {
+    private long distributeEnergyInRange(long amount, boolean simulate, @Nullable BlockPos excludedPos,
+                                         List<EnergyEndpoint> receiveEndpoints) {
         if (!isTowerActive() || amount <= 0) {
             return 0;
         }
 
-        List<EnergyEndpoint> endpoints = collectEnergyEndpoints(true, excludedPos);
+        BlockPos normalizedExcludedPos = normalizeReceiveExcludedPos(excludedPos);
+        List<EnergyEndpoint> endpoints = excludeEnergyEndpoint(receiveEndpoints, normalizedExcludedPos);
+        this.diagnosticMaxReceiveEndpoints = Math.max(this.diagnosticMaxReceiveEndpoints, endpoints.size());
         if (endpoints.isEmpty()) {
             return 0;
         }
 
         long totalInserted = 0;
         long remaining = amount;
-        ArrayList<EnergyEndpoint> active = new ArrayList<>(endpoints);
-
-        while (remaining > 0 && !active.isEmpty()) {
-            long progress = 0;
-            long share = Math.max(1L, remaining / active.size());
-            ArrayList<EnergyEndpoint> next = new ArrayList<>();
-
-            for (EnergyEndpoint endpoint : active) {
-                if (remaining <= 0) {
-                    break;
-                }
-
-                IEnergyStorage storage = endpoint.storage();
-                if (!storage.canReceive()) {
-                    continue;
-                }
-
-                int requested = clampEnergyRequest(Math.min(remaining, share));
-                int inserted = storage.receiveEnergy(requested, simulate);
-                if (inserted > 0) {
-                    totalInserted += inserted;
-                    remaining -= inserted;
-                    progress += inserted;
-                }
-
-                if (storage.canReceive()) {
-                    next.add(endpoint);
-                }
-            }
-
-            if (progress <= 0) {
+        int endpointCount = endpoints.size();
+        int startIndex = getReceiveStartIndex(normalizedExcludedPos, endpointCount);
+        int lastSuccessfulIndex = -1;
+        for (int offset = 0; offset < endpointCount; offset++) {
+            if (remaining <= 0) {
                 break;
             }
-            active = next;
-        }
 
-        if (remaining > 0) {
-            for (EnergyEndpoint endpoint : endpoints) {
-                if (remaining <= 0) {
-                    break;
-                }
+            int endpointIndex = (startIndex + offset) % endpointCount;
+            EnergyEndpoint endpoint = endpoints.get(endpointIndex);
+            IEnergyStorage storage = endpoint.storage();
+            if (!storage.canReceive()) {
+                continue;
+            }
 
-                IEnergyStorage storage = endpoint.storage();
-                if (!storage.canReceive()) {
-                    continue;
-                }
-
-                int inserted = storage.receiveEnergy(clampEnergyRequest(remaining), simulate);
-                if (inserted > 0) {
-                    totalInserted += inserted;
-                    remaining -= inserted;
-                }
+            int inserted = storage.receiveEnergy(clampEnergyRequest(remaining), simulate);
+            if (inserted > 0) {
+                totalInserted += inserted;
+                remaining -= inserted;
+                lastSuccessfulIndex = endpointIndex;
             }
         }
 
+        if (lastSuccessfulIndex >= 0) {
+            this.receiveRoundRobinCursor.put(normalizedExcludedPos, lastSuccessfulIndex);
+        }
+
+        if (!simulate && totalInserted > 0) {
+            invalidateEnergyQueryCache();
+        }
         return totalInserted;
     }
 
+    private long distributeEnergyInRange(long amount, boolean simulate, @Nullable BlockPos excludedPos) {
+        return distributeEnergyInRange(amount, simulate, excludedPos, collectEnergyEndpoints(collectTowerCluster(), true));
+    }
+
     private int extractEnergyFromRange(int amount, boolean simulate, @Nullable BlockPos excludedPos) {
+        if (simulate) {
+            return getCachedSimulatedExtract(amount, excludedPos);
+        }
         return clampStoredAmount(extractEnergyFromRangeLong(amount, simulate, excludedPos));
+    }
+
+    private int getCachedSimulatedExtract(int amount, @Nullable BlockPos excludedPos) {
+        if (amount <= 0 || this.level == null) {
+            return 0;
+        }
+
+        long gameTime = this.level.getGameTime();
+        if (this.cachedSimulatedExtractTick != gameTime) {
+            this.cachedSimulatedExtracts.clear();
+            this.cachedSimulatedExtractTick = gameTime;
+        }
+
+        BlockPos normalizedExcludedPos = normalizeExtractExcludedPos(excludedPos);
+        ExtractSimulationKey key = new ExtractSimulationKey(normalizedExcludedPos, amount);
+        Integer cached = this.cachedSimulatedExtracts.get(key);
+        if (cached != null) {
+            this.diagnosticSimulatedCacheHits++;
+            return cached;
+        }
+
+        this.diagnosticSimulatedCacheMisses++;
+        int simulated = clampStoredAmount(extractEnergyFromRangeLong(amount, true, normalizedExcludedPos));
+        this.cachedSimulatedExtracts.put(key, simulated);
+        return simulated;
     }
 
     private long extractEnergyFromRangeLong(long amount, boolean simulate, @Nullable BlockPos excludedPos) {
@@ -1289,96 +1579,108 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return 0;
         }
 
-        List<EnergyEndpoint> endpoints = collectEnergyEndpoints(false, excludedPos);
+        BlockPos normalizedExcludedPos = normalizeExtractExcludedPos(excludedPos);
+        List<EnergyEndpoint> endpoints = collectEnergyEndpoints(false, normalizedExcludedPos);
+        this.diagnosticMaxExtractEndpoints = Math.max(this.diagnosticMaxExtractEndpoints, endpoints.size());
         long totalExtracted = 0;
         long remaining = amount;
-        ArrayList<EnergyEndpoint> active = new ArrayList<>(endpoints);
 
-        while (remaining > 0 && !active.isEmpty()) {
-            long progress = 0;
-            long share = Math.max(1L, remaining / active.size());
-            ArrayList<EnergyEndpoint> next = new ArrayList<>();
-
-            for (EnergyEndpoint endpoint : active) {
-                if (remaining <= 0) {
-                    break;
-                }
-
-                IEnergyStorage storage = endpoint.storage();
-                if (!storage.canExtract()) {
-                    continue;
-                }
-
-                int requested = clampEnergyRequest(Math.min(remaining, share));
-                int extracted = storage.extractEnergy(requested, simulate);
-                if (extracted > 0) {
-                    totalExtracted += extracted;
-                    remaining -= extracted;
-                    progress += extracted;
-                }
-
-                if (storage.canExtract() && storage.getEnergyStored() > 0) {
-                    next.add(endpoint);
-                }
-            }
-
-            if (progress <= 0) {
+        int endpointCount = endpoints.size();
+        int startIndex = getExtractStartIndex(normalizedExcludedPos, endpointCount);
+        int lastSuccessfulIndex = -1;
+        for (int offset = 0; offset < endpointCount; offset++) {
+            if (remaining <= 0) {
                 break;
             }
-            active = next;
+
+            int endpointIndex = (startIndex + offset) % endpointCount;
+            EnergyEndpoint endpoint = endpoints.get(endpointIndex);
+            IEnergyStorage storage = endpoint.storage();
+            if (!storage.canExtract()) {
+                continue;
+            }
+
+            int extracted = storage.extractEnergy(clampEnergyRequest(remaining), simulate);
+            if (extracted > 0) {
+                totalExtracted += extracted;
+                remaining -= extracted;
+                lastSuccessfulIndex = endpointIndex;
+            }
         }
 
-        if (remaining > 0) {
-            for (EnergyEndpoint endpoint : endpoints) {
-                if (remaining <= 0) {
-                    break;
-                }
-
-                IEnergyStorage storage = endpoint.storage();
-                if (!storage.canExtract()) {
-                    continue;
-                }
-
-                int extracted = storage.extractEnergy(clampEnergyRequest(remaining), simulate);
-                if (extracted > 0) {
-                    totalExtracted += extracted;
-                    remaining -= extracted;
-                }
-            }
+        if (lastSuccessfulIndex >= 0) {
+            this.extractRoundRobinCursor.put(normalizedExcludedPos, lastSuccessfulIndex);
         }
 
         if (remaining > 0 && AE2FluxIntegration.isAvailable()) {
             totalExtracted += AE2FluxIntegration.extractEnergyFromOwnNetwork(this, remaining, simulate);
         }
 
+        if (!simulate && totalExtracted > 0) {
+            invalidateEnergyQueryCache();
+        }
         return totalExtracted;
     }
 
     private long getTotalExtractableEnergy(@Nullable BlockPos excludedPos) {
-        long total = 0L;
-        for (EnergyEndpoint endpoint : collectEnergyEndpoints(false, excludedPos)) {
-            total = saturatingAdd(total, endpoint.storage().getEnergyStored());
-        }
-        if (AE2FluxIntegration.isAvailable()) {
-            total = saturatingAdd(total, AE2FluxIntegration.extractEnergyFromOwnNetwork(this, Long.MAX_VALUE, true));
-        }
-        return total;
+        return getExtractQuerySummary(excludedPos).totalStored();
     }
 
     private long getTotalEnergyCapacity(@Nullable BlockPos excludedPos) {
-        long total = 0L;
-        for (EnergyEndpoint endpoint : collectEnergyEndpoints(false, excludedPos)) {
-            total = saturatingAdd(total, endpoint.storage().getMaxEnergyStored());
-        }
-        return total;
+        return getExtractQuerySummary(excludedPos).totalCapacity();
     }
 
     private boolean hasAnyReceiver(@Nullable BlockPos excludedPos) {
-        return isTowerActive() && !collectEnergyEndpoints(true, excludedPos).isEmpty();
+        return getReceiveQuerySummary(excludedPos).hasReceiver();
     }
 
     private boolean hasAnySource(@Nullable BlockPos excludedPos) {
-        return isTowerActive() && !collectEnergyEndpoints(false, excludedPos).isEmpty();
+        return getExtractQuerySummary(excludedPos).hasSource();
+    }
+
+    private EnergyQuerySummary getExtractQuerySummary(@Nullable BlockPos excludedPos) {
+        if (!isTowerActive() || this.level == null) {
+            return EnergyQuerySummary.EMPTY;
+        }
+
+        BlockPos normalizedExcludedPos = normalizeExtractExcludedPos(excludedPos);
+        long gameTime = this.level.getGameTime();
+        EnergyQuerySummary cached = this.cachedExtractQuerySummaries.get(normalizedExcludedPos);
+        if (cached != null && cached.tick() == gameTime) {
+            return cached;
+        }
+
+        long totalStored = 0L;
+        long totalCapacity = 0L;
+        List<EnergyEndpoint> endpoints = collectEnergyEndpoints(false, normalizedExcludedPos);
+        for (EnergyEndpoint endpoint : endpoints) {
+            totalStored = saturatingAdd(totalStored, endpoint.storage().getEnergyStored());
+            totalCapacity = saturatingAdd(totalCapacity, endpoint.storage().getMaxEnergyStored());
+        }
+        if (AE2FluxIntegration.isAvailable()) {
+            totalStored = saturatingAdd(totalStored, AE2FluxIntegration.extractEnergyFromOwnNetwork(this, Long.MAX_VALUE, true));
+        }
+
+        EnergyQuerySummary summary = new EnergyQuerySummary(gameTime, totalStored, totalCapacity, !endpoints.isEmpty());
+        this.cachedExtractQuerySummaries.put(normalizedExcludedPos, summary);
+        return summary;
+    }
+
+    private ReceiverQuerySummary getReceiveQuerySummary(@Nullable BlockPos excludedPos) {
+        if (!isTowerActive() || this.level == null) {
+            return ReceiverQuerySummary.EMPTY;
+        }
+
+        BlockPos normalizedExcludedPos = normalizeReceiveExcludedPos(excludedPos);
+        long gameTime = this.level.getGameTime();
+        ReceiverQuerySummary cached = this.cachedReceiveQuerySummaries.get(normalizedExcludedPos);
+        if (cached != null && cached.tick() == gameTime) {
+            return cached;
+        }
+
+        ReceiverQuerySummary summary = new ReceiverQuerySummary(gameTime, !collectEnergyEndpoints(true, normalizedExcludedPos).isEmpty());
+        this.cachedReceiveQuerySummaries.put(normalizedExcludedPos, summary);
+        return summary;
     }
 
     private boolean queueLink(BlockPos targetPos, int delay) {
@@ -1425,6 +1727,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         }
 
         this.invalidateEndpointCache();
+        this.invalidateClusterCache();
         this.setChanged();
     }
 
@@ -1437,6 +1740,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
         }
         this.linkedConnections.clear();
+        this.invalidateClusterCache();
     }
 
     private void reconnectTarget(IGridNode selfNode, BlockPos targetPos) {
@@ -1494,6 +1798,7 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.linkedConnections.put(targetPos.immutable(), newConnections);
         this.linkedPositions.add(targetPos.immutable());
         this.invalidateEndpointCache();
+        this.invalidateClusterCache();
         this.setChanged();
     }
 
@@ -1504,9 +1809,42 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         List<BlockPos> persisted = List.copyOf(this.linkedPositions);
         this.linkedPositions.clear();
+        this.invalidateClusterCache();
         for (BlockPos pos : persisted) {
-            queueLink(pos, INITIAL_PENDING_DELAY);
+            queueLink(pos, 0);
         }
+    }
+
+    private void scheduleInitialDiscoveryIfNeeded() {
+        if (!this.pendingLinkPositions.isEmpty()) {
+            this.pendingInitialDiscovery = false;
+            this.pendingInitialDiscoveryDelay = 0;
+            return;
+        }
+
+        this.pendingInitialDiscovery = true;
+        this.pendingInitialDiscoveryDelay = INITIAL_PENDING_DELAY
+                + Math.floorMod(this.worldPosition.hashCode(), INITIAL_DISCOVERY_STAGGER_TICKS);
+    }
+
+    private void processPendingInitialDiscovery() {
+        if (!this.pendingInitialDiscovery || this.level == null || this.level.isClientSide()) {
+            return;
+        }
+
+        if (!this.pendingLinkPositions.isEmpty()) {
+            this.pendingInitialDiscovery = false;
+            this.pendingInitialDiscoveryDelay = 0;
+            return;
+        }
+
+        if (this.pendingInitialDiscoveryDelay > 0) {
+            this.pendingInitialDiscoveryDelay--;
+            return;
+        }
+
+        this.pendingInitialDiscovery = false;
+        scanNearbyConnectableNodes();
     }
 
     public static List<IGridNode> getConnectableNodes(Level level, BlockPos pos) {
@@ -1607,6 +1945,130 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         return (int) Math.min(amount, Integer.MAX_VALUE);
     }
 
+    @Nullable
+    private static BlockPos normalizeExcludedPos(@Nullable BlockPos excludedPos) {
+        return excludedPos == null ? null : excludedPos.immutable();
+    }
+
+    @Nullable
+    private BlockPos normalizeExtractExcludedPos(@Nullable BlockPos excludedPos) {
+        BlockPos normalizedExcludedPos = normalizeExcludedPos(excludedPos);
+        if (normalizedExcludedPos == null) {
+            return null;
+        }
+
+        for (EnergyEndpoint endpoint : getCachedResolvedEnergyEndpoints(false)) {
+            if (normalizedExcludedPos.equals(endpoint.pos())) {
+                return normalizedExcludedPos;
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    private BlockPos normalizeReceiveExcludedPos(@Nullable BlockPos excludedPos) {
+        BlockPos normalizedExcludedPos = normalizeExcludedPos(excludedPos);
+        if (normalizedExcludedPos == null) {
+            return null;
+        }
+
+        for (EnergyEndpoint endpoint : getCachedResolvedEnergyEndpoints(true)) {
+            if (normalizedExcludedPos.equals(endpoint.pos())) {
+                return normalizedExcludedPos;
+            }
+        }
+        return null;
+    }
+
+    private int getExtractStartIndex(@Nullable BlockPos excludedPos, int endpointCount) {
+        if (endpointCount <= 0) {
+            return 0;
+        }
+        return Math.floorMod(this.extractRoundRobinCursor.getOrDefault(excludedPos, 0), endpointCount);
+    }
+
+    private int getReceiveStartIndex(@Nullable BlockPos excludedPos, int endpointCount) {
+        if (endpointCount <= 0) {
+            return 0;
+        }
+        return Math.floorMod(this.receiveRoundRobinCursor.getOrDefault(excludedPos, 0), endpointCount);
+    }
+
+    private void emitDiagnosticLogIfNeeded() {
+        if (this.level == null || this.level.isClientSide()) {
+            return;
+        }
+
+        long gameTime = this.level.getGameTime();
+        if (this.diagnosticWindowStartTick == Long.MIN_VALUE) {
+            this.diagnosticWindowStartTick = gameTime;
+            return;
+        }
+
+        if (gameTime - this.diagnosticWindowStartTick < DIAGNOSTIC_LOG_INTERVAL_TICKS) {
+            return;
+        }
+
+        if (hasDiagnosticActivity()) {
+            LOGGER.info(
+                    "DDT diag pos={} dim={} window={}t realExtractCalls={} realExtractReq={} realExtractOut={} simExtractCalls={} simExtractReq={} simExtractOut={} receiveCalls={} receiveReq={} receiveIn={} getStoredCalls={} getMaxStoredCalls={} canExtractCalls={} canReceiveCalls={} simCacheHits={} simCacheMisses={} maxExtractEndpoints={} maxReceiveEndpoints={}",
+                    this.worldPosition,
+                    this.level.dimension().location(),
+                    gameTime - this.diagnosticWindowStartTick,
+                    this.diagnosticRealExtractCalls,
+                    this.diagnosticRequestedRealExtract,
+                    this.diagnosticReturnedRealExtract,
+                    this.diagnosticSimulatedExtractCalls,
+                    this.diagnosticRequestedSimulatedExtract,
+                    this.diagnosticReturnedSimulatedExtract,
+                    this.diagnosticReceiveCalls,
+                    this.diagnosticRequestedReceive,
+                    this.diagnosticReturnedReceive,
+                    this.diagnosticGetStoredCalls,
+                    this.diagnosticGetMaxStoredCalls,
+                    this.diagnosticCanExtractCalls,
+                    this.diagnosticCanReceiveCalls,
+                    this.diagnosticSimulatedCacheHits,
+                    this.diagnosticSimulatedCacheMisses,
+                    this.diagnosticMaxExtractEndpoints,
+                    this.diagnosticMaxReceiveEndpoints
+            );
+        }
+
+        resetDiagnosticCounters(gameTime);
+    }
+
+    private boolean hasDiagnosticActivity() {
+        return this.diagnosticRealExtractCalls > 0
+                || this.diagnosticSimulatedExtractCalls > 0
+                || this.diagnosticReceiveCalls > 0
+                || this.diagnosticGetStoredCalls > 0
+                || this.diagnosticGetMaxStoredCalls > 0
+                || this.diagnosticCanExtractCalls > 0
+                || this.diagnosticCanReceiveCalls > 0;
+    }
+
+    private void resetDiagnosticCounters(long gameTime) {
+        this.diagnosticWindowStartTick = gameTime;
+        this.diagnosticRealExtractCalls = 0;
+        this.diagnosticSimulatedExtractCalls = 0;
+        this.diagnosticReceiveCalls = 0;
+        this.diagnosticGetStoredCalls = 0;
+        this.diagnosticGetMaxStoredCalls = 0;
+        this.diagnosticCanExtractCalls = 0;
+        this.diagnosticCanReceiveCalls = 0;
+        this.diagnosticSimulatedCacheHits = 0;
+        this.diagnosticSimulatedCacheMisses = 0;
+        this.diagnosticRequestedRealExtract = 0L;
+        this.diagnosticReturnedRealExtract = 0L;
+        this.diagnosticRequestedSimulatedExtract = 0L;
+        this.diagnosticReturnedSimulatedExtract = 0L;
+        this.diagnosticRequestedReceive = 0L;
+        this.diagnosticReturnedReceive = 0L;
+        this.diagnosticMaxExtractEndpoints = 0;
+        this.diagnosticMaxReceiveEndpoints = 0;
+    }
+
     private static long saturatingAdd(long current, long delta) {
         if (delta <= 0) {
             return current;
@@ -1696,12 +2158,26 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
     private record EnergyEndpoint(BlockPos pos, IEnergyStorage storage) {
     }
 
+    private record ExtractSimulationKey(@Nullable BlockPos excludedPos, int amount) {
+    }
+
+    private record EnergyQuerySummary(long tick, long totalStored, long totalCapacity, boolean hasSource) {
+        private static final EnergyQuerySummary EMPTY = new EnergyQuerySummary(Long.MIN_VALUE, 0L, 0L, false);
+    }
+
+    private record ReceiverQuerySummary(long tick, boolean hasReceiver) {
+        private static final ReceiverQuerySummary EMPTY = new ReceiverQuerySummary(Long.MIN_VALUE, false);
+    }
+
     public record BoundTargetSummary(ResourceLocation itemId, String displayName, int count, ResourceLocation dimensionId, BlockPos pos, TargetKind kind) {
     }
 
     public enum TargetKind {
         AE,
         FE
+    }
+
+    private record CableBusDisplayPart(IPart part, @Nullable net.minecraft.core.Direction direction) {
     }
 
     private record DisplayTarget(BlockPos pos, TargetKind kind) {
@@ -1717,31 +2193,53 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
 
         @Override
         public int receiveEnergy(int maxReceive, boolean simulate) {
-            return clampStoredAmount(distributeEnergyInRange(maxReceive, simulate, this.excludedPos));
+            diagnosticReceiveCalls++;
+            diagnosticRequestedReceive += maxReceive;
+            int received = clampStoredAmount(distributeEnergyInRange(maxReceive, simulate, this.excludedPos));
+            diagnosticReturnedReceive += received;
+            return received;
         }
 
         @Override
         public int extractEnergy(int maxExtract, boolean simulate) {
-            return extractEnergyFromRange(maxExtract, simulate, this.excludedPos);
+            if (simulate) {
+                diagnosticSimulatedExtractCalls++;
+                diagnosticRequestedSimulatedExtract += maxExtract;
+            } else {
+                diagnosticRealExtractCalls++;
+                diagnosticRequestedRealExtract += maxExtract;
+            }
+
+            int extracted = extractEnergyFromRange(maxExtract, simulate, this.excludedPos);
+            if (simulate) {
+                diagnosticReturnedSimulatedExtract += extracted;
+            } else {
+                diagnosticReturnedRealExtract += extracted;
+            }
+            return extracted;
         }
 
         @Override
         public int getEnergyStored() {
+            diagnosticGetStoredCalls++;
             return clampStoredAmount(getTotalExtractableEnergy(this.excludedPos));
         }
 
         @Override
         public int getMaxEnergyStored() {
+            diagnosticGetMaxStoredCalls++;
             return clampStoredAmount(getTotalEnergyCapacity(this.excludedPos));
         }
 
         @Override
         public boolean canExtract() {
+            diagnosticCanExtractCalls++;
             return hasAnySource(this.excludedPos);
         }
 
         @Override
         public boolean canReceive() {
+            diagnosticCanReceiveCalls++;
             return hasAnyReceiver(this.excludedPos);
         }
     }

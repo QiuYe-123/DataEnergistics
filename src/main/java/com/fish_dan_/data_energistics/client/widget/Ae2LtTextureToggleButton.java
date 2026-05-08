@@ -60,7 +60,7 @@ public class Ae2LtTextureToggleButton extends Button implements ITooltip {
         if (index < 0 || index >= this.tooltips.size()) {
             return;
         }
-        this.tooltips.set(index, lines == null ? Collections.emptyList() : lines);
+        this.tooltips.set(index, lines == null ? Collections.emptyList() : List.copyOf(lines));
     }
 
     public void setTooltipOn(List<Component> lines) {

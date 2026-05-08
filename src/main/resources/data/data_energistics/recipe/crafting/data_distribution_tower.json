@@ -19,7 +19,7 @@
       "item": "data_energistics:data_framework"
     },
     "T": {
-      "item": "data_energistics:time_core"
+      "item": "ae2:wireless_access_point"
     }
   },
   "result": {

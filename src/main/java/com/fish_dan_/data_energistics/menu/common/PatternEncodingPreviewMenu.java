@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.menu.common;
 import java.util.ArrayList;
 import java.util.List;
 
+import appeng.parts.encoding.EncodingMode;
 import appeng.menu.guisync.PacketWritable;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -11,6 +12,8 @@ import net.minecraft.resources.ResourceLocation;
 
 public interface PatternEncodingPreviewMenu {
     long getNetworkBlankPatternCount();
+
+    EncodingMode getEncodingMode();
 
     List<SyncedPatternProvider> getSyncedPatternProviders();
 

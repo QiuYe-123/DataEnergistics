@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "SZS",
+    "ZXZ",
+    "SZS"
+  ],
+  "key": {
+    "S": {
+      "tag": "c:ingots/redstone_alloy"
+    },
+    "Z": {
+      "tag": "c:ingots/iron"
+    },
+    "X": {
+      "item": "ae2:quartz_glass"
+    }
+  },
+  "result": {
+    "id": "data_energistics:data_framework",
+    "count": 1
+  }
+}

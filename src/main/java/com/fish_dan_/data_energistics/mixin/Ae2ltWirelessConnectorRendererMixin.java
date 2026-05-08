@@ -30,7 +30,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -43,10 +45,16 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
     @Unique private static final int DE_COLOR_HOST_SELECTED = 0x80FFFF00;
     @Unique private static final int DE_COLOR_LINE = 0xC00080FF;
     @Unique private static final int DE_SCAN_RANGE = 64;
+    @Unique private static final int DE_SCAN_INTERVAL_TICKS = 10;
     @Unique private static final String DE_TAG_SELECTED = "SelectedProvider";
     @Unique private static final String DE_TAG_DIM = "Dim";
     @Unique private static final String DE_TAG_POS = "Pos";
     @Unique private static final String DE_TAG_HOST_TYPE = "HostType";
+    @Unique private static ResourceKey<Level> deCachedProviderDimension;
+    @Unique private static int deCachedProviderCenterChunkX = Integer.MIN_VALUE;
+    @Unique private static int deCachedProviderCenterChunkZ = Integer.MIN_VALUE;
+    @Unique private static long deCachedProviderScanTime = Long.MIN_VALUE;
+    @Unique private static List<BlockPos> deCachedProviderPositions = List.of();
 
     @Inject(method = "onRenderLevelStage", at = @At("HEAD"))
     private static void dataEnergistics$renderAdaptiveProviders(RenderLevelStageEvent event, CallbackInfo ci) {
@@ -94,33 +102,20 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
 
         String hostProviderType = Ae2LtWirelessBridge.hostProviderType();
         BlockPos playerPos = player.blockPosition();
-        int minCX = (playerPos.getX() - DE_SCAN_RANGE) >> 4;
-        int maxCX = (playerPos.getX() + DE_SCAN_RANGE) >> 4;
-        int minCZ = (playerPos.getZ() - DE_SCAN_RANGE) >> 4;
-        int maxCZ = (playerPos.getZ() + DE_SCAN_RANGE) >> 4;
-
-        for (int cx = minCX; cx <= maxCX; cx++) {
-            for (int cz = minCZ; cz <= maxCZ; cz++) {
-                if (!mc.level.hasChunk(cx, cz)) {
-                    continue;
-                }
-                var chunk = mc.level.getChunk(cx, cz);
-                for (var bePos : chunk.getBlockEntitiesPos()) {
-                    var be = chunk.getBlockEntity(bePos);
-                    if (!(be instanceof AdaptivePatternProviderBlockEntity adaptive)
-                            || !adaptive.isAe2LightningTechOverloadedProviderSelected()
-                            || !adaptive.isAe2LtWirelessMode()) {
-                        continue;
-                    }
-
-                    boolean isSelected = hasSelection
-                            && hostProviderType != null
-                            && hostProviderType.equals(selectedHostType)
-                            && bePos.equals(selectedPos);
-                    dataEnergistics$renderAdaptiveProviderHost(poseStack, buffer, mc.level, bePos, adaptive, isSelected);
-                    selectedRendered |= isSelected;
-                }
+        for (var hostPos : dataEnergistics$getCachedProviderPositions(mc.level, playerPos)) {
+            var be = mc.level.getBlockEntity(hostPos);
+            if (!(be instanceof AdaptivePatternProviderBlockEntity adaptive)
+                    || !adaptive.isAe2LightningTechOverloadedProviderSelected()
+                    || !adaptive.isAe2LtWirelessMode()) {
+                continue;
             }
+
+            boolean isSelected = hasSelection
+                    && hostProviderType != null
+                    && hostProviderType.equals(selectedHostType)
+                    && hostPos.equals(selectedPos);
+            dataEnergistics$renderAdaptiveProviderHost(poseStack, buffer, mc.level, hostPos, adaptive, isSelected);
+            selectedRendered |= isSelected;
         }
 
         if (hasSelection && !selectedRendered && mc.level.isLoaded(selectedPos)) {
@@ -183,6 +178,49 @@ public abstract class Ae2ltWirelessConnectorRendererMixin {
             dataEnergistics$renderFaceOverlay(poseStack, buffer, conn.pos(), conn.boundFace(), DE_COLOR_CONNECTED);
             dataEnergistics$renderLine(poseStack, buffer, hostPos, conn.pos(), conn.boundFace(), DE_COLOR_LINE);
         }
+    }
+
+    @Unique
+    private static List<BlockPos> dataEnergistics$getCachedProviderPositions(Level level, BlockPos playerPos) {
+        int centerChunkX = playerPos.getX() >> 4;
+        int centerChunkZ = playerPos.getZ() >> 4;
+        long gameTime = level.getGameTime();
+        if (level.dimension().equals(deCachedProviderDimension)
+                && centerChunkX == deCachedProviderCenterChunkX
+                && centerChunkZ == deCachedProviderCenterChunkZ
+                && gameTime - deCachedProviderScanTime < DE_SCAN_INTERVAL_TICKS) {
+            return deCachedProviderPositions;
+        }
+
+        int minCX = (playerPos.getX() - DE_SCAN_RANGE) >> 4;
+        int maxCX = (playerPos.getX() + DE_SCAN_RANGE) >> 4;
+        int minCZ = (playerPos.getZ() - DE_SCAN_RANGE) >> 4;
+        int maxCZ = (playerPos.getZ() + DE_SCAN_RANGE) >> 4;
+        List<BlockPos> providerPositions = new ArrayList<>();
+        for (int cx = minCX; cx <= maxCX; cx++) {
+            for (int cz = minCZ; cz <= maxCZ; cz++) {
+                if (!level.hasChunk(cx, cz)) {
+                    continue;
+                }
+
+                var chunk = level.getChunk(cx, cz);
+                for (var bePos : chunk.getBlockEntitiesPos()) {
+                    var be = chunk.getBlockEntity(bePos);
+                    if (be instanceof AdaptivePatternProviderBlockEntity adaptive
+                            && adaptive.isAe2LightningTechOverloadedProviderSelected()
+                            && adaptive.isAe2LtWirelessMode()) {
+                        providerPositions.add(bePos.immutable());
+                    }
+                }
+            }
+        }
+
+        deCachedProviderDimension = level.dimension();
+        deCachedProviderCenterChunkX = centerChunkX;
+        deCachedProviderCenterChunkZ = centerChunkZ;
+        deCachedProviderScanTime = gameTime;
+        deCachedProviderPositions = List.copyOf(providerPositions);
+        return deCachedProviderPositions;
     }
 
     @Unique

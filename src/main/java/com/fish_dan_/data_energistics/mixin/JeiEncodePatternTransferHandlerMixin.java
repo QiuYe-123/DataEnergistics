@@ -23,7 +23,7 @@ public abstract class JeiEncodePatternTransferHandlerMixin {
         }
 
         if (menu instanceof appeng.menu.me.items.PatternEncodingTermMenu patternEncodingTermMenu) {
-            PatternEncodingSourceHelper.rememberTransferSource(patternEncodingTermMenu, recipe);
+            PatternEncodingSourceHelper.rememberTransferSource(patternEncodingTermMenu, recipe, recipeSlots);
         }
     }
 }

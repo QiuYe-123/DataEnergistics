@@ -64,6 +64,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private static final int MIN_WORK_INTERVAL_SECONDS = 1;
     private static final int BASE_BIOLOGY_LOOT_ROLLS_PER_CYCLE = 8;
     private static final int BASE_ORE_OUTPUT_ROLLS_PER_CYCLE = 8;
+    private static final int HIDDEN_BUFFER_FLUSH_INTERVAL_TICKS = 5;
     private static final int UPGRADE_SLOTS = 4;
     private static final String UPGRADES_TAG = "upgrades";
     private static final String REDSTONE_CONTROLLED_TAG = "redstone_controlled";
@@ -78,6 +79,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private boolean redstoneControlled;
     private DataExtractorDropRoutingMode dropRoutingMode = DataExtractorDropRoutingMode.OFF;
     private int workTicks;
+    private int hiddenBufferFlushCooldown;
+    private boolean powerUsageDirty = true;
+    private int cachedActiveCarrierCount;
 
     public DataMimeticFieldBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -111,6 +115,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         this.redstoneControlled = data.getBoolean(REDSTONE_CONTROLLED_TAG);
         this.dropRoutingMode = DataExtractorDropRoutingMode.fromOrdinal(data.getInt(DROP_ROUTING_MODE_TAG));
         this.workTicks = Math.max(0, data.getInt(WORK_TICKS_TAG));
+        this.hiddenBufferFlushCooldown = 0;
+        this.powerUsageDirty = true;
+        this.cachedActiveCarrierCount = 0;
     }
 
     @Override
@@ -135,8 +142,8 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     public void serverTick() {
-        updatePowerUsage();
-        flushHiddenBuffer();
+        updatePowerUsageIfNeeded();
+        tickHiddenBufferFlush();
         if (this.redstoneControlled && !isReceivingRedstonePower()) {
             return;
         }
@@ -180,6 +187,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
 
         this.redstoneControlled = enabled;
         this.setChanged();
+        markPowerUsageDirty();
         updatePowerUsage();
         this.markForClientUpdate();
         return this.redstoneControlled;
@@ -238,25 +246,38 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     private void onUpgradesChanged() {
+        markPowerUsageDirty();
         this.saveChanges();
         this.markForClientUpdate();
     }
 
     @Override
     public void onChangeInventory(AppEngInternalInventory inv, int slot) {
-        updatePowerUsage();
+        markPowerUsageDirty();
+        if (inv == this.hiddenBuffer) {
+            this.hiddenBufferFlushCooldown = 0;
+        }
+        updatePowerUsageIfNeeded();
     }
 
     private void updatePowerUsage() {
-        this.getMainNode().setIdlePowerUsage(computeIdlePowerUsage());
+        this.cachedActiveCarrierCount = countActiveCarriers();
+        this.powerUsageDirty = false;
+        this.getMainNode().setIdlePowerUsage(computeIdlePowerUsage(this.cachedActiveCarrierCount));
     }
 
-    private double computeIdlePowerUsage() {
+    private void updatePowerUsageIfNeeded() {
+        if (this.powerUsageDirty) {
+            updatePowerUsage();
+        }
+    }
+
+    private double computeIdlePowerUsage(int activeCarrierCount) {
         if (this.redstoneControlled && !isReceivingRedstonePower()) {
             return 0.0;
         }
 
-        return countActiveCarriers() * POWER_PER_ACTIVE_CARRIER;
+        return activeCarrierCount * POWER_PER_ACTIVE_CARRIER;
     }
 
     private int countActiveCarriers() {
@@ -316,6 +337,21 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             return;
         }
         flushHiddenBuffer(getAdjacentItemHandlers(), getConnectedItemNetwork());
+    }
+
+    private void tickHiddenBufferFlush() {
+        if (this.dropRoutingMode == DataExtractorDropRoutingMode.OFF) {
+            this.hiddenBufferFlushCooldown = 0;
+            return;
+        }
+
+        if (this.hiddenBufferFlushCooldown > 0) {
+            this.hiddenBufferFlushCooldown--;
+            return;
+        }
+
+        this.hiddenBufferFlushCooldown = HIDDEN_BUFFER_FLUSH_INTERVAL_TICKS - 1;
+        flushHiddenBuffer();
     }
 
     private void flushHiddenBuffer(List<IItemHandler> adjacentHandlers, @Nullable MEStorage networkStorage) {
@@ -586,13 +622,8 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     public int getActiveCarrierCount() {
-        int count = 0;
-        for (int i = 0; i < getActiveSlotCount(); i++) {
-            if (hasRecordedData(this.storage.getStackInSlot(i))) {
-                count++;
-            }
-        }
-        return count;
+        updatePowerUsageIfNeeded();
+        return this.cachedActiveCarrierCount;
     }
 
     public int getWorkIntervalSeconds() {
@@ -633,5 +664,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
 
         inventory.extract(DataFlowKey.of(), required, Actionable.MODULATE, IActionSource.ofMachine(this));
         return true;
+    }
+
+    private void markPowerUsageDirty() {
+        this.powerUsageDirty = true;
     }
 }

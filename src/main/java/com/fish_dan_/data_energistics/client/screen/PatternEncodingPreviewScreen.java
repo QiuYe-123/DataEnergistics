@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -20,8 +21,11 @@ import appeng.menu.me.common.GridInventoryEntry;
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.util.ReadableNumberConverter;
 import com.fish_dan_.data_energistics.client.ModKeyMappings;
-import com.fish_dan_.data_energistics.integration.ExtendedAePlusCompat;
+import com.fish_dan_.data_energistics.client.widget.PatternSourceToggleButton;
+import com.fish_dan_.data_energistics.menu.common.BlankPatternProxyMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
+import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.sourceforge.pinyin4j.PinyinHelper;
 import net.sourceforge.pinyin4j.format.HanyuPinyinCaseType;
@@ -29,13 +33,10 @@ import net.sourceforge.pinyin4j.format.HanyuPinyinOutputFormat;
 import net.sourceforge.pinyin4j.format.HanyuPinyinToneType;
 import net.sourceforge.pinyin4j.format.HanyuPinyinVCharType;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.Tooltip;
-import net.minecraft.client.gui.components.events.GuiEventListener;
-import net.minecraft.client.KeyMapping;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -43,15 +44,10 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-
 import java.lang.reflect.Field;
 
 public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> extends PatternEncodingTermScreen<T> {
     private static final Field WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
-    private static final Field SCREEN_CHILDREN_FIELD =
-            resolveField(net.minecraft.client.gui.screens.Screen.class, "children");
-    private static final Field SCREEN_NARRATABLES_FIELD =
-            resolveField(net.minecraft.client.gui.screens.Screen.class, "narratables");
     private static final HanyuPinyinOutputFormat PINYIN_FORMAT = createPinyinFormat();
     private static final ResourceLocation AE2_UPLOAD_TEXTURE =
             ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/upload.png");
@@ -66,8 +62,6 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private static final Component EMPTY_STATE_TEXT = Component.literal("未发现可用供应器");
     private static final Component ENCODE_BUTTON_HINT = Component.literal(
             "编写样板\n[左键/右键]时打开上传面板\nShift+[左键/右键]时关闭上传面板");
-    private static final Component PROVIDER_OPEN_HINT = Component.translatable(
-            "screen.data_energistics.pattern_writer_preview.provider.open");
     private static final int PREVIEW_PANEL_WIDTH = 128;
     private static final int PREVIEW_PANEL_HEIGHT = 128;
     private static final int PREVIEW_TEXTURE_WIDTH = 128;
@@ -124,10 +118,16 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private boolean previewScrollbarDragging;
     private long selectedPatternProviderId = -1L;
     private long renamingProviderId = -1L;
+    private ResourceLocation lastLocatedWorkstationId;
     private final Scrollbar previewScrollbar = new Scrollbar(Scrollbar.SMALL);
     private AbstractWidget encodePatternWidget;
     private AETextField providerSearchBox;
     private AETextField providerRenameBox;
+    private PatternSourceToggleButton patternSourceToggleButton;
+    private List<PatternEncodingPreviewMenu.SyncedPatternProvider> cachedVisibleProviders = List.of();
+    private boolean visibleProvidersCacheDirty = true;
+    private final Map<Long, String> providerSearchIndexCache = new HashMap<>();
+    private final Map<Long, String> providerSearchIndexSourceCache = new HashMap<>();
 
     public PatternEncodingPreviewScreen(T menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
@@ -138,28 +138,35 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     @Override
     public void init() {
         super.init();
-        removeExtendedAePlusWidgets();
         this.encodePatternWidget = resolveEncodePatternWidget();
         applyEncodeButtonHint();
         initProviderSearchBox();
         initProviderRenameBox();
+        initPatternSourceToggleButton();
+        invalidateVisibleProvidersCache();
         updateProviderSearchBox();
         updateProviderRenameBox();
+        updatePatternSourceToggleButton();
         updatePreviewScrollbar();
     }
 
     @Override
     protected void updateBeforeRender() {
         super.updateBeforeRender();
-        removeExtendedAePlusWidgets();
         updateProviderSearchBox();
         updateProviderRenameBox();
+        updatePatternSourceToggleButton();
+        invalidateVisibleProvidersCache();
         syncProviderSelection();
         updatePreviewScrollbar();
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (handleBlankPatternSlotClick(mouseX, mouseY, button)) {
+            return true;
+        }
+
         if (Minecraft.getInstance().options.keyPickItem.matchesMouse(button)
                 && triggerBlankPatternAutoCraft(mouseX, mouseY)) {
             return true;
@@ -215,7 +222,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             }
         }
 
-        if (this.previewVisible && ModKeyMappings.OPEN_PATTERN_PROVIDER.matchesMouse(button)) {
+        if (this.previewVisible && isProviderOpenEnabled() && ModKeyMappings.OPEN_PATTERN_PROVIDER.matchesMouse(button)) {
             var hit = getProviderButtonHit(mouseX, mouseY);
             if (hit != null) {
                 if (isRenamingProvider() && this.renamingProviderId != hit.provider().id()) {
@@ -251,7 +258,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             }
         }
 
-        if (this.previewVisible && ModKeyMappings.RENAME_PATTERN_PROVIDER.matches(keyCode, scanCode)) {
+        if (this.previewVisible && isProviderRenameEnabled()
+                && ModKeyMappings.RENAME_PATTERN_PROVIDER.matches(keyCode, scanCode)) {
             var hit = getProviderButtonHit(this.minecraft.mouseHandler.xpos() * (double) this.width / this.minecraft.getWindow().getScreenWidth(),
                     this.minecraft.mouseHandler.ypos() * (double) this.height / this.minecraft.getWindow().getScreenHeight());
             if (hit != null && hit.provider().renameable()) {
@@ -260,7 +268,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             }
         }
 
-        if (this.previewVisible && ModKeyMappings.OPEN_PATTERN_PROVIDER.matches(keyCode, scanCode)) {
+        if (this.previewVisible && isProviderOpenEnabled()
+                && ModKeyMappings.OPEN_PATTERN_PROVIDER.matches(keyCode, scanCode)) {
             var hit = getProviderButtonHit(this.minecraft.mouseHandler.xpos() * (double) this.width / this.minecraft.getWindow().getScreenWidth(),
                     this.minecraft.mouseHandler.ypos() * (double) this.height / this.minecraft.getWindow().getScreenHeight());
             if (hit != null) {
@@ -289,6 +298,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         if (this.previewScrollbarDragging) {
             this.previewScrollbar.onMouseUp(new Point((int) Math.round(mouseX), (int) Math.round(mouseY)), button);
             this.previewScrollbarDragging = false;
+            return true;
         }
         return super.mouseReleased(mouseX, mouseY, button);
     }
@@ -347,29 +357,31 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     @Override
     public void renderSlot(GuiGraphics guiGraphics, Slot slot) {
-        super.renderSlot(guiGraphics, slot);
-
         if (this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN) {
+            super.renderSlot(guiGraphics, slot);
             return;
         }
 
-        long networkCount = previewBridge().getNetworkBlankPatternCount();
-        int localCount = slot.getItem().isEmpty() ? 0 : slot.getItem().getCount();
-        long totalCount = localCount + networkCount;
-        if (totalCount <= 0) {
-            return;
-        }
+        ItemStack displayStack = slot.getItem().isEmpty()
+                ? AEItems.BLANK_PATTERN.stack()
+                : slot.getItem().copyWithCount(1);
+        guiGraphics.renderItem(displayStack, slot.x, slot.y);
+        guiGraphics.renderItemDecorations(this.font, displayStack, slot.x, slot.y, "");
 
-        if (networkCount > 0) {
-            if (slot.getItem().isEmpty()) {
-                guiGraphics.renderItem(AEItems.BLANK_PATTERN.stack(), slot.x, slot.y);
-            }
+        GridInventoryEntry blankPatternEntry = findBlankPatternEntry();
+        long networkStored = blankPatternEntry != null ? blankPatternEntry.getStoredAmount() : 0;
+        boolean networkCraftable = blankPatternEntry != null
+                && (blankPatternEntry.isCraftable() || blankPatternEntry.getRequestableAmount() > 0);
+        int localBlankPatternCount = AEItems.BLANK_PATTERN.is(slot.getItem()) ? slot.getItem().getCount() : 0;
+        long displayedCount = networkStored > 0 ? networkStored : localBlankPatternCount;
+
+        if (displayedCount > 0) {
             StackSizeRenderer.renderSizeLabel(guiGraphics, this.font, slot.x, slot.y,
-                    ReadableNumberConverter.format(totalCount, 4));
+                    ReadableNumberConverter.format(displayedCount, 4));
         }
 
-        if (isBlankPatternCraftable()) {
-            PoseStack poseStack = guiGraphics.pose();
+        PoseStack poseStack = guiGraphics.pose();
+        if (networkCraftable) {
             poseStack.pushPose();
             poseStack.translate(0.0F, 0.0F, 100.0F);
             StackSizeRenderer.renderSizeLabel(guiGraphics, this.font, (float) (slot.x - 11), (float) (slot.y - 11),
@@ -388,9 +400,24 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     }
 
     @Override
+    public void onClose() {
+        if (this.menu instanceof PatternEncodingSourceAware sourceAware) {
+            sourceAware.clearPatternSourceState();
+        }
+        super.onClose();
+    }
+
+    @Override
+    public void removed() {
+        if (this.menu instanceof PatternEncodingSourceAware sourceAware) {
+            sourceAware.clearPatternSourceState();
+        }
+        super.removed();
+    }
+
+    @Override
     public void containerTick() {
         super.containerTick();
-        removeExtendedAePlusWidgets();
         if (this.previewVisible) {
             this.previewScrollbar.tick();
         }
@@ -411,8 +438,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                 COLOR_PANEL_TITLE,
                 false);
 
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = previewBridge().getSyncedPatternProviders();
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> visibleProviders = getVisibleProviders(providers);
+        List<PatternEncodingPreviewMenu.SyncedPatternProvider> visibleProviders = getVisibleProviders();
         if (visibleProviders.isEmpty()) {
             drawScaledText(guiGraphics, EMPTY_STATE_TEXT.getString(),
                     previewBounds.getX() + getPanelContentX(),
@@ -469,10 +495,12 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         List<Component> tooltip = new ArrayList<>();
-        tooltip.add(buttonHit.provider().displayName());
+        tooltip.add(buttonHit.provider().displayName().copy());
         tooltip.add(Component.translatable("screen.data_energistics.pattern_writer_preview.provider.upload"));
-        tooltip.add(PROVIDER_OPEN_HINT);
-        if (buttonHit.provider().renameable()) {
+        if (isProviderOpenEnabled()) {
+            tooltip.add(getProviderOpenHint());
+        }
+        if (isProviderRenameEnabled() && buttonHit.provider().renameable()) {
             tooltip.add(getProviderRenameHint());
         }
         tooltip.add(Component.translatable(
@@ -491,21 +519,28 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                 ModKeyMappings.RENAME_PATTERN_PROVIDER.getTranslatedKeyMessage());
     }
 
+    private Component getProviderOpenHint() {
+        return Component.translatable(
+                "screen.data_energistics.pattern_writer_preview.provider.open",
+                ModKeyMappings.OPEN_PATTERN_PROVIDER.getTranslatedKeyMessage());
+    }
+
     private void updatePreviewScrollbar() {
-        int hiddenRows = Math.max(0, getVisibleProviders(previewBridge().getSyncedPatternProviders()).size()
-                - getProviderVisibleRows());
+        int hiddenRows = getHiddenProviderRows();
+        int scrollbarHeight = getPreviewScrollbarHeight();
         this.previewScrollbar.setPosition(new Point(
                 getPreviewScrollbarScreenX(),
                 getPreviewScrollbarScreenY()));
-        this.previewScrollbar.setHeight(getPreviewScrollbarHeight());
+        this.previewScrollbar.setHeight(scrollbarHeight);
+        this.previewScrollbar.setSize(this.previewScrollbar.getBounds().getWidth(), scrollbarHeight);
         this.previewScrollbar.setRange(0, hiddenRows, 1);
         this.previewScrollbar.setVisible(this.previewVisible && hiddenRows > 0);
         this.previewScrollbar.setCurrentScroll(Math.min(this.previewScrollbar.getCurrentScroll(), hiddenRows));
     }
 
     private void syncProviderSelection() {
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers =
-                getVisibleProviders(previewBridge().getSyncedPatternProviders());
+        syncProviderLocationFromRecordedWorkstation();
+        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
         if (providers.isEmpty()) {
             this.selectedPatternProviderId = -1L;
             return;
@@ -516,8 +551,24 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
     }
 
+    private void syncProviderLocationFromRecordedWorkstation() {
+        if (!(this.menu instanceof PatternEncodingSourceAware sourceAware)) {
+            this.lastLocatedWorkstationId = null;
+            return;
+        }
+
+        ResourceLocation workstationId = PatternEncodingSourceHelper.resolvePreferredWorkstationId(sourceAware);
+        if (java.util.Objects.equals(this.lastLocatedWorkstationId, workstationId)) {
+            return;
+        }
+
+        this.lastLocatedWorkstationId = workstationId;
+        this.previewScrollbar.setCurrentScroll(0);
+        this.selectedPatternProviderId = -1L;
+    }
+
     private PatternEncodingPreviewMenu.SyncedPatternProvider getPatternProvider(long providerId) {
-        for (var provider : getVisibleProviders(previewBridge().getSyncedPatternProviders())) {
+        for (var provider : getVisibleProviders()) {
             if (provider.id() == providerId) {
                 return provider;
             }
@@ -526,8 +577,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     }
 
     private int getVisibleProviderIndex(long providerId) {
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers =
-                getVisibleProviders(previewBridge().getSyncedPatternProviders());
+        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
         int start = this.previewScrollbar.getCurrentScroll();
         int end = Math.min(providers.size(), start + getProviderVisibleRows());
         for (int rowIndex = start; rowIndex < end; rowIndex++) {
@@ -545,6 +595,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private void beginProviderRename(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
         this.selectedPatternProviderId = provider.id();
         this.renamingProviderId = provider.id();
+        invalidateVisibleProvidersCache();
         if (this.providerSearchBox != null) {
             this.providerSearchBox.setFocused(false);
         }
@@ -558,6 +609,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     private void cancelProviderRename() {
         this.renamingProviderId = -1L;
+        invalidateVisibleProvidersCache();
         if (this.providerRenameBox != null) {
             this.providerRenameBox.setFocused(false);
             this.providerRenameBox.setVisible(false);
@@ -574,8 +626,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     }
 
     private ProviderButtonHit getProviderButtonHit(double mouseX, double mouseY) {
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers =
-                getVisibleProviders(previewBridge().getSyncedPatternProviders());
+        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
         int start = this.previewScrollbar.getCurrentScroll();
         int end = Math.min(providers.size(), start + getProviderVisibleRows());
         for (int rowIndex = start; rowIndex < end; rowIndex++) {
@@ -612,10 +663,14 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
     }
 
-    private void applyEncodeButtonHint() {
+    protected void applyEncodeButtonHint() {
         if (this.encodePatternWidget != null) {
-            this.encodePatternWidget.setMessage(ENCODE_BUTTON_HINT);
+            this.encodePatternWidget.setMessage(getEncodeButtonHint());
         }
+    }
+
+    protected Component getEncodeButtonHint() {
+        return ENCODE_BUTTON_HINT;
     }
 
     private void initProviderSearchBox() {
@@ -627,7 +682,10 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         this.providerSearchBox.setVisible(false);
         this.providerSearchBox.setCanLoseFocus(true);
         this.providerSearchBox.setPlaceholder(SEARCH_BOX_HINT);
-        this.providerSearchBox.setResponder(value -> this.previewScrollbar.setCurrentScroll(0));
+        this.providerSearchBox.setResponder(value -> {
+            this.previewScrollbar.setCurrentScroll(0);
+            invalidateVisibleProvidersCache();
+        });
         this.providerSearchBox.setValue(currentText);
         this.addRenderableWidget(this.providerSearchBox);
     }
@@ -642,6 +700,16 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         this.providerRenameBox.setCanLoseFocus(false);
         this.providerRenameBox.setValue(currentText);
         this.addRenderableWidget(this.providerRenameBox);
+    }
+
+    private void initPatternSourceToggleButton() {
+        if (!(this.menu instanceof PatternEncodingSourceAware sourceAware)) {
+            return;
+        }
+
+        this.patternSourceToggleButton = new PatternSourceToggleButton(sourceAware::setPatternSourceEnabled);
+        this.patternSourceToggleButton.setState(sourceAware.isPatternSourceEnabled());
+        this.addRenderableWidget(this.patternSourceToggleButton);
     }
 
     private void updateProviderSearchBox() {
@@ -666,7 +734,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         var provider = getPatternProvider(this.renamingProviderId);
-        boolean visible = this.previewVisible && provider != null && provider.renameable();
+        boolean visible = this.previewVisible && isProviderRenameEnabled() && provider != null && provider.renameable();
         this.providerRenameBox.setVisible(visible);
         this.providerRenameBox.active = visible;
         if (!visible) {
@@ -679,6 +747,57 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         this.providerRenameBox.setY(previewBounds.getY() + getSearchBoxY());
         this.providerRenameBox.setWidth(getSearchBoxWidth());
         this.providerRenameBox.setHeight(Math.max(12, getSearchBoxHeight()));
+    }
+
+    private void updatePatternSourceToggleButton() {
+        if (this.patternSourceToggleButton == null || !(this.menu instanceof PatternEncodingSourceAware sourceAware)) {
+            return;
+        }
+
+        this.patternSourceToggleButton.setState(sourceAware.isPatternSourceEnabled());
+        ResourceLocation workstationId = PatternEncodingSourceHelper.resolvePreferredWorkstationId(sourceAware);
+        if (workstationId != null) {
+            this.patternSourceToggleButton.setDetailLine(Component.translatable(
+                    "button.data_energistics.pattern_encoding_source_toggle.detail",
+                    PatternEncodingSourceHelper.resolveWorkstationDisplayName(workstationId)));
+        } else {
+            this.patternSourceToggleButton.setDetailLine(Component.translatable(
+                    "button.data_energistics.pattern_encoding_source_toggle.detail.none"));
+        }
+        boolean visible = this.menu.getMode() == appeng.parts.encoding.EncodingMode.PROCESSING;
+        this.patternSourceToggleButton.visible = visible;
+        this.patternSourceToggleButton.active = visible;
+        WidgetStyle clearButtonStyle = this.getStyle().getWidget("processingClearPattern");
+        Point clearButtonPosition = clearButtonStyle.resolve(new Rect2i(this.leftPos, this.topPos, this.imageWidth, this.imageHeight));
+        this.patternSourceToggleButton.setX(clearButtonPosition.getX() + 0);
+        this.patternSourceToggleButton.setY(clearButtonPosition.getY() + 10);
+    }
+
+    private boolean shouldBlockExtendedAePlusKey(int keyCode, int scanCode) {
+        return false;
+    }
+
+    private boolean matchesForeignKeyMapping(String translationKey, int keyCode, int scanCode) {
+        Minecraft minecraft = this.minecraft;
+        if (minecraft == null || minecraft.options == null) {
+            return false;
+        }
+
+        for (KeyMapping keyMapping : minecraft.options.keyMappings) {
+            if (translationKey.equals(keyMapping.getName()) && keyMapping.matches(keyCode, scanCode)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected boolean isProviderOpenEnabled() {
+        return true;
+    }
+
+    protected boolean isProviderRenameEnabled() {
+        return true;
     }
 
     private boolean triggerBlankPatternAutoCraft(double mouseX, double mouseY) {
@@ -699,82 +818,62 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         return true;
     }
 
+    private boolean handleBlankPatternSlotClick(double mouseX, double mouseY, int button) {
+        if (!(this.menu instanceof BlankPatternProxyMenu blankPatternProxyMenu)) {
+            return false;
+        }
+
+        Slot slot = this.hoveredSlot;
+        if (slot == null || this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN
+                || !isMouseOverSlot(slot, mouseX, mouseY)) {
+            return false;
+        }
+
+        if (button == 0) {
+            if (this.menu.getCarried().isEmpty()) {
+                blankPatternProxyMenu.pickupBlankPatterns(false);
+            } else if (AEItems.BLANK_PATTERN.is(this.menu.getCarried())) {
+                blankPatternProxyMenu.depositCarriedBlankPatterns(false);
+            } else {
+                return false;
+            }
+            return true;
+        }
+
+        if (button == 1) {
+            if (this.menu.getCarried().isEmpty()) {
+                blankPatternProxyMenu.pickupBlankPatterns(true);
+            } else if (AEItems.BLANK_PATTERN.is(this.menu.getCarried())) {
+                blankPatternProxyMenu.depositCarriedBlankPatterns(true);
+            } else {
+                return false;
+            }
+            return true;
+        }
+
+        return false;
+    }
+
     private GridInventoryEntry findBlankPatternEntry() {
         AEItemKey blankPatternKey = AEItemKey.of(AEItems.BLANK_PATTERN);
         if (blankPatternKey == null) {
             return null;
         }
 
+        GridInventoryEntry fallback = null;
         for (GridInventoryEntry entry : this.repo.getAllEntries()) {
-            if (entry.isCraftable() && blankPatternKey.equals(entry.getWhat())) {
+            if (!blankPatternKey.equals(entry.getWhat())) {
+                continue;
+            }
+            if (entry.isMeaningful()) {
                 return entry;
             }
-        }
-
-        return null;
-    }
-
-    private boolean isBlankPatternCraftable() {
-        GridInventoryEntry blankPatternEntry = findBlankPatternEntry();
-        return blankPatternEntry != null && blankPatternEntry.isCraftable();
-    }
-
-    private boolean shouldBlockExtendedAePlusKey(int keyCode, int scanCode) {
-        if (!ExtendedAePlusCompat.isLoaded()) {
-            return false;
-        }
-
-        return matchesForeignKeyMapping(ExtendedAePlusCompat.CREATE_PATTERN_KEY, keyCode, scanCode)
-                || matchesForeignKeyMapping(ExtendedAePlusCompat.FILL_SEARCH_KEY, keyCode, scanCode);
-    }
-
-    private boolean matchesForeignKeyMapping(String translationKey, int keyCode, int scanCode) {
-        Minecraft minecraft = this.minecraft;
-        if (minecraft == null || minecraft.options == null) {
-            return false;
-        }
-
-        for (KeyMapping keyMapping : minecraft.options.keyMappings) {
-            if (translationKey.equals(keyMapping.getName()) && keyMapping.matches(keyCode, scanCode)) {
-                return true;
+            if (fallback == null) {
+                fallback = entry;
             }
         }
 
-        return false;
-    }
-
-    private void removeExtendedAePlusWidgets() {
-        if (!ExtendedAePlusCompat.isLoaded()) {
-            return;
-        }
-
-        this.renderables.removeIf(this::isExtendedAePlusUploadWidget);
-        removePrivateScreenListEntries(SCREEN_CHILDREN_FIELD);
-        removePrivateScreenListEntries(SCREEN_NARRATABLES_FIELD);
-    }
-
-    private boolean isExtendedAePlusUploadWidget(Object widget) {
-        if (!(widget instanceof AbstractWidget abstractWidget)) {
-            return false;
-        }
-
-        Tooltip tooltip = abstractWidget.getTooltip();
-        if (tooltip == null) {
-            return false;
-        }
-
-        return tooltip.toString().contains("extendedae_plus.button.choose_provider");
-    }
-
-    @SuppressWarnings("unchecked")
-    private void removePrivateScreenListEntries(Field field) {
-        try {
-            Object value = field.get(this);
-            if (value instanceof List<?> list) {
-                ((List<Object>) list).removeIf(this::isExtendedAePlusUploadWidget);
-            }
-        } catch (IllegalAccessException ignored) {
-        }
+        return fallback;
     }
 
     private boolean isMouseOverSlot(Slot slot, double mouseX, double mouseY) {
@@ -784,25 +883,50 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                 && mouseY < this.topPos + slot.y + 16;
     }
 
-    private List<PatternEncodingPreviewMenu.SyncedPatternProvider> getVisibleProviders(
-            List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers) {
+    private List<PatternEncodingPreviewMenu.SyncedPatternProvider> getVisibleProviders() {
+        if (!this.visibleProvidersCacheDirty) {
+            return this.cachedVisibleProviders;
+        }
+
+        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = previewBridge().getSyncedPatternProviders();
         if (isRenamingProvider()) {
+            this.cachedVisibleProviders = providers;
+            this.visibleProvidersCacheDirty = false;
             return providers;
         }
 
         String query = normalizeSearch(this.providerSearchBox != null ? this.providerSearchBox.getValue() : "");
         if (query.isEmpty()) {
+            this.cachedVisibleProviders = providers;
+            this.visibleProvidersCacheDirty = false;
             return providers;
         }
 
         List<PatternEncodingPreviewMenu.SyncedPatternProvider> filtered = new ArrayList<>();
         for (var provider : providers) {
-            String searchIndex = buildSearchIndex(provider.displayName().getString() + " " + provider.iconItemId());
+            String searchIndex = getCachedProviderSearchIndex(provider);
             if (matchesSearch(searchIndex, query)) {
                 filtered.add(provider);
             }
         }
-        return filtered;
+        this.cachedVisibleProviders = List.copyOf(filtered);
+        this.visibleProvidersCacheDirty = false;
+        return this.cachedVisibleProviders;
+    }
+
+    private void invalidateVisibleProvidersCache() {
+        this.visibleProvidersCacheDirty = true;
+    }
+
+    private String getCachedProviderSearchIndex(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
+        long providerId = provider.id();
+        String source = provider.displayName().getString() + " " + provider.iconItemId();
+        String cachedSource = this.providerSearchIndexSourceCache.get(providerId);
+        if (!source.equals(cachedSource)) {
+            this.providerSearchIndexSourceCache.put(providerId, source);
+            this.providerSearchIndexCache.put(providerId, buildSearchIndex(source));
+        }
+        return this.providerSearchIndexCache.getOrDefault(providerId, "");
     }
 
     private String normalizeSearch(String text) {
@@ -926,6 +1050,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
     }
 
+
     private Rect2i getPreviewPanelBounds() {
         int previewPanelWidth = getPreviewPanelWidth();
         int previewPanelHeight = getPreviewPanelHeight();
@@ -951,6 +1076,11 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         Rect2i bounds = this.previewScrollbar.getBounds();
         return mouseX >= bounds.getX() && mouseX < bounds.getX() + bounds.getWidth()
                 && mouseY >= bounds.getY() && mouseY < bounds.getY() + bounds.getHeight();
+    }
+
+    private int getHiddenProviderRows() {
+        return Math.max(0, getVisibleProviders().size()
+                - getProviderVisibleRows());
     }
 
     private boolean isOverProviderList(double mouseX, double mouseY) {
@@ -1072,6 +1202,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     protected int getSearchBoxX() {
         return DEFAULT_SEARCH_BOX_X;
     }
+
 
     protected int getSearchBoxY() {
         return DEFAULT_SEARCH_BOX_Y;

@@ -20,11 +20,13 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.client.screen.AdaptivePatternProviderScreen;
 import com.fish_dan_.data_energistics.client.screen.NativePatternEncodingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.PatternEncodingPreviewScreen;
+import com.fish_dan_.data_energistics.client.screen.WirelessPatternEncodingTermScreen;
 import com.fish_dan_.data_energistics.client.render.DataExtractorRenderer;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
 import com.fish_dan_.data_energistics.client.screen.DataDistributionTowerScreen;
 import com.fish_dan_.data_energistics.client.screen.DataExtractorScreen;
 import com.fish_dan_.data_energistics.client.screen.DataMimeticFieldScreen;
+import com.fish_dan_.data_energistics.client.screen.DataSolarPanelScreen;
 import com.fish_dan_.data_energistics.client.ModItemColors;
 import com.fish_dan_.data_energistics.client.ModKeyMappings;
 import com.fish_dan_.data_energistics.client.screen.DataRipperScreen;
@@ -104,6 +106,7 @@ public class Data_Energistics {
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(new TimeShiftTransformLogic());
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+        modContainer.registerConfig(ModConfig.Type.COMMON, SolarPanelConfig.SPEC, "data_energistics-solar_panel.toml");
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
@@ -112,6 +115,7 @@ public class Data_Energistics {
             DataFlowBusStrategies.register();
             ((AdaptivePatternProviderBlock) ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get()).bindBlockEntity();
             AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_FLOW_GENERATOR_BLOCK_ENTITY.get(), ModBlocks.DATA_FLOW_GENERATOR.get().asItem());
+            AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get(), ModBlocks.DATA_SOLAR_PANEL.get().asItem());
             AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(), ModBlocks.DATA_EXTRACTOR.get().asItem());
             AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_FRAMEWORK_BLOCK_ENTITY.get(), ModBlocks.DATA_FRAMEWORK.get().asItem());
             AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), ModBlocks.DATA_DISTRIBUTION_TOWER.get().asItem());
@@ -122,6 +126,8 @@ public class Data_Energistics {
             Upgrades.add(AEItems.ENERGY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 6, "block.data_energistics.data_extractor");
             Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 6, "block.data_energistics.data_extractor");
             Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_EXTRACTOR.get(), 5, "block.data_energistics.data_extractor");
+            Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_SOLAR_PANEL.get(), 3, "block.data_energistics.me_solar_panel");
+            Upgrades.add(AEItems.ENERGY_CARD, ModBlocks.DATA_SOLAR_PANEL.get(), 3, "block.data_energistics.me_solar_panel");
             Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DATA_MIMETIC_FIELD.get(), 3, "block.data_energistics.data_mimetic_field");
             Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_MIMETIC_FIELD.get(), 4, "block.data_energistics.data_mimetic_field");
             Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 3, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
@@ -173,6 +179,11 @@ public class Data_Energistics {
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.DATA_FLOW_GENERATOR_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity
+        );
+        event.registerBlockEntity(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                ModBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity
         );
         event.registerBlockEntity(
@@ -292,6 +303,7 @@ public class Data_Energistics {
             InitScreens.register(event, ModMenus.DATA_DISTRIBUTION_TOWER.get(), DataDistributionTowerScreen::new, "/screens/data_distribution_tower.json");
             InitScreens.register(event, ModMenus.DATA_EXTRACTOR.get(), DataExtractorScreen::new, "/screens/data_extractor.json");
             InitScreens.register(event, ModMenus.DATA_MIMETIC_FIELD.get(), DataMimeticFieldScreen::new, "/screens/data_mimetic_field.json");
+            InitScreens.register(event, ModMenus.DATA_SOLAR_PANEL.get(), DataSolarPanelScreen::new, "/screens/me_solar_panel.json");
             InitScreens.register(event, ModMenus.ADAPTIVE_PATTERN_PROVIDER.get(), AdaptivePatternProviderScreen::new, "/screens/adaptive_pattern_provider.json");
             InitScreens.register(event, ModMenus.UNIVERSAL_ME_STORAGE.get(), UniversalMEStorageScreen::new, "/screens/universal_me_storage_terminal.json");
             InitScreens.register(event, ModMenus.UNIVERSAL_CRAFTING_TERM.get(), UniversalCraftingTermScreen::new, "/screens/universal_crafting_terminal.json");
@@ -307,11 +319,15 @@ public class Data_Energistics {
 
         public static void onScreenInitPost(ScreenEvent.Init.Post event) {
             maybeReplaceNativePatternEncodingScreen(event.getScreen(), true);
+            maybeReplaceWirelessPatternEncodingScreen(event.getScreen(), true);
             UniversalTerminalScreenHook.onScreenInitPost(event);
         }
 
         public static void onScreenOpening(ScreenEvent.Opening event) {
             Screen replacement = maybeReplaceNativePatternEncodingScreen(event.getCurrentScreen(), false);
+            if (replacement == null) {
+                replacement = maybeReplaceWirelessPatternEncodingScreen(event.getCurrentScreen(), false);
+            }
             if (replacement != null) {
                 event.setNewScreen(replacement);
             }
@@ -322,19 +338,19 @@ public class Data_Energistics {
         }
 
         private static Screen maybeReplaceNativePatternEncodingScreen(Screen currentScreen, boolean applyImmediately) {
-            // Only replace AE2's native screen. Addons such as AE2WTLib subclass PatternEncodingTermScreen
-            // and manage their own upgrade/toolbox layout, which breaks if we swap in our AE2-specific screen.
-            if (currentScreen == null || currentScreen.getClass() != PatternEncodingTermScreen.class) {
+            if (!(currentScreen instanceof PatternEncodingTermScreen<?> screen)) {
                 return null;
             }
-
-            var screen = (PatternEncodingTermScreen<?>) currentScreen;
 
             if (currentScreen instanceof PatternEncodingPreviewScreen<?>) {
                 return null;
             }
 
             if (!(screen.getMenu() instanceof PatternEncodingPreviewMenu)) {
+                return null;
+            }
+
+            if (currentScreen.getClass() != PatternEncodingTermScreen.class) {
                 return null;
             }
 
@@ -351,6 +367,34 @@ public class Data_Energistics {
                 }
             }
 
+            return replacement;
+        }
+
+        private static Screen maybeReplaceWirelessPatternEncodingScreen(Screen currentScreen, boolean applyImmediately) {
+            if (currentScreen instanceof WirelessPatternEncodingTermScreen) {
+                return null;
+            }
+            if (!(currentScreen instanceof de.mari_023.ae2wtlib.wet.WETScreen screen)) {
+                return null;
+            }
+            if (!(screen.getMenu() instanceof PatternEncodingPreviewMenu)) {
+                return null;
+            }
+            if (!(screen.getMenu() instanceof de.mari_023.ae2wtlib.wet.WETMenu wetMenu)) {
+                return null;
+            }
+
+            Screen replacement = new WirelessPatternEncodingTermScreen(
+                    wetMenu,
+                    screen.getMenu().getPlayerInventory(),
+                    screen.getTitle(),
+                    StyleManager.loadStyleDoc("/screens/wtlib/wireless_pattern_encoding_terminal.json"));
+            if (applyImmediately) {
+                Minecraft minecraft = Minecraft.getInstance();
+                if (minecraft.screen == currentScreen) {
+                    minecraft.setScreen(replacement);
+                }
+            }
             return replacement;
         }
     }

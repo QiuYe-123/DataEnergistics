@@ -24,6 +24,7 @@ import appeng.core.network.ServerboundPacket;
 import appeng.core.network.serverbound.ConfigButtonPacket;
 import appeng.menu.SlotSemantics;
 import appeng.menu.slot.AppEngSlot;
+import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.client.widget.AecsPullModeButton;
 import com.fish_dan_.data_energistics.client.widget.Ae2LtTextureToggleButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
@@ -49,6 +50,12 @@ import java.util.Map;
 
 public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternProviderMenu> {
     private static final int HIDDEN_SLOT_COORD = -9999;
+    private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_OFF =
+            List.of(Component.translatable("ae2lt.gui.return_mode.off"));
+    private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_AUTO =
+            List.of(Component.translatable("ae2lt.gui.return_mode.auto"));
+    private static final List<Component> AE2LT_RETURN_MODE_TOOLTIP_EJECT =
+            List.of(Component.translatable("ae2lt.gui.return_mode.eject"));
     private static final Field SLOT_X_FIELD = resolveField(Slot.class, "x");
     private static final Field SLOT_Y_FIELD = resolveField(Slot.class, "y");
     private static final Field WIDGET_CONTAINER_WIDGETS_FIELD = resolveField(WidgetContainer.class, "widgets");
@@ -201,9 +208,9 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
 
         this.ae2ltReturnModeButton.visible = showAe2LtControls;
         this.ae2ltReturnModeButton.active = showAe2LtControls;
-        this.ae2ltReturnModeButton.setTooltipAt(0, List.of(Component.translatable("ae2lt.gui.return_mode.off")));
-        this.ae2ltReturnModeButton.setTooltipAt(1, List.of(Component.translatable("ae2lt.gui.return_mode.auto")));
-        this.ae2ltReturnModeButton.setTooltipAt(2, List.of(Component.translatable("ae2lt.gui.return_mode.eject")));
+        this.ae2ltReturnModeButton.setTooltipAt(0, AE2LT_RETURN_MODE_TOOLTIP_OFF);
+        this.ae2ltReturnModeButton.setTooltipAt(1, AE2LT_RETURN_MODE_TOOLTIP_AUTO);
+        this.ae2ltReturnModeButton.setTooltipAt(2, AE2LT_RETURN_MODE_TOOLTIP_EJECT);
         this.ae2ltReturnModeButton.setStateIndex(this.menu.getAe2LtReturnModeOrdinal());
 
         this.ae2ltWirelessStrategyButton.visible = showAe2LtControls && this.menu.isAe2LtWirelessMode();
@@ -228,6 +235,12 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
                 && slot.getItem().isEmpty()
                 && this.menu.getSlotSemantic(slot) == AdaptivePatternProviderMenu.PAGE_PATTERN) {
             Icon.BACKGROUND_ENCODED_PATTERN.getBlitter()
+                    .dest(slot.x, slot.y)
+                    .blit(guiGraphics);
+        } else if (slot.isActive()
+                && slot.getItem().isEmpty()
+                && this.menu.getSlotSemantic(slot) == AdaptivePatternProviderMenu.PROVIDER_INPUT) {
+            DataEnergisticsIcon.getBlitter("BACKGROUND_BLOCK")
                     .dest(slot.x, slot.y)
                     .blit(guiGraphics);
         }

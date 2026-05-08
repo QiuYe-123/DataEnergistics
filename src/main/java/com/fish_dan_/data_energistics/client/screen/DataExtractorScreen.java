@@ -2,11 +2,11 @@ package com.fish_dan_.data_energistics.client.screen;
 
 import appeng.client.gui.Icon;
 import appeng.client.gui.implementations.UpgradeableScreen;
-import appeng.client.gui.style.Blitter;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.ProgressBar;
 import appeng.client.gui.widgets.ProgressBar.Direction;
 import appeng.menu.SlotSemantics;
+import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorDropRoutingButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.menu.DataExtractorMenu;
@@ -16,21 +16,6 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 
 public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
-    private static final Blitter DATA_CARRIER_SLOT_ICON = Blitter.texture(
-            Icon.TEXTURE,
-            Icon.TEXTURE_WIDTH,
-            Icon.TEXTURE_HEIGHT
-    ).src(240, 240, 16, 16);
-    private static final Blitter SWORD_SLOT_ICON = Blitter.texture(
-            Icon.TEXTURE,
-            Icon.TEXTURE_WIDTH,
-            Icon.TEXTURE_HEIGHT
-    ).src(224, 240, 16, 16);
-    private static final Blitter ORE_SLOT_ICON = Blitter.texture(
-            Icon.TEXTURE,
-            Icon.TEXTURE_WIDTH,
-            Icon.TEXTURE_HEIGHT
-    ).src(240, 224, 16, 16);
     private final DataExtractorToggleButton redstoneControlButton;
     private final DataExtractorToggleButton rangeVisibleButton;
     private final DataExtractorDropRoutingButton dropRoutingButton;
@@ -92,15 +77,15 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
     public void renderSlot(GuiGraphics guiGraphics, Slot slot) {
         if (slot.isActive() && slot.getItem().isEmpty()) {
             if (this.menu.getSlotSemantic(slot) == SlotSemantics.MACHINE_INPUT) {
-                DATA_CARRIER_SLOT_ICON.copy()
-                        .dest(slot.x, slot.y)
-                        .blit(guiGraphics);
-            } else if (this.menu.getSlotSemantic(slot) == DataExtractorMenu.SWORD_INPUT) {
-                SWORD_SLOT_ICON.copy()
+                DataEnergisticsIcon.getBlitter("BACKGROUND_DATA_CARRIER")
                         .dest(slot.x, slot.y)
                         .blit(guiGraphics);
             } else if (this.menu.getSlotSemantic(slot) == DataExtractorMenu.ORE_INPUT) {
-                ORE_SLOT_ICON.copy()
+                DataEnergisticsIcon.getBlitter("BACKGROUND_ORE")
+                        .dest(slot.x, slot.y)
+                        .blit(guiGraphics);
+            } else if (this.menu.getSlotSemantic(slot) == DataExtractorMenu.SWORD_INPUT) {
+                DataEnergisticsIcon.getBlitter("BACKGROUND_SWORD")
                         .dest(slot.x, slot.y)
                         .blit(guiGraphics);
             }

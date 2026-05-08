@@ -709,7 +709,7 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
             super(PlacableItemType.INSCRIBER_INPUT, inv, slot);
             this.host = host;
             this.setStackLimit(host != null ? host.getProviderSlotLimit() : 4);
-            this.setIcon(appeng.client.gui.Icon.PLACEMENT_BLOCK);
+            this.setIcon(null);
         }
 
         @Override

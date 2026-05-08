@@ -1,0 +1,43 @@
+{
+  "texture": "data_energistics:textures/guis/states.png",
+  "width": 64,
+  "height": 64,
+  "icons": {
+    "BACKGROUND_BLOCK": {
+      "x": 0,
+      "y": 0,
+      "width": 16,
+      "height": 16
+    },
+    "BACKGROUND_ORE": {
+      "x": 16,
+      "y": 0,
+      "width": 16,
+      "height": 16
+    },
+    "BACKGROUND_SWORD": {
+      "x": 0,
+      "y": 16,
+      "width": 16,
+      "height": 16
+    },
+    "BACKGROUND_DATA_CARRIER": {
+      "x": 16,
+      "y": 16,
+      "width": 16,
+      "height": 16
+    },
+    "S_PATTERN_ENCODING_ENABLED": {
+      "x": 0,
+      "y": 56,
+      "width": 8,
+      "height": 8
+    },
+    "S_PATTERN_ENCODING_DISABLED": {
+      "x": 8,
+      "y": 56,
+      "width": 8,
+      "height": 8
+    }
+  }
+}

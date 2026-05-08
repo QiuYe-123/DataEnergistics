@@ -26,6 +26,7 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
             ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/part/entity_speed_ticker_back.png");
     private static final ResourceLocation SLOT_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/item/portable_cell_screen.png");
+    private static ResourceLocation resolvedPanelTexture;
     private static final int TEXTURE_SIZE = 16;
     private static final int PANEL_WIDTH = 96;
     private static final int PANEL_HEIGHT = 112;
@@ -317,14 +318,21 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
     }
 
     private static ResourceLocation resolvePanelTexture() {
+        if (resolvedPanelTexture != null) {
+            return resolvedPanelTexture;
+        }
+
         var resourceManager = Minecraft.getInstance().getResourceManager();
         if (resourceManager.getResource(AE2_PANEL_TEXTURE).isPresent()) {
-            return AE2_PANEL_TEXTURE;
+            resolvedPanelTexture = AE2_PANEL_TEXTURE;
+            return resolvedPanelTexture;
         }
         if (resourceManager.getResource(CUSTOM_PANEL_TEXTURE).isPresent()) {
-            return CUSTOM_PANEL_TEXTURE;
+            resolvedPanelTexture = CUSTOM_PANEL_TEXTURE;
+            return resolvedPanelTexture;
         }
-        return FALLBACK_PANEL_TEXTURE;
+        resolvedPanelTexture = FALLBACK_PANEL_TEXTURE;
+        return resolvedPanelTexture;
     }
 
     private void clampPage() {

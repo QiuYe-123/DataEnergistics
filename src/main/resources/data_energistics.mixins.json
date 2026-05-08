@@ -19,7 +19,8 @@
     "Ae2ltEjectCapabilityMixin"
   ],
   "client": [
-    "Ae2ltWirelessConnectorRendererMixin"
+    "Ae2ltWirelessConnectorRendererMixin",
+    "NeoECOAEClientMixin"
   ],
   "injectors": {
     "defaultRequire": 1

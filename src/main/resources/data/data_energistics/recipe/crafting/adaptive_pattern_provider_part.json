@@ -2,9 +2,6 @@
   "type": "minecraft:crafting_shapeless",
   "ingredients": [
     {
-      "item": "ae2:cable_pattern_provider"
-    },
-    {
       "item": "data_energistics:redstone_alloy"
     }
   ],

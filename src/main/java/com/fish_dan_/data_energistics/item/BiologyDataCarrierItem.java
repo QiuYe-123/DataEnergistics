@@ -24,7 +24,7 @@ public class BiologyDataCarrierItem extends Item {
         if (BiologyDataCarrierData.hasRecordedEntity(stack)) {
             tooltip.add(Component.translatable(
                     "item.data_energistics.carrier.target",
-                    BiologyDataCarrierData.getEntityDisplayName(stack)
+                    BiologyDataCarrierData.getEntityDisplayName(stack).copy()
             ));
             tooltip.add(Component.translatable(
                     "item.data_energistics.carrier.progress",
@@ -34,7 +34,7 @@ public class BiologyDataCarrierItem extends Item {
         } else if (OreDataCarrierData.hasRecordedOre(stack)) {
             tooltip.add(Component.translatable(
                     "item.data_energistics.carrier.target",
-                    OreDataCarrierData.getOreDisplayName(stack)
+                    OreDataCarrierData.getOreDisplayName(stack).copy()
             ));
             tooltip.add(Component.translatable(
                     "item.data_energistics.carrier.progress",

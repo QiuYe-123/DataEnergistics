@@ -16,11 +16,14 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
             "tamaized/ae2jeiintegration/integration/modules/jei/transfer/EncodePatternTransferHandler.class";
     private static final String EMI_API_SENTINEL_CLASS = "dev/emi/emi/api/EmiPlugin.class";
     private static final String EMI_HANDLER_SENTINEL_CLASS = "appeng/integration/modules/emi/EmiEncodePatternHandler.class";
+    private static final String NEOECOAE_CLIENT_SENTINEL_CLASS =
+            "cn/dancingsnow/neoecoae/client/NeoECOAEClient.class";
     private static final boolean AE2LT_PRESENT = isClassPresent(AE2LT_SENTINEL_CLASS);
     private static final boolean EXTENDEDAE_PRESENT = isClassPresent(EXTENDEDAE_SENTINEL_CLASS);
     private static final boolean JEI_TRANSFER_PRESENT = isClassPresent(JEI_TRANSFER_SENTINEL_CLASS);
     private static final boolean EMI_PRESENT =
             isClassPresent(EMI_API_SENTINEL_CLASS) && isClassPresent(EMI_HANDLER_SENTINEL_CLASS);
+    private static final boolean NEOECOAE_PRESENT = isClassPresent(NEOECOAE_CLIENT_SENTINEL_CLASS);
 
     @Override
     public void onLoad(String mixinPackage) {
@@ -44,6 +47,9 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
         }
         if ("com.fish_dan_.data_energistics.mixin.EmiEncodePatternHandlerMixin".equals(mixinClassName)) {
             return EMI_PRESENT;
+        }
+        if ("com.fish_dan_.data_energistics.mixin.NeoECOAEClientMixin".equals(mixinClassName)) {
+            return NEOECOAE_PRESENT;
         }
         return true;
     }

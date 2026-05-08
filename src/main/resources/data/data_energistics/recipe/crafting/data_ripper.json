@@ -7,19 +7,19 @@
   ],
   "key": {
     "S": {
-      "item": "ae2:speed_card"
+      "tag": "c:ingots/obsidian"
     },
     "Z": {
-      "item": "ae2:dense_energy_cell"
+      "item": "ae2:cable_interface"
     },
     "Q": {
-      "item": "ae2:singularity"
+      "item": "ae2:spatial_cell_component_2"
     },
     "X": {
-      "item": "minecraft:nether_star"
+      "item": "data_energistics:time_core"
     },
     "I": {
-      "item": "data_energistics:data_flow_component_housing"
+      "item": "data_energistics:data_storage_component_64k"
     }
   },
   "result": {

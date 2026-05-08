@@ -69,7 +69,7 @@ public class UniversalTerminalCycleButton extends Button implements ITooltip {
 
     @Override
     public List<Component> getTooltipMessage() {
-        return this.tooltipSupplier.get();
+        return List.copyOf(this.tooltipSupplier.get());
     }
 
     @Override

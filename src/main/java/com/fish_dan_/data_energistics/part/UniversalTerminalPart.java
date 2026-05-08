@@ -52,6 +52,9 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
     private static final String TAG_CRAFTING_GRID = "universal_terminal_crafting_grid";
     private static final String TAG_TERMINAL_DATA = "universal_terminal_data";
     private static final String TAG_APPLIEDE_SHIFT_TO_TRANSMUTE = "appliede_shift_to_transmute";
+    private static final String TAG_PATTERN_SOURCE_PENDING = "pattern_source_pending";
+    private static final String TAG_PATTERN_SOURCE_LAST = "pattern_source_last";
+    private static final String TAG_PATTERN_SOURCE_ENABLED = "pattern_source_enabled";
     @PartModels
     public static final ResourceLocation MODEL_OFF =
             ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/universal_terminal_off");
@@ -321,6 +324,47 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
         }
     }
 
+    public @Nullable ResourceLocation getPersistentPendingPatternSource() {
+        String value = this.terminalData.getString(TAG_PATTERN_SOURCE_PENDING);
+        return value.isEmpty() ? null : ResourceLocation.tryParse(value);
+    }
+
+    public void setPersistentPendingPatternSource(@Nullable ResourceLocation workstationId) {
+        if (workstationId == null) {
+            this.terminalData.remove(TAG_PATTERN_SOURCE_PENDING);
+        } else {
+            this.terminalData.putString(TAG_PATTERN_SOURCE_PENDING, workstationId.toString());
+        }
+        persistTerminalDataChange();
+    }
+
+    public @Nullable ResourceLocation getPersistentLastEncodedPatternSource() {
+        String value = this.terminalData.getString(TAG_PATTERN_SOURCE_LAST);
+        return value.isEmpty() ? null : ResourceLocation.tryParse(value);
+    }
+
+    public void setPersistentLastEncodedPatternSource(@Nullable ResourceLocation workstationId) {
+        if (workstationId == null) {
+            this.terminalData.remove(TAG_PATTERN_SOURCE_LAST);
+        } else {
+            this.terminalData.putString(TAG_PATTERN_SOURCE_LAST, workstationId.toString());
+        }
+        persistTerminalDataChange();
+    }
+
+    public boolean isPersistentPatternSourceEnabled() {
+        return !this.terminalData.contains(TAG_PATTERN_SOURCE_ENABLED)
+                || this.terminalData.getBoolean(TAG_PATTERN_SOURCE_ENABLED);
+    }
+
+    public void setPersistentPatternSourceEnabled(boolean enabled) {
+        this.terminalData.putBoolean(TAG_PATTERN_SOURCE_ENABLED, enabled);
+        if (!enabled) {
+            this.terminalData.remove(TAG_PATTERN_SOURCE_LAST);
+        }
+        persistTerminalDataChange();
+    }
+
     @Override
     protected AEColor getColor() {
         return super.getColor();
@@ -452,6 +496,13 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
                 ? UniversalTerminalData.TERMINAL_ITEM
                 : terminalName;
         this.terminalData.putString("active_terminal", this.activeTerminal);
+    }
+
+    private void persistTerminalDataChange() {
+        this.saveChanges();
+        if (this.getHost() != null) {
+            this.getHost().markForUpdate();
+        }
     }
 
     private boolean usesCustomMenuLocator() {

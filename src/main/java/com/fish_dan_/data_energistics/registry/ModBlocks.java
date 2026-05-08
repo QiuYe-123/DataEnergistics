@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.registry;
 import com.fish_dan_.data_energistics.block.AdaptivePatternProviderBlock;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.DataFlowGeneratorBlock;
+import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
@@ -21,6 +22,12 @@ public final class ModBlocks {
             "data_flow_generator",
             DataFlowGeneratorBlock::new,
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK));
+
+    public static final DeferredBlock<Block> DATA_SOLAR_PANEL = BLOCKS.registerBlock(
+            "me_solar_panel",
+            DataSolarPanelBlock::new,
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK)
+                    .noOcclusion());
 
     public static final DeferredBlock<Block> DATA_EXTRACTOR = BLOCKS.registerBlock(
             "data_extractor",
