@@ -339,7 +339,15 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
     @Override
     public void clearPendingPatternSource() {
+        if (this.isClientSide()) {
+            sendClientAction(PatternEncodingSourceHelper.ACTION_SET_PATTERN_SOURCE,
+                    PatternEncodingSourceHelper.CLEAR_PATTERN_SOURCE);
+            this.dataEnergistics$pendingPatternSource = null;
+            return;
+        }
+
         this.dataEnergistics$pendingPatternSource = null;
+        PatternEncodingSourceHelper.writePendingPatternSource(this.getPlayer(), null);
     }
 
     @Override
@@ -438,8 +446,9 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     private void dataEnergistics$updatePendingPatternSourceOnModeChange(appeng.parts.encoding.EncodingMode mode,
                                                                         CallbackInfo ci) {
         var fallbackWorkstation = PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(mode);
-        if (fallbackWorkstation != null) {
-            this.dataEnergistics$pendingPatternSource = fallbackWorkstation;
+        this.dataEnergistics$pendingPatternSource = fallbackWorkstation;
+        if (this.isServerSide()) {
+            PatternEncodingSourceHelper.writePendingPatternSource(this.getPlayer(), fallbackWorkstation);
         }
     }
 

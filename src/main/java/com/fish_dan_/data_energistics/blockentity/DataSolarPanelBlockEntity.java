@@ -174,7 +174,7 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
 
     private void pushStoredPowerToGrid() {
         IGridNode node = this.getMainNode().getNode();
-        if (node == null || node.getGrid() == null || !node.isActive()) {
+        if (node == null || node.getGrid() == null) {
             return;
         }
 

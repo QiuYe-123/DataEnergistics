@@ -289,7 +289,15 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
     @Override
     public void clearPendingPatternSource() {
+        if (this.isClientSide()) {
+            sendClientAction(PatternEncodingSourceHelper.ACTION_SET_PATTERN_SOURCE,
+                    PatternEncodingSourceHelper.CLEAR_PATTERN_SOURCE);
+            writeFallbackPendingPatternSource(null);
+            return;
+        }
+
         writeFallbackPendingPatternSource(null);
+        PatternEncodingSourceHelper.writePendingPatternSource(this.getPlayer(), null);
     }
 
     @Override

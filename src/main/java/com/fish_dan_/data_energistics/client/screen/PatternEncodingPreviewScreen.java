@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import appeng.client.Point;
+import appeng.client.gui.Icon;
 import appeng.client.gui.WidgetContainer;
 import appeng.client.gui.me.common.StackSizeRenderer;
 import appeng.client.gui.me.items.PatternEncodingTermScreen;
@@ -362,18 +363,25 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             return;
         }
 
-        ItemStack displayStack = slot.getItem().isEmpty()
-                ? AEItems.BLANK_PATTERN.stack()
-                : slot.getItem().copyWithCount(1);
-        guiGraphics.renderItem(displayStack, slot.x, slot.y);
-        guiGraphics.renderItemDecorations(this.font, displayStack, slot.x, slot.y, "");
-
         GridInventoryEntry blankPatternEntry = findBlankPatternEntry();
         long networkStored = blankPatternEntry != null ? blankPatternEntry.getStoredAmount() : 0;
         boolean networkCraftable = blankPatternEntry != null
                 && (blankPatternEntry.isCraftable() || blankPatternEntry.getRequestableAmount() > 0);
         int localBlankPatternCount = AEItems.BLANK_PATTERN.is(slot.getItem()) ? slot.getItem().getCount() : 0;
         long displayedCount = networkStored > 0 ? networkStored : localBlankPatternCount;
+        boolean hasBlankPatterns = displayedCount > 0;
+
+        if (slot.getItem().isEmpty() && !hasBlankPatterns) {
+            Icon.BACKGROUND_ENCODED_PATTERN.getBlitter()
+                    .dest(slot.x, slot.y)
+                    .blit(guiGraphics);
+        } else {
+            ItemStack displayStack = slot.getItem().isEmpty()
+                    ? AEItems.BLANK_PATTERN.stack()
+                    : slot.getItem().copyWithCount(1);
+            guiGraphics.renderItem(displayStack, slot.x, slot.y);
+            guiGraphics.renderItemDecorations(this.font, displayStack, slot.x, slot.y, "");
+        }
 
         if (displayedCount > 0) {
             StackSizeRenderer.renderSizeLabel(guiGraphics, this.font, slot.x, slot.y,
@@ -402,7 +410,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     @Override
     public void onClose() {
         if (this.menu instanceof PatternEncodingSourceAware sourceAware) {
-            sourceAware.clearPatternSourceState();
+            sourceAware.clearPendingPatternSource();
         }
         super.onClose();
     }
@@ -410,7 +418,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     @Override
     public void removed() {
         if (this.menu instanceof PatternEncodingSourceAware sourceAware) {
-            sourceAware.clearPatternSourceState();
+            sourceAware.clearPendingPatternSource();
         }
         super.removed();
     }
