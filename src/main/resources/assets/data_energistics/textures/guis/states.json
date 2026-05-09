@@ -27,6 +27,12 @@
       "width": 16,
       "height": 16
     },
+    "BACKGROUND_DATA_CARRIER_PATTERN": {
+      "x": 48,
+      "y": 16,
+      "width": 16,
+      "height": 16
+    },
     "S_PATTERN_ENCODING_ENABLED": {
       "x": 0,
       "y": 56,

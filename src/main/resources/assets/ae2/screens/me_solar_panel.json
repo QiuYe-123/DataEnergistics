@@ -6,8 +6,8 @@
     "common/toolbox.json"
   ],
   "background": {
-    "texture": "guis/storagebus.png",
-    "srcRect": [0, 0, 176, 253]
+    "texture": "guis/me_solar_panel.png",
+    "srcRect": [0, 0, 176, 183]
   },
   "text": {
     "dialog_title": {

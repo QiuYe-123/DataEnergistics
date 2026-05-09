@@ -3,11 +3,15 @@ package com.fish_dan_.data_energistics.client.screen;
 import appeng.client.gui.Icon;
 import appeng.client.gui.implementations.UpgradeableScreen;
 import appeng.client.gui.style.ScreenStyle;
+import appeng.menu.SlotSemantics;
+import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorDropRoutingButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.menu.DataMimeticFieldMenu;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
 
 public class DataMimeticFieldScreen extends UpgradeableScreen<DataMimeticFieldMenu> {
     private final DataExtractorToggleButton redstoneControlButton;
@@ -43,5 +47,18 @@ public class DataMimeticFieldScreen extends UpgradeableScreen<DataMimeticFieldMe
         ));
         this.redstoneControlButton.setState(this.menu.redstoneControlled);
         this.dropRoutingButton.setMode(this.menu.getDropRoutingMode());
+    }
+
+    @Override
+    public void renderSlot(GuiGraphics guiGraphics, Slot slot) {
+        if (slot.isActive()
+                && slot.getItem().isEmpty()
+                && this.menu.getSlotSemantic(slot) == SlotSemantics.STORAGE) {
+            DataEnergisticsIcon.getBlitter("BACKGROUND_DATA_CARRIER_PATTERN")
+                    .dest(slot.x, slot.y)
+                    .blit(guiGraphics);
+        }
+
+        super.renderSlot(guiGraphics, slot);
     }
 }

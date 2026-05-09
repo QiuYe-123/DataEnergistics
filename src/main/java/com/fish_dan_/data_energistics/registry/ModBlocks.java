@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
+import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -49,6 +50,11 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> DATA_MIMETIC_FIELD = BLOCKS.registerBlock(
             "data_mimetic_field",
             DataMimeticFieldBlock::new,
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK));
+
+    public static final DeferredBlock<Block> DATA_TELEPORT_ANCHOR = BLOCKS.registerBlock(
+            "data_teleport_anchor",
+            DataTeleportAnchorBlock::new,
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK));
 
     public static final DeferredBlock<Block> ADAPTIVE_PATTERN_PROVIDER = BLOCKS.registerBlock(

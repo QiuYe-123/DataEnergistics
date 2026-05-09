@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity;
 
 import appeng.api.config.Actionable;
+import appeng.api.config.PowerMultiplier;
+import appeng.api.config.PowerUnit;
 import appeng.api.inventories.ISegmentedInventory;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.IGridNode;
@@ -17,6 +19,7 @@ import appeng.util.Platform;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.filter.IAEItemFilter;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
+import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModItems;
@@ -142,30 +145,41 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     public void serverTick() {
+        if (this.level == null || this.level.isClientSide()) {
+            return;
+        }
+
         updatePowerUsageIfNeeded();
         tickHiddenBufferFlush();
+        refillEnergyCache();
         if (this.redstoneControlled && !isReceivingRedstonePower()) {
+            updateOnlineState();
             return;
         }
         if (isHiddenBufferFull()) {
+            updateOnlineState();
             return;
         }
         if (!consumeDataFlowPerSecond()) {
+            updateOnlineState();
             return;
         }
         this.workTicks++;
         if (this.workTicks < computeWorkIntervalTicks()) {
+            updateOnlineState();
             return;
         }
         this.workTicks = 0;
         performBiologyMimeticWork();
         performOreMimeticWork();
+        updateOnlineState();
     }
 
     @Override
     public void onReady() {
         super.onReady();
         updatePowerUsage();
+        updateOnlineState();
     }
 
     public boolean isOnline() {
@@ -371,12 +385,10 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private ItemStack routeGeneratedItem(ItemStack stack, List<IItemHandler> adjacentHandlers, @Nullable MEStorage networkStorage) {
         ItemStack remaining = stack.copy();
         if (this.dropRoutingMode == DataExtractorDropRoutingMode.AE) {
-            remaining = insertIntoNetwork(remaining, networkStorage);
-            return insertIntoAdjacentContainers(remaining, adjacentHandlers);
+            return insertIntoNetwork(remaining, networkStorage);
         }
 
-        remaining = insertIntoAdjacentContainers(remaining, adjacentHandlers);
-        return insertIntoNetwork(remaining, networkStorage);
+        return insertIntoAdjacentContainers(remaining, adjacentHandlers);
     }
 
     private ItemStack insertIntoAdjacentContainers(ItemStack stack, List<IItemHandler> adjacentHandlers) {
@@ -664,6 +676,42 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
 
         inventory.extract(DataFlowKey.of(), required, Actionable.MODULATE, IActionSource.ofMachine(this));
         return true;
+    }
+
+    private void refillEnergyCache() {
+        IGridNode node = this.getMainNode().getNode();
+        if (node == null || node.getGrid() == null || !node.isActive()) {
+            return;
+        }
+
+        double missing = this.getInternalMaxPower() - this.getInternalCurrentPower();
+        if (missing <= 0.0001D) {
+            return;
+        }
+
+        double extracted = node.getGrid().getEnergyService().extractAEPower(missing, Actionable.MODULATE, PowerMultiplier.ONE);
+        if (extracted > 0.0D) {
+            this.injectExternalPower(PowerUnit.AE, extracted, Actionable.MODULATE);
+        }
+    }
+
+    private void updateOnlineState() {
+        updateBlockState(isOnline());
+    }
+
+    private void updateBlockState(boolean online) {
+        if (this.level == null) {
+            return;
+        }
+
+        BlockState state = this.level.getBlockState(this.worldPosition);
+        if (!(state.getBlock() instanceof DataMimeticFieldBlock)) {
+            return;
+        }
+
+        if (state.hasProperty(DataMimeticFieldBlock.LIT) && state.getValue(DataMimeticFieldBlock.LIT) != online) {
+            this.level.setBlock(this.worldPosition, state.setValue(DataMimeticFieldBlock.LIT, online), 3);
+        }
     }
 
     private void markPowerUsageDirty() {

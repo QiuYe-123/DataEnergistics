@@ -17,6 +17,7 @@ import com.fish_dan_.data_energistics.ae2.DataFlowBusStrategies;
 import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
 import com.fish_dan_.data_energistics.block.AdaptivePatternProviderBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.client.screen.AdaptivePatternProviderScreen;
 import com.fish_dan_.data_energistics.client.screen.NativePatternEncodingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.PatternEncodingPreviewScreen;
@@ -27,6 +28,7 @@ import com.fish_dan_.data_energistics.client.screen.DataDistributionTowerScreen;
 import com.fish_dan_.data_energistics.client.screen.DataExtractorScreen;
 import com.fish_dan_.data_energistics.client.screen.DataMimeticFieldScreen;
 import com.fish_dan_.data_energistics.client.screen.DataSolarPanelScreen;
+import com.fish_dan_.data_energistics.client.screen.DataTeleportAnchorScreen;
 import com.fish_dan_.data_energistics.client.ModItemColors;
 import com.fish_dan_.data_energistics.client.ModKeyMappings;
 import com.fish_dan_.data_energistics.client.screen.DataRipperScreen;
@@ -120,6 +122,7 @@ public class Data_Energistics {
             AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_FRAMEWORK_BLOCK_ENTITY.get(), ModBlocks.DATA_FRAMEWORK.get().asItem());
             AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), ModBlocks.DATA_DISTRIBUTION_TOWER.get().asItem());
             AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), ModBlocks.DATA_MIMETIC_FIELD.get().asItem());
+            AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(), ModBlocks.DATA_TELEPORT_ANCHOR.get().asItem());
             AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(), ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem());
             Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_RIPPER.get(), 8, "item.data_energistics.data_ripper");
             Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_RIPPER.get(), 4, "item.data_energistics.data_ripper");
@@ -209,6 +212,11 @@ public class Data_Energistics {
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity
+        );
+        event.registerBlockEntity(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity
         );
         event.registerBlockEntity(
@@ -304,6 +312,7 @@ public class Data_Energistics {
             InitScreens.register(event, ModMenus.DATA_EXTRACTOR.get(), DataExtractorScreen::new, "/screens/data_extractor.json");
             InitScreens.register(event, ModMenus.DATA_MIMETIC_FIELD.get(), DataMimeticFieldScreen::new, "/screens/data_mimetic_field.json");
             InitScreens.register(event, ModMenus.DATA_SOLAR_PANEL.get(), DataSolarPanelScreen::new, "/screens/me_solar_panel.json");
+            InitScreens.register(event, ModMenus.DATA_TELEPORT_ANCHOR.get(), DataTeleportAnchorScreen::new, "/screens/data_teleport_anchor.json");
             InitScreens.register(event, ModMenus.ADAPTIVE_PATTERN_PROVIDER.get(), AdaptivePatternProviderScreen::new, "/screens/adaptive_pattern_provider.json");
             InitScreens.register(event, ModMenus.UNIVERSAL_ME_STORAGE.get(), UniversalMEStorageScreen::new, "/screens/universal_me_storage_terminal.json");
             InitScreens.register(event, ModMenus.UNIVERSAL_CRAFTING_TERM.get(), UniversalCraftingTermScreen::new, "/screens/universal_crafting_terminal.json");

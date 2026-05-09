@@ -1,0 +1,27 @@
+{
+	"format_version": "1.21.11",
+	"credit": "Made with Blockbench",
+  "parent": "minecraft:block/cube_all",
+	"textures": {
+		"0": "ae2:block/generics/top",
+		"1": "ae2:block/generics/bottom",
+		"2": "data_energistics:block/generics/side_off",
+		"3": "data_energistics:block/generics/back_off",
+		"4": "data_energistics:block/data_mimetic_field/data_mimetic_field_off",
+		"particle": "ae2:block/generics/top"
+	},
+	"elements": [
+		{
+			"from": [0, 0, 0],
+			"to": [16, 16, 16],
+			"faces": {
+				"north": {"uv": [0, 0, 16, 16], "texture": "#4"},
+				"east": {"uv": [16, 0, 0, 16], "texture": "#2"},
+				"south": {"uv": [0, 0, 16, 16], "texture": "#3"},
+				"west": {"uv": [0, 0, 16, 16], "texture": "#2"},
+				"up": {"uv": [0, 0, 16, 16], "texture": "#0"},
+				"down": {"uv": [0, 0, 16, 16], "texture": "#1"}
+			}
+		}
+	]
+}

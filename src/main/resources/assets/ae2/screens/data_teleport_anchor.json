@@ -1,0 +1,62 @@
+{
+  "$schema": "schema.json",
+  "includes": [
+    "common/common.json"
+  ],
+  "background": {
+    "texture": "guis/me_solar_panel.png",
+    "srcRect": [0, 0, 176, 183]
+  },
+  "text": {
+    "dialog_title": {
+      "position": {
+        "left": 88,
+        "top": 6
+      },
+      "align": "CENTER"
+    },
+    "anchor_position": {
+      "position": {
+        "left": 12,
+        "top": 20
+      }
+    },
+    "anchor_dimension": {
+      "position": {
+        "left": 12,
+        "top": 30
+      }
+    }
+  },
+  "widgets": {
+    "anchor_cards": {
+      "left": 39,
+      "top": 48,
+      "width": 96,
+      "height": 16
+    },
+    "anchor_card_name": {
+      "left": 5,
+      "top": 2,
+      "width": 0,
+      "height": 5
+    },
+    "anchor_card_coords": {
+      "left": 5,
+      "top": 7,
+      "width": 0,
+      "height": 4
+    },
+    "anchor_card_dimension": {
+      "left": 5,
+      "top": 11,
+      "width": 0,
+      "height": 4
+    },
+    "scrollbar": {
+      "left": 142,
+      "top": 48,
+      "height": 118
+    }
+  }
+}

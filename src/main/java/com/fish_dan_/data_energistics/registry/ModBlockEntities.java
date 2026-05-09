@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.blockentity.DataFlowGeneratorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataFrameworkBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.bus.api.IEventBus;
@@ -47,6 +48,11 @@ public final class ModBlockEntities {
             BLOCK_ENTITY_TYPES.register(
                     "data_mimetic_field",
                     () -> BlockEntityType.Builder.of(DataMimeticFieldBlockEntity::new, ModBlocks.DATA_MIMETIC_FIELD.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataTeleportAnchorBlockEntity>> DATA_TELEPORT_ANCHOR_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register(
+                    "data_teleport_anchor",
+                    () -> BlockEntityType.Builder.of(DataTeleportAnchorBlockEntity::new, ModBlocks.DATA_TELEPORT_ANCHOR.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AdaptivePatternProviderBlockEntity>> ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY =
             BLOCK_ENTITY_TYPES.register(

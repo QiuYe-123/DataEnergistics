@@ -6,12 +6,14 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.menu.DataExtractorMenu;
 import com.fish_dan_.data_energistics.menu.DataMimeticFieldMenu;
 import com.fish_dan_.data_energistics.menu.DataRipperMenu;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenu;
+import com.fish_dan_.data_energistics.menu.DataTeleportAnchorMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalMEStorageMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternAccessTermMenu;
@@ -59,6 +61,11 @@ public final class ModMenus {
             MENUS.register("me_solar_panel", () -> MenuTypeBuilder
                     .create(DataSolarPanelMenu::new, DataSolarPanelBlockEntity.class)
                     .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "me_solar_panel")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<DataTeleportAnchorMenu>> DATA_TELEPORT_ANCHOR =
+            MENUS.register("data_teleport_anchor", () -> MenuTypeBuilder
+                    .create(DataTeleportAnchorMenu::new, DataTeleportAnchorBlockEntity.class)
+                    .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_teleport_anchor")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<AdaptivePatternProviderMenu>> ADAPTIVE_PATTERN_PROVIDER =
             MENUS.register("adaptive_pattern_provider", () -> MenuTypeBuilder

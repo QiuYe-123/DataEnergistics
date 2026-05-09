@@ -609,12 +609,10 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     private ItemStack routeDroppedItem(ItemStack stack, List<IItemHandler> adjacentHandlers, @Nullable MEStorage networkStorage) {
         ItemStack remaining = stack.copy();
         if (this.dropRoutingMode == DataExtractorDropRoutingMode.AE) {
-            remaining = insertIntoNetwork(remaining, networkStorage);
-            return insertIntoAdjacentContainers(remaining, adjacentHandlers);
+            return insertIntoNetwork(remaining, networkStorage);
         }
 
-        remaining = insertIntoAdjacentContainers(remaining, adjacentHandlers);
-        return insertIntoNetwork(remaining, networkStorage);
+        return insertIntoAdjacentContainers(remaining, adjacentHandlers);
     }
 
     private ItemStack insertIntoAdjacentContainers(ItemStack stack, List<IItemHandler> adjacentHandlers) {

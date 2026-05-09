@@ -31,6 +31,8 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
     public static final int UPGRADE_SLOTS = 3;
     public static final int MAX_SPEED_CARDS = 3;
     public static final int MAX_ENERGY_CARDS = 3;
+    private static final ResourceLocation SPATIAL_STORAGE_DIMENSION =
+            ResourceLocation.fromNamespaceAndPath("ae2", "spatial_storage");
     private static final String UPGRADES_TAG = "upgrades";
     private static final String REDSTONE_CONTROLLED_TAG = "redstone_controlled";
 
@@ -98,13 +100,18 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
     }
 
     public double getGeneratedPowerPerTick() {
-        if (this.level == null || !this.level.canSeeSky(this.worldPosition.above())) {
+        if (this.level == null) {
             return 0.0D;
         }
 
-        double baseGeneration = this.level.isDay()
-                ? SolarPanelConfig.dayGenerationAEPerTick
-                : SolarPanelConfig.nightGenerationAEPerTick;
+        boolean inSpatialStorage = this.level.dimension().location().equals(SPATIAL_STORAGE_DIMENSION);
+        if (!inSpatialStorage && !this.level.canSeeSky(this.worldPosition.above())) {
+            return 0.0D;
+        }
+
+        double baseGeneration = inSpatialStorage || !this.level.isDay()
+                ? SolarPanelConfig.nightGenerationAEPerTick
+                : SolarPanelConfig.dayGenerationAEPerTick;
         return applySpeedUpgrades(baseGeneration, this.upgrades);
     }
 

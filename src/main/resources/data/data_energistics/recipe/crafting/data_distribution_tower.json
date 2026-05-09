@@ -2,15 +2,15 @@
   "type": "minecraft:crafting_shaped",
   "pattern": [
     " T ",
-    "ACA",
-    "BFB"
+    "BCB",
+    "AFA"
   ],
   "key": {
     "A": {
-      "item": "data_energistics:redstone_alloy"
+      "tag": "c:ingots/redstone_alloy"
     },
     "B": {
-      "item": "minecraft:iron_ingot"
+      "tag": "c:gems/lapis"
     },
     "C": {
       "item": "data_energistics:data_carrier"

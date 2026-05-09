@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " S ",
+    "WTW",
+    " F "
+  ],
+  "key": {
+    "S": {
+      "item": "ae2:spatial_anchor"
+    },
+    "W": {
+      "item": "ae2:wireless_access_point"
+    },
+    "T": {
+      "item": "data_energistics:data_processor"
+    },
+    "F": {
+      "item": "data_energistics:data_framework"
+    }
+  },
+  "result": {
+    "id": "data_energistics:data_teleport_anchor",
+    "count": 1
+  }
+}

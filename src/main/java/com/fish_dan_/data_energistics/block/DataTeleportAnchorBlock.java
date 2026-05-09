@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.block;
 import appeng.block.AEBaseBlock;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
-import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import net.minecraft.core.BlockPos;
@@ -29,11 +29,11 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.Nullable;
 
-public class DataSolarPanelBlock extends AEBaseBlock implements EntityBlock {
+public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock {
     public static final BooleanProperty LIT = BlockStateProperties.LIT;
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
 
-    public DataSolarPanelBlock(BlockBehaviour.Properties properties) {
+    public DataTeleportAnchorBlock(BlockBehaviour.Properties properties) {
         super(properties);
         this.registerDefaultState(this.defaultBlockState()
                 .setValue(LIT, false)
@@ -42,7 +42,7 @@ public class DataSolarPanelBlock extends AEBaseBlock implements EntityBlock {
 
     @Override
     public BlockEntity newBlockEntity(BlockPos blockPos, BlockState blockState) {
-        return new DataSolarPanelBlockEntity(blockPos, blockState);
+        return new DataTeleportAnchorBlockEntity(blockPos, blockState);
     }
 
     @Override
@@ -72,22 +72,31 @@ public class DataSolarPanelBlock extends AEBaseBlock implements EntityBlock {
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
             BlockHitResult hitResult) {
-        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DataSolarPanelBlockEntity solarPanel) {
-            MenuOpener.open(ModMenus.DATA_SOLAR_PANEL.get(), player, MenuLocators.forBlockEntity(solarPanel));
+        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof DataTeleportAnchorBlockEntity anchor) {
+            MenuOpener.open(ModMenus.DATA_TELEPORT_ANCHOR.get(), player, MenuLocators.forBlockEntity(anchor));
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
 
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!state.is(newState.getBlock()) && level.getBlockEntity(pos) instanceof DataTeleportAnchorBlockEntity anchor) {
+            anchor.removePersistedAnchor();
+        }
+        super.onRemove(state, level, pos, newState, isMoving);
+    }
+
     @Nullable
     @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> blockEntityType) {
-        if (level.isClientSide() || blockEntityType != ModBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get()) {
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
+            BlockEntityType<T> blockEntityType) {
+        if (level.isClientSide() || blockEntityType != ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get()) {
             return null;
         }
 
         return (tickLevel, tickPos, tickState, blockEntity) -> {
-            if (blockEntity instanceof DataSolarPanelBlockEntity solarPanel) {
-                solarPanel.serverTick();
+            if (blockEntity instanceof DataTeleportAnchorBlockEntity anchor) {
+                anchor.serverTick();
             }
         };
     }
