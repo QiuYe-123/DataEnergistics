@@ -180,7 +180,7 @@
   "message.data_energistics.data_teleport_anchor.target_offline": "目标数据传送锚未在线",
   "message.data_energistics.data_teleport_anchor.self_target": "数据传送锚不能把自己作为目标",
   "message.data_energistics.data_teleport_anchor.target_missing": "目标数据传送锚不存在或未加载",
-  "message.data_energistics.data_teleport_anchor.insufficient_power": "数据传送锚需要充满 10000 AE 才能传送",
+  "message.data_energistics.data_teleport_anchor.insufficient_power": "数据传送锚需要充满 10K AE 才能传送",
   "message.data_energistics.data_teleport_anchor.no_entities": "锚点上方 3x3 区域内没有可传送实体",
   "message.data_energistics.data_distribution_tower.channel": "范围传输频道：%s",
   "message.data_energistics.data_distribution_tower.range.enabled": "已开启塔范围显示",

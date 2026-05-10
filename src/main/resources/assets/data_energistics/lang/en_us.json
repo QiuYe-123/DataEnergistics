@@ -173,7 +173,7 @@
   "message.data_energistics.data_teleport_anchor.target_offline": "The target data teleport anchor is offline",
   "message.data_energistics.data_teleport_anchor.self_target": "A data teleport anchor cannot target itself",
   "message.data_energistics.data_teleport_anchor.target_missing": "The target data teleport anchor is missing or unloaded",
-  "message.data_energistics.data_teleport_anchor.insufficient_power": "The data teleport anchor must be fully charged with 10K AE before teleporting",
+  "message.data_energistics.data_teleport_anchor.insufficient_power": "The data teleport anchor needs at least 10000 AE before teleporting",
   "message.data_energistics.data_teleport_anchor.no_entities": "No entities were found in the 3x3 area above the anchor",
   "message.data_energistics.data_distribution_tower.channel": "Range transmission channel: %s",
   "message.data_energistics.data_distribution_tower.range.enabled": "Tower range display enabled",

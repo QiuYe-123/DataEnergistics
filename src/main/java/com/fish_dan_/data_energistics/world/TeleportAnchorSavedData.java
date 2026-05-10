@@ -1,13 +1,17 @@
 package com.fish_dan_.data_energistics.world;
 
+import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
 
 import java.util.ArrayList;
@@ -85,6 +89,35 @@ public class TeleportAnchorSavedData extends SavedData {
             }
         }
         return matches;
+    }
+
+    public int pruneMissingAnchors(MinecraftServer server) {
+        ArrayList<AnchorKey> staleKeys = new ArrayList<>();
+        for (var entry : this.anchors.entrySet()) {
+            if (!isAnchorStillPresent(server, entry.getValue())) {
+                staleKeys.add(entry.getKey());
+            }
+        }
+
+        if (staleKeys.isEmpty()) {
+            return 0;
+        }
+
+        for (AnchorKey staleKey : staleKeys) {
+            this.anchors.remove(staleKey);
+        }
+        this.setDirty();
+        return staleKeys.size();
+    }
+
+    private boolean isAnchorStillPresent(MinecraftServer server, AnchorRecord record) {
+        ServerLevel level = server.getLevel(ResourceKey.create(Registries.DIMENSION, record.dimensionId()));
+        if (level == null) {
+            return false;
+        }
+
+        level.getChunkAt(record.pos());
+        return level.getBlockEntity(record.pos()) instanceof DataTeleportAnchorBlockEntity;
     }
 
     @Override

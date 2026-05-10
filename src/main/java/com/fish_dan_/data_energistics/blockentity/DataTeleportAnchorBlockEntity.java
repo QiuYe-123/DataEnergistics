@@ -21,6 +21,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.Nameable;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -36,7 +37,9 @@ import java.util.Map;
 import java.util.Set;
 
 public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity {
-    public static final double ENERGY_CAPACITY = 10_000.0D;
+    public static final double ENERGY_CAPACITY = 40_000.0D;
+    public static final double TELEPORT_ENERGY_COST = 10_000.0D;
+    private static final long ANCHOR_PRUNE_INTERVAL_TICKS = 100L;
     private static final String REDSTONE_CONTROLLED_TAG = "redstone_controlled";
     private static final String HAS_TARGET_TAG = "has_target";
     private static final String TARGET_DIMENSION_TAG = "target_dimension";
@@ -51,6 +54,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
     private boolean hasTarget;
     private ResourceLocation targetDimension = net.minecraft.world.level.Level.OVERWORLD.location();
     private BlockPos targetPos = BlockPos.ZERO;
+    private long lastAnchorPruneGameTime = Long.MIN_VALUE;
 
     public DataTeleportAnchorBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -138,7 +142,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     public String getAnchorDisplayName() {
-        Component displayName = this.getBlockState().getBlock().getName();
+        Component displayName = this instanceof Nameable nameable ? nameable.getDisplayName() : this.getBlockState().getBlock().getName();
         String resolvedName = displayName.getString();
         return resolvedName.isBlank() ? "Data Teleport Anchor" : resolvedName;
     }
@@ -148,6 +152,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
             return List.of();
         }
 
+        pruneInvalidAnchorsIfNeeded(serverLevel);
         ArrayList<AnchorSummary> anchors = new ArrayList<>();
         for (var record : TeleportAnchorSavedData.get(serverLevel.getServer()).getAnchors()) {
             if (isSelfAnchor(record.dimensionId(), record.pos())) {
@@ -179,11 +184,13 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
         var targetLevelKey = net.minecraft.resources.ResourceKey.create(Registries.DIMENSION, targetDimensionId);
         ServerLevel targetLevel = sourceLevel.getServer().getLevel(targetLevelKey);
         if (targetLevel == null) {
+            TeleportAnchorSavedData.get(sourceLevel.getServer()).removeAnchor(targetDimensionId, targetAnchorPos);
             return new TeleportResult(TeleportStatus.TARGET_NOT_FOUND, 0);
         }
 
         DataTeleportAnchorBlockEntity targetAnchor = getLoadedAnchor(targetLevel, targetAnchorPos);
         if (targetAnchor == null) {
+            TeleportAnchorSavedData.get(sourceLevel.getServer()).removeAnchor(targetDimensionId, targetAnchorPos);
             return new TeleportResult(TeleportStatus.TARGET_NOT_FOUND, 0);
         }
         if (!targetAnchor.isOnline()) {
@@ -285,13 +292,13 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     private boolean hasRequiredTeleportEnergy() {
-        return this.getAECurrentPower() + 0.0001D >= ENERGY_CAPACITY;
+        return this.getAECurrentPower() + 0.0001D >= TELEPORT_ENERGY_COST;
     }
 
     private void consumeAllStoredEnergy() {
-        double currentPower = this.getAECurrentPower();
-        if (currentPower > 0.0001D) {
-            this.extractAEPower(currentPower, Actionable.MODULATE, PowerMultiplier.ONE);
+        double extracted = Math.min(this.getAECurrentPower(), TELEPORT_ENERGY_COST);
+        if (extracted > 0.0001D) {
+            this.extractAEPower(extracted, Actionable.MODULATE, PowerMultiplier.ONE);
         }
         this.saveChanges();
         this.markForClientUpdate();
@@ -316,6 +323,17 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
         if (extracted > 0.0001D) {
             this.injectExternalPower(PowerUnit.AE, extracted, Actionable.MODULATE);
         }
+    }
+
+    private void pruneInvalidAnchorsIfNeeded(ServerLevel serverLevel) {
+        long gameTime = serverLevel.getGameTime();
+        if (this.lastAnchorPruneGameTime != Long.MIN_VALUE
+                && gameTime - this.lastAnchorPruneGameTime < ANCHOR_PRUNE_INTERVAL_TICKS) {
+            return;
+        }
+
+        TeleportAnchorSavedData.get(serverLevel.getServer()).pruneMissingAnchors(serverLevel.getServer());
+        this.lastAnchorPruneGameTime = gameTime;
     }
 
     private AnchorSummary toSummary() {

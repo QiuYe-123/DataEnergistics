@@ -4,6 +4,8 @@ import appeng.client.Point;
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.Icon;
 import appeng.client.gui.style.ScreenStyle;
+import appeng.client.gui.style.Text;
+import appeng.client.gui.style.TextAlignment;
 import appeng.client.gui.style.WidgetStyle;
 import appeng.client.gui.widgets.Scrollbar;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
@@ -21,11 +23,11 @@ import java.util.List;
 
 public class DataTeleportAnchorScreen extends AEBaseScreen<DataTeleportAnchorMenu> {
     private static final int ACTION_BUTTON_GAP = 1;
-    private static final int VISIBLE_BUTTON_COUNT = 7;
+    private static final int VISIBLE_BUTTON_COUNT = 6;
     private static final String ANCHOR_CARDS_WIDGET = "anchor_cards";
-    private static final String ANCHOR_CARD_NAME_WIDGET = "anchor_card_name";
-    private static final String ANCHOR_CARD_COORDS_WIDGET = "anchor_card_coords";
-    private static final String ANCHOR_CARD_DIMENSION_WIDGET = "anchor_card_dimension";
+    private static final String ANCHOR_CARD_NAME_TEXT = "anchor_card_name";
+    private static final String ANCHOR_CARD_COORDS_TEXT = "anchor_card_coords";
+    private static final String ANCHOR_CARD_DIMENSION_TEXT = "anchor_card_dimension";
     private static final String SCROLLBAR_WIDGET = "scrollbar";
     private static final ResourceLocation AE2_BUTTON_TEXTURE =
             ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button.png");
@@ -41,9 +43,9 @@ public class DataTeleportAnchorScreen extends AEBaseScreen<DataTeleportAnchorMen
     private final Scrollbar scrollbar;
     private final List<AnchorEntry> anchorEntries = new ArrayList<>();
     private final WidgetStyle anchorCardsStyle;
-    private final WidgetStyle anchorCardNameStyle;
-    private final WidgetStyle anchorCardCoordsStyle;
-    private final WidgetStyle anchorCardDimensionStyle;
+    private final Text anchorCardNameStyle;
+    private final Text anchorCardCoordsStyle;
+    private final Text anchorCardDimensionStyle;
     private final WidgetStyle scrollbarStyle;
 
     public DataTeleportAnchorScreen(DataTeleportAnchorMenu menu, Inventory playerInventory, Component title,
@@ -60,9 +62,9 @@ public class DataTeleportAnchorScreen extends AEBaseScreen<DataTeleportAnchorMen
         this.addToLeftToolbar(this.redstoneControlButton);
         this.scrollbar = widgets.addScrollBar("scrollbar", Scrollbar.SMALL);
         this.anchorCardsStyle = this.getStyle().getWidget(ANCHOR_CARDS_WIDGET);
-        this.anchorCardNameStyle = this.getStyle().getWidget(ANCHOR_CARD_NAME_WIDGET);
-        this.anchorCardCoordsStyle = this.getStyle().getWidget(ANCHOR_CARD_COORDS_WIDGET);
-        this.anchorCardDimensionStyle = this.getStyle().getWidget(ANCHOR_CARD_DIMENSION_WIDGET);
+        this.anchorCardNameStyle = this.getStyle().getText().get(ANCHOR_CARD_NAME_TEXT);
+        this.anchorCardCoordsStyle = this.getStyle().getText().get(ANCHOR_CARD_COORDS_TEXT);
+        this.anchorCardDimensionStyle = this.getStyle().getText().get(ANCHOR_CARD_DIMENSION_TEXT);
         this.scrollbarStyle = this.getStyle().getWidget(SCROLLBAR_WIDGET);
     }
 
@@ -139,8 +141,13 @@ public class DataTeleportAnchorScreen extends AEBaseScreen<DataTeleportAnchorMen
                 continue;
             }
 
-            Rect2i bounds = getCardBounds(i);
-            drawCardText(guiGraphics, bounds, this.anchorEntries.get(contentIndex));
+            Rect2i screenBounds = getCardBounds(i);
+            Rect2i localBounds = new Rect2i(
+                    screenBounds.getX() - this.leftPos,
+                    screenBounds.getY() - this.topPos,
+                    screenBounds.getWidth(),
+                    screenBounds.getHeight());
+            drawCardText(guiGraphics, localBounds, this.anchorEntries.get(contentIndex));
         }
     }
 
@@ -171,8 +178,9 @@ public class DataTeleportAnchorScreen extends AEBaseScreen<DataTeleportAnchorMen
 
     private Rect2i getCardBounds(int visibleIndex) {
         return new Rect2i(
-                getOrZero(this.anchorCardsStyle.getLeft()),
-                getOrZero(this.anchorCardsStyle.getTop()) + visibleIndex * (this.anchorCardsStyle.getHeight() + ACTION_BUTTON_GAP),
+                this.leftPos + getOrZero(this.anchorCardsStyle.getLeft()),
+                this.topPos + getOrZero(this.anchorCardsStyle.getTop())
+                        + visibleIndex * (this.anchorCardsStyle.getHeight() + ACTION_BUTTON_GAP),
                 this.anchorCardsStyle.getWidth(),
                 this.anchorCardsStyle.getHeight()
         );
@@ -246,17 +254,30 @@ public class DataTeleportAnchorScreen extends AEBaseScreen<DataTeleportAnchorMen
     }
 
     private void drawCardText(GuiGraphics guiGraphics, Rect2i bounds, AnchorEntry entry) {
-        var namePos = this.anchorCardNameStyle.resolve(bounds);
-        var coordsPos = this.anchorCardCoordsStyle.resolve(bounds);
-        var dimensionPos = this.anchorCardDimensionStyle.resolve(bounds);
+        drawCardTextLine(guiGraphics, bounds, this.anchorCardNameStyle,
+                Component.literal(entry.name() + " [" + entry.x() + ", " + entry.y() + ", " + entry.z() + "]"),
+                0xE7E7E7, CARD_NAME_SCALE);
+        drawCardTextLine(guiGraphics, bounds, this.anchorCardDimensionStyle, Component.literal(entry.dimensionId()), 0xF2F2F2, CARD_META_SCALE);
+    }
 
-        drawScaledLeftAlignedText(guiGraphics, Component.literal(entry.name()),
-                namePos.getX(), namePos.getY(), 0xE7E7E7, CARD_NAME_SCALE);
-        drawScaledLeftAlignedText(guiGraphics,
-                Component.literal("[" + entry.x() + ", " + entry.y() + ", " + entry.z() + "]"),
-                coordsPos.getX(), coordsPos.getY(), 0xC8D0D8, CARD_META_SCALE);
-        drawScaledLeftAlignedText(guiGraphics, Component.literal(entry.dimensionId()),
-                dimensionPos.getX(), dimensionPos.getY(), 0x9FA8B3, CARD_META_SCALE);
+    private void drawCardTextLine(GuiGraphics guiGraphics, Rect2i bounds, Text style, Component text, int color, float fallbackScale) {
+        if (style == null || style.getPosition() == null) {
+            return;
+        }
+
+        int left = getOrZero(style.getPosition().getLeft());
+        int top = getOrZero(style.getPosition().getTop());
+        int maxWidth = style.getMaxWidth() > 0 ? style.getMaxWidth() : Math.max(1, bounds.getWidth() - left * 2);
+        float scale = style.getScale() > 0 ? style.getScale() : fallbackScale;
+        int x = bounds.getX() + left;
+        int y = bounds.getY() + top;
+        TextAlignment align = style.getAlign() == null ? TextAlignment.LEFT : style.getAlign();
+
+        if (align == TextAlignment.CENTER) {
+            drawScaledCenteredText(guiGraphics, text, x + maxWidth / 2, y, color, scale);
+        } else {
+            drawScaledLeftAlignedText(guiGraphics, text, x, y, color, scale);
+        }
     }
 
     private int getOrZero(Integer value) {

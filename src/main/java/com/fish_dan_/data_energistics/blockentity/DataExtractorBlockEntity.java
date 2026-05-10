@@ -76,6 +76,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     public static final int TARGET_SCAN_INTERVAL_TICKS = 5;
     public static final int DATA_FLOW_PER_CYCLE = 100;
     public static final int DAMAGE_PER_CYCLE = 5;
+    public static final int DATA_FLOW_PER_DAMAGE_POINT = 20;
     public static final double AE_POWER_PER_TICK = 160.0;
     public static final int ENERGY_CACHE_CAPACITY = 1600;
     public static final int DATA_FLOW_PER_ENERGY_CARD = 200;
@@ -330,7 +331,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     }
 
     public int getDataFlowPerCycle(int targetCount) {
-        return computeDataFlowPerCycle(this.upgrades, targetCount);
+        return computeDataFlowPerCycle(this.upgrades, getDamagePerCycle(), targetCount);
     }
 
     public int getTargetLimit() {
@@ -373,15 +374,21 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     }
 
     public static int computeDataFlowPerCycle(IUpgradeInventory upgrades) {
-        return DATA_FLOW_PER_CYCLE + computeEnergyCardCount(upgrades) * DATA_FLOW_PER_ENERGY_CARD;
+        return computeBaseDataFlowPerCycle(upgrades, DAMAGE_PER_CYCLE);
     }
 
-    public static int computeDataFlowPerCycle(IUpgradeInventory upgrades, int targetCount) {
+    public static int computeBaseDataFlowPerCycle(IUpgradeInventory upgrades, int damagePerCycle) {
+        return DATA_FLOW_PER_CYCLE
+                + computeEnergyCardCount(upgrades) * DATA_FLOW_PER_ENERGY_CARD
+                + Math.max(0, damagePerCycle) * DATA_FLOW_PER_DAMAGE_POINT;
+    }
+
+    public static int computeDataFlowPerCycle(IUpgradeInventory upgrades, int damagePerCycle, int targetCount) {
         if (targetCount <= 0) {
             return 0;
         }
 
-        int baseDataFlow = computeDataFlowPerCycle(upgrades);
+        int baseDataFlow = computeBaseDataFlowPerCycle(upgrades, damagePerCycle);
         double multiplier = 1.0D + Math.max(0, targetCount - 1) * DATA_FLOW_PER_EXTRA_TARGET_MULTIPLIER;
         return (int) Math.round(baseDataFlow * multiplier);
     }

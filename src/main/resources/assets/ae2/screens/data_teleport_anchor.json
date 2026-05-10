@@ -4,59 +4,70 @@
     "common/common.json"
   ],
   "background": {
-    "texture": "guis/me_solar_panel.png",
+    "texture": "guis/data_teleport_anchor.png",
     "srcRect": [0, 0, 176, 183]
   },
   "text": {
     "dialog_title": {
       "position": {
-        "left": 88,
+        "left": 42,
         "top": 6
       },
       "align": "CENTER"
     },
     "anchor_position": {
       "position": {
-        "left": 12,
-        "top": 20
-      }
+        "left": 88,
+        "top": 22
+      },
+      "align": "CENTER"
     },
     "anchor_dimension": {
       "position": {
-        "left": 12,
-        "top": 30
-      }
+        "left": 88,
+        "top": 34
+      },
+      "align": "CENTER"
+    },
+    "anchor_card_name": {
+      "position": {
+        "left": 4,
+        "top": 3
+      },
+      "align": "CENTER",
+      "scale": 0.6,
+      "maxWidth": 120
+    },
+    "anchor_card_coords": {
+      "position": {
+        "left": 4,
+        "top": 7
+      },
+      "align": "LEFT",
+      "scale": 0.6,
+      "maxWidth": 120
+    },
+    "anchor_card_dimension": {
+      "position": {
+        "left": 4,
+        "top": 9
+      },
+      "align": "CENTER",
+      "scale": 0.6,
+      "maxWidth": 120
     }
   },
   "widgets": {
     "anchor_cards": {
-      "left": 39,
+      "left": 15,
       "top": 48,
-      "width": 96,
-      "height": 16
-    },
-    "anchor_card_name": {
-      "left": 5,
-      "top": 2,
-      "width": 0,
-      "height": 5
-    },
-    "anchor_card_coords": {
-      "left": 5,
-      "top": 7,
-      "width": 0,
-      "height": 4
-    },
-    "anchor_card_dimension": {
-      "left": 5,
-      "top": 11,
-      "width": 0,
-      "height": 4
+      "width": 128,
+      "height": 20
     },
     "scrollbar": {
-      "left": 142,
-      "top": 48,
-      "height": 118
+      "left": 160,
+      "top": 46,
+      "height": 132
     }
   }
 }
