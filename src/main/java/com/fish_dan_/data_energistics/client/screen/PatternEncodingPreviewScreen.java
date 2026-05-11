@@ -76,7 +76,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private static final int DEFAULT_PREVIEW_PANEL_X_OFFSET = 0;
     private static final int DEFAULT_PREVIEW_PANEL_Y_OFFSET = 105;
     private static final int DEFAULT_PREVIEW_SCROLLBAR_SCREEN_X = 309;
-    private static final int DEFAULT_PREVIEW_SCROLLBAR_SCREEN_Y = 121;
+    private static final int DEFAULT_PREVIEW_SCROLLBAR_SCREEN_Y = 119;
     private static final int DEFAULT_PREVIEW_SCROLLBAR_HEIGHT = 104;
     private static final int DEFAULT_PREVIEW_TOOLTIP_SCREEN_X = 190;
     private static final int DEFAULT_PREVIEW_TOOLTIP_SCREEN_Y = 60;
@@ -402,8 +402,32 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     public List<Rect2i> getExclusionZones() {
         List<Rect2i> zones = new ArrayList<>(super.getExclusionZones());
         if (this.previewVisible) {
-            zones.add(getPreviewPanelBounds());
+            zones.addAll(getPreviewInteractiveBounds());
         }
+        return zones;
+    }
+
+    private List<Rect2i> getPreviewInteractiveBounds() {
+        List<Rect2i> zones = new ArrayList<>();
+        zones.add(getProviderListBounds());
+        zones.add(this.previewScrollbar.getBounds());
+
+        if (this.providerSearchBox != null && this.providerSearchBox.isVisible()) {
+            zones.add(new Rect2i(
+                    this.providerSearchBox.getX(),
+                    this.providerSearchBox.getY(),
+                    this.providerSearchBox.getWidth(),
+                    this.providerSearchBox.getHeight()));
+        }
+
+        if (this.providerRenameBox != null && this.providerRenameBox.isVisible()) {
+            zones.add(new Rect2i(
+                    this.providerRenameBox.getX(),
+                    this.providerRenameBox.getY(),
+                    this.providerRenameBox.getWidth(),
+                    this.providerRenameBox.getHeight()));
+        }
+
         return zones;
     }
 

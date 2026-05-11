@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "AA ",
+    "AA ",
+    "   "
+  ],
+  "key": {
+    "A": {
+      "tag": "c:gems/redstone_crystal"
+    }
+  },
+  "result": {
+    "id": "data_energistics:redstone_crystal_block",
+    "count": 1
+  }
+}
