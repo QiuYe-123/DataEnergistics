@@ -223,6 +223,32 @@ public final class PatternProviderSyncHelper {
         return remainder;
     }
 
+    public static TransferResult transferEncodedPatternToProvidersChecked(List<PatternContainer> containers, ItemStack encodedPattern) {
+        if (containers == null || containers.isEmpty() || encodedPattern.isEmpty()) {
+            return new TransferResult(encodedPattern, false, false);
+        }
+
+        if (containsEquivalentEncodedPattern(containers, encodedPattern)) {
+            return new TransferResult(encodedPattern, false, true);
+        }
+
+        ItemStack remainder = encodedPattern.copy();
+        boolean transferred = false;
+        for (var container : containers) {
+            if (remainder.isEmpty()) {
+                break;
+            }
+
+            ItemStack nextRemainder = transferEncodedPatternToProvider(container, remainder);
+            if (nextRemainder.getCount() != remainder.getCount()) {
+                transferred = true;
+            }
+            remainder = nextRemainder;
+        }
+
+        return new TransferResult(transferred ? remainder : encodedPattern, transferred, false);
+    }
+
     public static ItemStack transferEncodedPatternToProviders(List<PatternContainer> containers, ItemStack encodedPattern) {
         if (containers == null || containers.isEmpty() || encodedPattern.isEmpty()) {
             return encodedPattern;
@@ -243,6 +269,31 @@ public final class PatternProviderSyncHelper {
         }
 
         return transferred ? remainder : encodedPattern;
+    }
+
+    private static boolean containsEquivalentEncodedPattern(List<PatternContainer> containers, ItemStack encodedPattern) {
+        for (var container : containers) {
+            if (container == null) {
+                continue;
+            }
+
+            var inventory = container.getTerminalPatternInventory();
+            if (inventory == null) {
+                continue;
+            }
+
+            for (int slot = 0; slot < inventory.size(); slot++) {
+                ItemStack existing = inventory.getStackInSlot(slot);
+                if (!existing.isEmpty() && ItemStack.isSameItemSameComponents(existing, encodedPattern)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public record TransferResult(ItemStack remainder, boolean transferred, boolean duplicateFound) {
     }
 
     private static void collectDirectPatternProviders(

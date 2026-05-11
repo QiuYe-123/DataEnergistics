@@ -4,6 +4,13 @@
     "data_energistics:data_extractor",
     "data_energistics:data_distribution_tower",
     "data_energistics:data_mimetic_field",
-    "data_energistics:adaptive_pattern_provider"
+    "data_energistics:adaptive_pattern_provider",
+    "data_energistics:residual_data_ore",
+    "data_energistics:redstone_crystal_block",
+    "data_energistics:budding_redstone_crystal",
+    "data_energistics:small_redstone_crystal_bud",
+    "data_energistics:medium_redstone_crystal_bud",
+    "data_energistics:large_redstone_crystal_bud",
+    "data_energistics:redstone_crystal_cluster"
   ]
 }

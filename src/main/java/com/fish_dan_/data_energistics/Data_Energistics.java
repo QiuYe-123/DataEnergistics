@@ -2,9 +2,12 @@ package com.fish_dan_.data_energistics;
 
 import appeng.api.AECapabilities;
 import appeng.api.upgrades.Upgrades;
+import appeng.core.definitions.AEBlocks;
 import appeng.blockentity.AEBaseBlockEntity;
+import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
 import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.blockentity.networking.CableBusBlockEntity;
+import appeng.blockentity.networking.ControllerBlockEntity;
 import appeng.client.gui.me.items.PatternEncodingTermScreen;
 import appeng.client.gui.style.StyleManager;
 import appeng.core.definitions.AEBlockEntities;
@@ -23,6 +26,7 @@ import com.fish_dan_.data_energistics.client.screen.NativePatternEncodingTermScr
 import com.fish_dan_.data_energistics.client.screen.PatternEncodingPreviewScreen;
 import com.fish_dan_.data_energistics.client.screen.WirelessPatternEncodingTermScreen;
 import com.fish_dan_.data_energistics.client.render.DataExtractorRenderer;
+import com.fish_dan_.data_energistics.client.render.DispersingDataRenderer;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
 import com.fish_dan_.data_energistics.client.screen.DataDistributionTowerScreen;
 import com.fish_dan_.data_energistics.client.screen.DataExtractorScreen;
@@ -44,6 +48,7 @@ import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModCreativeTabs;
+import com.fish_dan_.data_energistics.registry.ModEntities;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
@@ -60,6 +65,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -95,6 +101,7 @@ public class Data_Energistics {
     public Data_Energistics(IEventBus modEventBus, ModContainer modContainer) {
         ModBlocks.register(modEventBus);
         ModItems.register(modEventBus);
+        ModEntities.register(modEventBus);
         ModBlockEntities.register(modEventBus);
         ModCreativeTabs.register(modEventBus);
         ModMenus.register(modEventBus);
@@ -137,6 +144,11 @@ public class Data_Energistics {
             Upgrades.add(AEItems.CAPACITY_CARD, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 3, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
             Upgrades.add(AEItems.SPEED_CARD, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 4, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
             Upgrades.add(AEItems.SPEED_CARD, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 4, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
+            Upgrades.add(ModItems.REDSTONE_TUNING_CARD.get(), AEBlocks.PATTERN_PROVIDER.block(), 1, "block.ae2.pattern_provider");
+            Upgrades.add(ModItems.REDSTONE_TUNING_CARD.get(), ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 1, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
+            Upgrades.add(ModItems.REDSTONE_TUNING_CARD.get(), ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 1,
+                    ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
+            registerExternalRedstoneTuningCardCompat();
             registerAppliedFluxAdaptivePatternProviderCompat();
             registerAe2CrystalScienceAdaptivePatternProviderCompat();
             appeng.api.parts.PartModels.registerModels(
@@ -172,6 +184,60 @@ public class Data_Energistics {
                 ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
         Upgrades.add(crystalGrowthCard, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 1,
                 ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
+    }
+
+    private static void registerExternalRedstoneTuningCardCompat() {
+        registerExternalRedstoneTuningTarget("advanced_ae", "small_adv_pattern_provider", "block.advanced_ae.small_adv_pattern_provider");
+        registerExternalRedstoneTuningTarget("advanced_ae", "adv_pattern_provider", "block.advanced_ae.adv_pattern_provider");
+        registerExternalRedstoneTuningItemTarget("advanced_ae", "small_adv_pattern_provider_part",
+                "block.advanced_ae.small_adv_pattern_provider");
+        registerExternalRedstoneTuningItemTarget("advanced_ae", "adv_pattern_provider_part",
+                "block.advanced_ae.adv_pattern_provider");
+        registerExternalRedstoneTuningTarget("ae2lt", "overloaded_pattern_provider", "block.ae2lt.overloaded_pattern_provider");
+        registerExternalRedstoneTuningTarget("ae2cs", "simple_pattern_provider", "block.ae2cs.simple_pattern_provider");
+        registerExternalRedstoneTuningTarget("ae2cs", "resonating_pattern_provider", "block.ae2cs.resonating_pattern_provider");
+        registerExternalRedstoneTuningTarget("ae2cs", "extended_resonating_pattern_provider",
+                "block.ae2cs.resonating_pattern_provider");
+        registerExternalRedstoneTuningTarget("ae2cs", "ex_resonating_pattern_provider",
+                "block.ae2cs.resonating_pattern_provider");
+        registerExternalRedstoneTuningTarget("ae2cs", "meteorite_pattern_provider", "block.ae2cs.meteorite_pattern_provider");
+        registerExternalRedstoneTuningItemTarget("ae2cs", "simple_pattern_provider_part",
+                "block.ae2cs.simple_pattern_provider");
+        registerExternalRedstoneTuningItemTarget("ae2cs", "resonating_pattern_provider_part",
+                "block.ae2cs.resonating_pattern_provider");
+        registerExternalRedstoneTuningItemTarget("ae2cs", "extended_resonating_pattern_provider_part",
+                "block.ae2cs.resonating_pattern_provider");
+        registerExternalRedstoneTuningItemTarget("ae2cs", "ex_resonating_pattern_provider_part",
+                "block.ae2cs.resonating_pattern_provider");
+        registerExternalRedstoneTuningItemTarget("ae2cs", "meteorite_pattern_provider_part",
+                "block.ae2cs.meteorite_pattern_provider");
+        registerExternalRedstoneTuningTarget("appliedcreate", "andesite_pattern_provider", "block.appliedcreate.andesite_pattern_provider");
+        registerExternalRedstoneTuningTarget("appliedcreate", "brass_pattern_provider", "block.appliedcreate.brass_pattern_provider");
+        registerExternalRedstoneTuningItemTarget("appliedcreate", "andesite_pattern_provider_part",
+                "block.appliedcreate.andesite_pattern_provider");
+        registerExternalRedstoneTuningItemTarget("appliedcreate", "brass_pattern_provider_part",
+                "block.appliedcreate.brass_pattern_provider");
+        registerExternalRedstoneTuningTarget("extendedae", "ex_pattern_provider", "block.extendedae.ex_pattern_provider");
+        registerExternalRedstoneTuningItemTarget("extendedae", "ex_pattern_provider_part",
+                "block.extendedae.ex_pattern_provider");
+        registerExternalRedstoneTuningTarget("megacells", "mega_pattern_provider", "block.megacells.mega_pattern_provider");
+        registerExternalRedstoneTuningTarget("extendedae_plus", "mirror_pattern_provider", "block.extendedae_plus.mirror_pattern_provider");
+    }
+
+    private static void registerExternalRedstoneTuningTarget(String namespace, String path, String tooltipKey) {
+        var block = BuiltInRegistries.BLOCK.get(ResourceLocation.fromNamespaceAndPath(namespace, path));
+        if (block == null || block == Blocks.AIR) {
+            return;
+        }
+        Upgrades.add(ModItems.REDSTONE_TUNING_CARD.get(), block, 1, tooltipKey);
+    }
+
+    private static void registerExternalRedstoneTuningItemTarget(String namespace, String path, String tooltipKey) {
+        var item = BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath(namespace, path));
+        if (item == null || item == Items.AIR) {
+            return;
+        }
+        Upgrades.add(ModItems.REDSTONE_TUNING_CARD.get(), item, 1, tooltipKey);
     }
 
     private void registerAe2KeyTypes(final RegisterEvent event) {
@@ -244,6 +310,12 @@ public class Data_Energistics {
 
                     return null;
                 }
+        );
+        event.registerBlockEntity(
+                AECapabilities.CRANKABLE,
+                AEBlockEntities.CONTROLLER.get(),
+                (ControllerBlockEntity blockEntity, Direction context) ->
+                        context != null ? ((AENetworkedPoweredBlockEntity) blockEntity).new Crankable() : null
         );
         event.registerBlock(
                 Capabilities.EnergyStorage.BLOCK,
@@ -324,6 +396,7 @@ public class Data_Energistics {
         public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
             event.registerBlockEntityRenderer(ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(), DataExtractorRenderer::new);
             event.registerBlockEntityRenderer(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), DataDistributionTowerRenderer::new);
+            event.registerEntityRenderer(ModEntities.DISPERSING_DATA.get(), DispersingDataRenderer::new);
         }
 
         public static void onScreenInitPost(ScreenEvent.Init.Post event) {

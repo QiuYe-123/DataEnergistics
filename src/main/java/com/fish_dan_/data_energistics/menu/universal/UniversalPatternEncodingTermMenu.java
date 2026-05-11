@@ -214,8 +214,17 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
         var encodedPatternInv = this.host.getLogic().getEncodedPatternInv();
         ItemStack encodedPattern = encodedPatternInv.getStackInSlot(0);
-        ItemStack remainder = PatternProviderSyncHelper.transferEncodedPatternToProviders(providers, encodedPattern);
-        if (remainder.getCount() == encodedPattern.getCount()) {
+        var transferResult = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(providers, encodedPattern);
+        if (transferResult.duplicateFound()) {
+            returnEncodedPatternAsBlankToNetwork();
+            this.getPlayer().sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                    "[此设备已有相同样板，已清空样板并返回网络]"));
+            syncPatternProvidersFromNetwork();
+            return;
+        }
+
+        ItemStack remainder = transferResult.remainder();
+        if (!transferResult.transferred()) {
             return;
         }
 
@@ -623,6 +632,37 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         if (PatternDetailsHelper.isEncodedPattern(encodedPattern)) {
             encodedPatternInv.setItemDirect(0, AEItems.BLANK_PATTERN.stack(encodedPattern.getCount()));
         }
+    }
+
+    private void returnEncodedPatternAsBlankToNetwork() {
+        var encodedPatternInv = this.host.getLogic().getEncodedPatternInv();
+        ItemStack encodedPattern = encodedPatternInv.getStackInSlot(0);
+        if (!PatternDetailsHelper.isEncodedPattern(encodedPattern) || encodedPattern.isEmpty() || !this.canInteractWithGrid()) {
+            return;
+        }
+
+        var blankPatternKey = AEItemKey.of(AEItems.BLANK_PATTERN);
+        if (blankPatternKey == null) {
+            return;
+        }
+
+        long inserted = StorageHelper.poweredInsert(
+                this.energySource,
+                this.storage,
+                blankPatternKey,
+                encodedPattern.getCount(),
+                this.getActionSource(),
+                Actionable.MODULATE);
+        if (inserted <= 0) {
+            return;
+        }
+
+        if (inserted >= encodedPattern.getCount()) {
+            encodedPatternInv.setItemDirect(0, ItemStack.EMPTY);
+            return;
+        }
+
+        encodedPatternInv.setItemDirect(0, AEItems.BLANK_PATTERN.stack(encodedPattern.getCount() - (int) inserted));
     }
 
     @Nullable

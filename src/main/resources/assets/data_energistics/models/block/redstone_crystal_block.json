@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "data_energistics:block/redstone_crystal_block"
+  }
+}

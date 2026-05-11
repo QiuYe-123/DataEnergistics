@@ -3,13 +3,17 @@ package com.fish_dan_.data_energistics.registry;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.item.BiologyDataCarrierItem;
+import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.item.DataFlowPortableCellItem;
 import com.fish_dan_.data_energistics.item.DataFlowStorageCellItem;
 import com.fish_dan_.data_energistics.item.DataRipperPartItem;
+import com.fish_dan_.data_energistics.item.DataStorageComponentItem;
+import com.fish_dan_.data_energistics.item.ResidualDataItem;
 import com.fish_dan_.data_energistics.item.UniversalTerminalPartItem;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import appeng.api.stacks.GenericStack;
+import appeng.api.upgrades.Upgrades;
 import appeng.items.parts.PartItem;
 import appeng.items.storage.StorageTier;
 import net.minecraft.world.item.BlockItem;
@@ -47,6 +51,13 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> DATA_MIMETIC_FIELD = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_MIMETIC_FIELD);
     public static final DeferredItem<BlockItem> DATA_TELEPORT_ANCHOR = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_TELEPORT_ANCHOR);
     public static final DeferredItem<BlockItem> ADAPTIVE_PATTERN_PROVIDER = ITEMS.registerSimpleBlockItem(ModBlocks.ADAPTIVE_PATTERN_PROVIDER);
+    public static final DeferredItem<BlockItem> RESIDUAL_DATA_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.RESIDUAL_DATA_ORE);
+    public static final DeferredItem<BlockItem> REDSTONE_CRYSTAL_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.REDSTONE_CRYSTAL_BLOCK);
+    public static final DeferredItem<BlockItem> BUDDING_REDSTONE_CRYSTAL = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_REDSTONE_CRYSTAL);
+    public static final DeferredItem<BlockItem> SMALL_REDSTONE_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(ModBlocks.SMALL_REDSTONE_CRYSTAL_BUD);
+    public static final DeferredItem<BlockItem> MEDIUM_REDSTONE_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(ModBlocks.MEDIUM_REDSTONE_CRYSTAL_BUD);
+    public static final DeferredItem<BlockItem> LARGE_REDSTONE_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(ModBlocks.LARGE_REDSTONE_CRYSTAL_BUD);
+    public static final DeferredItem<BlockItem> REDSTONE_CRYSTAL_CLUSTER = ITEMS.registerSimpleBlockItem(ModBlocks.REDSTONE_CRYSTAL_CLUSTER);
     public static final DeferredItem<PartItem<AdaptivePatternProviderPart>> ADAPTIVE_PATTERN_PROVIDER_PART = ITEMS.register(
             "adaptive_pattern_provider_part",
             () -> new PartItem<>(new Item.Properties(), AdaptivePatternProviderPart.class, AdaptivePatternProviderPart::new)
@@ -55,9 +66,13 @@ public final class ModItems {
             "universal_terminal",
             () -> new UniversalTerminalPartItem(new Item.Properties())
     );
-    public static final DeferredItem<Item> REDSTONE_ALLOY = ITEMS.registerSimpleItem("redstone_alloy");
+    public static final DeferredItem<Item> REDSTONE_CRYSTAL = ITEMS.registerSimpleItem("redstone_crystal");
+    public static final DeferredItem<Item> REDSTONE_TUNING_CARD = ITEMS.register(
+            "redstone_tuning_card",
+            () -> Upgrades.createUpgradeCardItem(new Item.Properties())
+    );
     public static final DeferredItem<Item> SOLIDIFIED_OBSIDIAN = ITEMS.registerSimpleItem("solidified_obsidian");
-    public static final DeferredItem<Item> MIXED_REDSTONE_DUST = ITEMS.registerSimpleItem("mixed_redstone_dust");
+    public static final DeferredItem<Item> DEACTIVATED_REDSTONE_DUST = ITEMS.registerSimpleItem("deactivated_redstone_dust");
     public static final DeferredItem<Item> OBSIDIAN_DUST = ITEMS.registerSimpleItem("obsidian_dust");
     public static final DeferredItem<Item> DATA_CARRIER = ITEMS.register("data_carrier",
             () -> new BiologyDataCarrierItem(new Item.Properties(), false));
@@ -74,7 +89,15 @@ public final class ModItems {
     public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_4K = ITEMS.registerSimpleItem("data_storage_component_4k");
     public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_16K = ITEMS.registerSimpleItem("data_storage_component_16k");
     public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_64K = ITEMS.registerSimpleItem("data_storage_component_64k");
-    public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_256K = ITEMS.registerSimpleItem("data_storage_component_256k");
+    public static final DeferredItem<DataStorageComponentItem> DATA_STORAGE_COMPONENT_256K = ITEMS.register(
+            "data_storage_component_256k",
+            () -> new DataStorageComponentItem(new Item.Properties(), 256));
+    public static final DeferredItem<Item> RESIDUAL_DATA = ITEMS.register(
+            "residual_data",
+            () -> new ResidualDataItem(new Item.Properties()));
+    public static final DeferredItem<Item> DATA_CAPTURE_BALL = ITEMS.register(
+            "data_capture_ball",
+            () -> new DataCaptureBallItem(new Item.Properties()));
     public static final DeferredItem<DataRipperPartItem> DATA_RIPPER = ITEMS.register("data_ripper",
             () -> new DataRipperPartItem(new Item.Properties()));
 

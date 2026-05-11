@@ -29,6 +29,8 @@ import appeng.helpers.patternprovider.PatternProviderReturnInventory;
 import appeng.helpers.patternprovider.PatternProviderTarget;
 import appeng.me.helpers.MachineSource;
 import appeng.util.inv.AppEngInternalInventory;
+import com.fish_dan_.data_energistics.accessor.PatternProviderLogicAccessor;
+import com.fish_dan_.data_energistics.accessor.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.integration.Ae2LtRuntimeBridge;
 import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
@@ -67,7 +69,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-public class AdaptivePatternProviderLogic extends PatternProviderLogic {
+public class AdaptivePatternProviderLogic extends PatternProviderLogic implements PatternProviderLogicAccessor {
     private static final String RESONATING_PATTERN_DETAILS_CLASS =
             "io.github.lounode.ae2cs.common.me.crafting.ResonatingPatternDetails";
     private static final String ADVANCED_AE_PATTERN_DETAILS_INTERFACE =
@@ -119,7 +121,9 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
     private final @Nullable Method ae2LtCanAffordMethod;
     private final @Nullable Method ae2LtConsumeRawMethod;
     private final @Nullable Method ae2csAdjacentMeStorageMethod;
+    private final List<GenericStack> baseSendListView;
     private long ae2ltLastAutoReturnTick = -1L;
+    private boolean dataEnergistics$dispatchPulsePending;
 
     public AdaptivePatternProviderLogic(IManagedGridNode mainNode, PatternProviderLogicHost host, int patternInventorySize) {
         super(mainNode, host, patternInventorySize);
@@ -134,6 +138,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
         this.patternDetailsView = requireBaseField("patterns", List.class);
         this.patternInputsView = requireBaseField("patternInputs", Set.class);
         this.patternInventory = requireBaseField("patternInventory", AppEngInternalInventory.class);
+        this.baseSendListView = requireBaseField("sendList", List.class);
         this.ae2LtTotalCostMethod = findAe2LtPowerCostMethod("totalCost", KeyCounter[].class);
         this.ae2LtCanAffordMethod = findAe2LtPowerCostMethod("canAfford", appeng.api.networking.IGrid.class, double.class);
         this.ae2LtConsumeRawMethod = findAe2LtPowerCostMethod("consumeRaw", appeng.api.networking.IGrid.class, double.class);
@@ -226,24 +231,42 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
 
     @Override
     public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
+        boolean pushed;
         if (isAe2LightningTechOverloadedPattern(patternDetails)) {
-            return pushAe2LightningTechOverloadedPattern(patternDetails, inputHolder);
+            pushed = pushAe2LightningTechOverloadedPattern(patternDetails, inputHolder);
+            if (pushed) {
+                dataEnergistics$afterPushPattern();
+            }
+            return pushed;
         }
 
         if (isAdvancedAeDirectionalPattern(patternDetails)) {
-            return pushAdvancedAeDirectionalPattern(patternDetails, inputHolder);
+            pushed = pushAdvancedAeDirectionalPattern(patternDetails, inputHolder);
+            if (pushed) {
+                dataEnergistics$afterPushPattern();
+            }
+            return pushed;
         }
 
         if (isAppliedCreateMechanicalProviderSelected() && pushAppliedCreateMechanicalPattern(patternDetails, inputHolder)) {
+            dataEnergistics$afterPushPattern();
             return true;
         }
 
         if (isMeteoritePatternProvider() && patternDetails instanceof IMolecularAssemblerSupportedPattern molecularAssemblerSupportedPattern) {
-            return pushMeteoritePattern(molecularAssemblerSupportedPattern, inputHolder);
+            pushed = pushMeteoritePattern(molecularAssemblerSupportedPattern, inputHolder);
+            if (pushed) {
+                dataEnergistics$afterPushPattern();
+            }
+            return pushed;
         }
 
         if (!isResonatingPatternDetails(patternDetails)) {
-            return super.pushPattern(patternDetails, inputHolder);
+            pushed = super.pushPattern(patternDetails, inputHolder);
+            if (pushed) {
+                dataEnergistics$afterPushPattern();
+            }
+            return pushed;
         }
 
         if (super.isBusy() || !this.mainNode.isActive() || !getAvailablePatterns().contains(patternDetails)) {
@@ -351,6 +374,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
         }
 
         invokePatternSuccess(patternDetails);
+        dataEnergistics$afterPushPattern();
         return true;
     }
 
@@ -1597,6 +1621,77 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
         this.mainNode.ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
     }
 
+    private void dataEnergistics$afterPushPattern() {
+        this.dataEnergistics$dispatchPulsePending = true;
+        this.dataEnergistics$tryFinishDispatchPulse();
+    }
+
+    private void dataEnergistics$tryFinishDispatchPulse() {
+        if (!this.dataEnergistics$dispatchPulsePending) {
+            return;
+        }
+        if (!this.baseSendListView.isEmpty()
+                || !this.advancedDirectionalSendList.isEmpty()
+                || !this.ae2ltWirelessSendList.isEmpty()) {
+            return;
+        }
+        this.dataEnergistics$dispatchPulsePending = false;
+        if (this.host instanceof RedstoneTuningAwareHost tuningHost) {
+            tuningHost.dataEnergistics$onRedstoneTuningDispatch();
+        }
+    }
+
+    private void dataEnergistics$updatePulseUnlockState() {
+        if (!(this.host instanceof RedstoneTuningAwareHost tuningHost)) {
+            return;
+        }
+
+        tuningHost.dataEnergistics$scheduleRedstoneInputCheck();
+        tuningHost.dataEnergistics$serverTick();
+
+        if (!tuningHost.dataEnergistics$hasRedstoneTuningCard()
+                || tuningHost.dataEnergistics$getRedstoneTuningMode() != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE) {
+            return;
+        }
+
+        var blockEntity = this.host.getBlockEntity();
+        if (blockEntity.getLevel() == null || blockEntity.getLevel().isClientSide()) {
+            return;
+        }
+
+        if (tuningHost.dataEnergistics$consumeRedstoneInputPulse()
+                && blockEntity.getLevel() instanceof ServerLevel serverLevel) {
+            RedstoneTuningAutoRequestHelper.requestPrimaryOutputs(
+                    serverLevel,
+                    this.host.getGrid(),
+                    this.actionSource,
+                    getAvailablePatterns()
+            );
+        }
+    }
+
+    @Override
+    public boolean dataEnergistics$forcePulseUnlock() {
+        if (!(this.host instanceof RedstoneTuningAwareHost tuningHost)
+                || !tuningHost.dataEnergistics$hasRedstoneTuningCard()
+                || tuningHost.dataEnergistics$getRedstoneTuningMode() != RedstoneTuningMode.PULSE_TO_UNLOCK_ONCE) {
+            return false;
+        }
+
+        BlockEntity blockEntity = this.host.getBlockEntity();
+        if (!(blockEntity.getLevel() instanceof ServerLevel serverLevel)) {
+            return false;
+        }
+
+        RedstoneTuningAutoRequestHelper.requestPrimaryOutputs(
+                serverLevel,
+                this.host.getGrid(),
+                this.actionSource,
+                getAvailablePatterns()
+        );
+        return true;
+    }
+
     private void refreshAe2LtEjectRegistrations() {
         if (!(this.host instanceof AdaptivePatternProviderHost adaptive)) {
             return;
@@ -2101,9 +2196,11 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic {
                 return TickRateModulation.SLEEP;
             }
 
+            dataEnergistics$updatePulseUnlockState();
             boolean couldDoWork = invokeBaseDoWork();
             couldDoWork = flushAe2LtWirelessOverflow() || couldDoWork;
             couldDoWork = flushAdvancedDirectionalSendList() || couldDoWork;
+            dataEnergistics$tryFinishDispatchPulse();
             couldDoWork = doResonatingPullWork() || couldDoWork;
             tickAe2LtAutoReturn();
             int before = craftedContents.size();

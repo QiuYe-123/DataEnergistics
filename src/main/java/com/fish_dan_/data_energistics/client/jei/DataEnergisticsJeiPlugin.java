@@ -5,17 +5,24 @@ import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.mojang.logging.LogUtils;
+import appeng.core.definitions.AEBlocks;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
 import mezz.jei.api.recipe.transfer.IRecipeTransferHandlerHelper;
 import mezz.jei.api.recipe.transfer.IUniversalRecipeTransferHandler;
+import mezz.jei.api.registration.IRecipeCatalystRegistration;
+import mezz.jei.api.registration.IRecipeCategoryRegistration;
+import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IRecipeTransferRegistration;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
+import com.fish_dan_.data_energistics.registry.ModItems;
 
 import java.lang.reflect.Constructor;
+import java.util.List;
 
 @JeiPlugin
 public final class DataEnergisticsJeiPlugin implements IModPlugin {
@@ -31,6 +38,16 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     }
 
     @Override
+    public void registerCategories(IRecipeCategoryRegistration registration) {
+        registration.addRecipeCategories(new DataCaptureBallCondenserCategory(registration.getJeiHelpers().getGuiHelper()));
+    }
+
+    @Override
+    public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
+        registration.addRecipeCatalyst(AEBlocks.CONDENSER, DataCaptureBallCondenserCategory.RECIPE_TYPE);
+    }
+
+    @Override
     public void registerRecipeTransferHandlers(IRecipeTransferRegistration registration) {
         var craftingHandler = createCraftingHandler(registration.getTransferHelper());
         if (craftingHandler != null) {
@@ -43,6 +60,21 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         if (encodingHandler != null) {
             registration.addUniversalRecipeTransferHandler(encodingHandler);
         }
+    }
+
+    @Override
+    public void registerRecipes(IRecipeRegistration registration) {
+        registration.addRecipes(DataCaptureBallCondenserCategory.RECIPE_TYPE, List.of(DataCaptureBallCondenserRecipe.INSTANCE));
+        registration.addIngredientInfo(
+                ModItems.RESIDUAL_DATA.get(),
+                Component.translatable("jei.data_energistics.residual_data.line1"));
+        registration.addIngredientInfo(
+                ModItems.DEACTIVATED_REDSTONE_DUST.get(),
+                Component.translatable("jei.data_energistics.deactivated_redstone_dust.line1"),
+                Component.translatable("jei.data_energistics.deactivated_redstone_dust.line2"),
+                Component.translatable("jei.data_energistics.deactivated_redstone_dust.line3"),
+                Component.translatable("jei.data_energistics.deactivated_redstone_dust.line4"),
+                Component.translatable("jei.data_energistics.deactivated_redstone_dust.line5"));
     }
 
     @SuppressWarnings("unchecked")

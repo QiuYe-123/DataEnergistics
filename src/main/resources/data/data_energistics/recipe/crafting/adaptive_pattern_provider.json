@@ -11,7 +11,7 @@
     "tag": "ae2:interface"
   },
   {
-    "tag": "c:ingots/redstone_alloy"
+    "tag": "c:gems/redstone_crystal"
   },
   {
     "item": "data_energistics:data_processor"

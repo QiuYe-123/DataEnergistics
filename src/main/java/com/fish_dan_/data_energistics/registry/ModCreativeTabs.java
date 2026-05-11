@@ -17,7 +17,7 @@ public final class ModCreativeTabs {
             Data_Energistics.MODID,
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup." + Data_Energistics.MODID))
-                    .icon(ModItems.REDSTONE_ALLOY::toStack)
+                    .icon(ModItems.REDSTONE_CRYSTAL::toStack)
                     .displayItems((parameters, output) -> {
                         output.accept(ModItems.DATA_FLOW_CELL_1K);
                         output.accept(ModItems.DATA_FLOW_CELL_4K);
@@ -45,11 +45,19 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_MIMETIC_FIELD);
                         output.accept(ModItems.DATA_TELEPORT_ANCHOR);
                         output.accept(ModItems.ADAPTIVE_PATTERN_PROVIDER);
+                        output.accept(ModItems.RESIDUAL_DATA_ORE);
+                        output.accept(ModItems.REDSTONE_CRYSTAL_BLOCK);
+                        output.accept(ModItems.BUDDING_REDSTONE_CRYSTAL);
+                        output.accept(ModItems.SMALL_REDSTONE_CRYSTAL_BUD);
+                        output.accept(ModItems.MEDIUM_REDSTONE_CRYSTAL_BUD);
+                        output.accept(ModItems.LARGE_REDSTONE_CRYSTAL_BUD);
+                        output.accept(ModItems.REDSTONE_CRYSTAL_CLUSTER);
                         output.accept(ModItems.ADAPTIVE_PATTERN_PROVIDER_PART);
                         output.accept(ModItems.UNIVERSAL_TERMINAL);
-                        output.accept(ModItems.REDSTONE_ALLOY);
+                        output.accept(ModItems.REDSTONE_CRYSTAL);
+                        output.accept(ModItems.REDSTONE_TUNING_CARD);
                         output.accept(ModItems.SOLIDIFIED_OBSIDIAN);
-                        output.accept(ModItems.MIXED_REDSTONE_DUST);
+                        output.accept(ModItems.DEACTIVATED_REDSTONE_DUST);
                         output.accept(ModItems.OBSIDIAN_DUST);
                         output.accept(ModItems.DATA_CARRIER);
                         output.accept(ModItems.BIOLOGY_DATA_CARRIER);
@@ -59,6 +67,8 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_INSCRIBER_TEMPLATE);
                         output.accept(ModItems.DATA_CIRCUIT_BOARD);
                         output.accept(ModItems.DATA_PROCESSOR);
+                        output.accept(ModItems.RESIDUAL_DATA);
+                        output.accept(ModItems.DATA_CAPTURE_BALL);
                         output.accept(ModItems.DATA_RIPPER);
                     })
                     .withTabsBefore(CreativeModeTabs.SPAWN_EGGS.location())

@@ -2,7 +2,7 @@
   "type": "minecraft:crafting_shapeless",
   "ingredients": [
     {
-      "item": "data_energistics:redstone_alloy"
+      "item": "data_energistics:adaptive_pattern_provider"
     }
   ],
   "result": {

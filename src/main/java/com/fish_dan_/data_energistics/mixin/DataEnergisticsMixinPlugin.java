@@ -10,8 +10,18 @@ import java.util.Set;
 public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
     private static final String AE2LT_SENTINEL_CLASS = "com/moakiee/ae2lt/logic/EjectModeRegistry.class";
     private static final String AE2LT_MIXIN_PREFIX = "com.fish_dan_.data_energistics.mixin.Ae2lt";
+    private static final String ADVANCED_AE_SENTINEL_CLASS =
+            "net/pedroksl/advanced_ae/common/logic/AdvPatternProviderLogic.class";
+    private static final String ADVANCED_AE_MIXIN_PREFIX = "com.fish_dan_.data_energistics.mixin.AdvancedAe";
+    private static final String AE2CS_SENTINEL_CLASS =
+            "io/github/lounode/ae2cs/common/me/logic/ResonatingPatternProviderLogic.class";
+    private static final String AE2CS_MIXIN_PREFIX = "com.fish_dan_.data_energistics.mixin.Ae2Cs";
+    private static final String APPLIED_CREATE_SENTINEL_CLASS =
+            "com/loliball/appliedcreate/patternprovider/MechanicalCraftingPatternLogic.class";
+    private static final String APPLIED_CREATE_MIXIN_PREFIX = "com.fish_dan_.data_energistics.mixin.AppliedCreate";
     private static final String EXTENDEDAE_SENTINEL_CLASS =
             "com/glodblock/github/extendedae/common/me/InscriberThread.class";
+    private static final String EXTENDEDAE_MIXIN_PREFIX = "com.fish_dan_.data_energistics.mixin.ExtendedAe";
     private static final String JEI_TRANSFER_SENTINEL_CLASS =
             "tamaized/ae2jeiintegration/integration/modules/jei/transfer/EncodePatternTransferHandler.class";
     private static final String EMI_API_SENTINEL_CLASS = "dev/emi/emi/api/EmiPlugin.class";
@@ -19,6 +29,9 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
     private static final String NEOECOAE_CLIENT_SENTINEL_CLASS =
             "cn/dancingsnow/neoecoae/client/NeoECOAEClient.class";
     private static final boolean AE2LT_PRESENT = isClassPresent(AE2LT_SENTINEL_CLASS);
+    private static final boolean ADVANCED_AE_PRESENT = isClassPresent(ADVANCED_AE_SENTINEL_CLASS);
+    private static final boolean AE2CS_PRESENT = isClassPresent(AE2CS_SENTINEL_CLASS);
+    private static final boolean APPLIED_CREATE_PRESENT = isClassPresent(APPLIED_CREATE_SENTINEL_CLASS);
     private static final boolean EXTENDEDAE_PRESENT = isClassPresent(EXTENDEDAE_SENTINEL_CLASS);
     private static final boolean JEI_TRANSFER_PRESENT = isClassPresent(JEI_TRANSFER_SENTINEL_CLASS);
     private static final boolean EMI_PRESENT =
@@ -38,6 +51,18 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         if (mixinClassName.startsWith(AE2LT_MIXIN_PREFIX)) {
             return AE2LT_PRESENT;
+        }
+        if (mixinClassName.startsWith(ADVANCED_AE_MIXIN_PREFIX)) {
+            return ADVANCED_AE_PRESENT;
+        }
+        if (mixinClassName.startsWith(AE2CS_MIXIN_PREFIX)) {
+            return AE2CS_PRESENT;
+        }
+        if (mixinClassName.startsWith(APPLIED_CREATE_MIXIN_PREFIX)) {
+            return APPLIED_CREATE_PRESENT;
+        }
+        if (mixinClassName.startsWith(EXTENDEDAE_MIXIN_PREFIX)) {
+            return EXTENDEDAE_PRESENT;
         }
         if ("com.fish_dan_.data_energistics.mixin.ExtendedInscriberThreadMixin".equals(mixinClassName)) {
             return EXTENDEDAE_PRESENT;

@@ -9,6 +9,9 @@ import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
+import com.fish_dan_.data_energistics.block.RedstoneCrystalBuddingBlock;
+import com.fish_dan_.data_energistics.block.ResidualDataOreBlock;
+import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -61,6 +64,48 @@ public final class ModBlocks {
             "adaptive_pattern_provider",
             properties -> new AdaptivePatternProviderBlock(properties),
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK));
+
+    public static final DeferredBlock<Block> RESIDUAL_DATA_ORE = BLOCKS.registerBlock(
+            "residual_data_ore",
+            ResidualDataOreBlock::new,
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.ANCIENT_DEBRIS)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> REDSTONE_CRYSTAL_BLOCK = BLOCKS.registerBlock(
+            "redstone_crystal_block",
+            Block::new,
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.REDSTONE_BLOCK)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> BUDDING_REDSTONE_CRYSTAL = BLOCKS.registerBlock(
+            "budding_redstone_crystal",
+            RedstoneCrystalBuddingBlock::new,
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.BUDDING_AMETHYST)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> SMALL_REDSTONE_CRYSTAL_BUD = BLOCKS.registerBlock(
+            "small_redstone_crystal_bud",
+            properties -> new AmethystClusterBlock(3.0F, 4.0F, properties),
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.SMALL_AMETHYST_BUD)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> MEDIUM_REDSTONE_CRYSTAL_BUD = BLOCKS.registerBlock(
+            "medium_redstone_crystal_bud",
+            properties -> new AmethystClusterBlock(4.0F, 3.0F, properties),
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.MEDIUM_AMETHYST_BUD)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> LARGE_REDSTONE_CRYSTAL_BUD = BLOCKS.registerBlock(
+            "large_redstone_crystal_bud",
+            properties -> new AmethystClusterBlock(5.0F, 3.0F, properties),
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.LARGE_AMETHYST_BUD)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> REDSTONE_CRYSTAL_CLUSTER = BLOCKS.registerBlock(
+            "redstone_crystal_cluster",
+            properties -> new AmethystClusterBlock(7.0F, 3.0F, properties),
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.AMETHYST_CLUSTER)
+                    .requiresCorrectToolForDrops());
 
     private ModBlocks() {
     }

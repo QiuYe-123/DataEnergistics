@@ -702,14 +702,18 @@ public class AdaptivePatternProviderMenu extends AEBaseMenu {
         }
     }
 
-    private static final class ProviderSuffixSlot extends RestrictedInputSlot {
+    private static final class ProviderSuffixSlot extends AppEngSlot {
         private final AdaptivePatternProviderHost host;
 
         private ProviderSuffixSlot(InternalInventory inv, int slot, AdaptivePatternProviderHost host) {
-            super(PlacableItemType.INSCRIBER_INPUT, inv, slot);
+            super(inv, slot);
             this.host = host;
-            this.setStackLimit(host != null ? host.getProviderSlotLimit() : 4);
             this.setIcon(null);
+        }
+
+        @Override
+        public int getMaxStackSize() {
+            return this.host != null ? this.host.getProviderSlotLimit() : super.getMaxStackSize();
         }
 
         @Override

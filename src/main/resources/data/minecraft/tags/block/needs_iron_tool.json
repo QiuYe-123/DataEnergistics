@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "data_energistics:redstone_crystal_block",
+    "data_energistics:budding_redstone_crystal"
+  ]
+}

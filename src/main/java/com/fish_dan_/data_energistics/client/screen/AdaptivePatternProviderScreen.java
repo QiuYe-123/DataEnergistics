@@ -221,7 +221,8 @@ public class AdaptivePatternProviderScreen extends AEBaseScreen<AdaptivePatternP
         this.ae2ltWirelessSpeedButton.active = showAe2LtControls && this.menu.isAe2LtWirelessMode();
         this.ae2ltWirelessSpeedButton.setState(this.menu.isAe2LtFastSpeedMode());
 
-        this.setTextContent("dialog_title", this.menu.getProviderDisplayName());
+        this.setTextContent("dialog_title",
+                Component.translatable("block.data_energistics.adaptive_pattern_provider"));
         this.setTextContent("page_info", Component.translatable(
                 "screen.data_energistics.adaptive_pattern_provider.page",
                 this.menu.totalPages <= 0 ? 1 : this.menu.pageIndex + 1,

@@ -16,7 +16,7 @@
       "tag": "c:dusts/redstone"
     },
     "D": {
-      "tag": "c:ingots/redstone_alloy"
+      "tag": "c:gems/redstone_crystal"
     },
     "E": {
       "item": "data_energistics:data_storage_component_256k"

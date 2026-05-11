@@ -269,8 +269,17 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         }
 
         ItemStack encodedPattern = this.encodedPatternSlot.getItem();
-        ItemStack remainder = PatternProviderSyncHelper.transferEncodedPatternToProviders(providers, encodedPattern);
-        if (remainder.getCount() == encodedPattern.getCount()) {
+        var transferResult = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(providers, encodedPattern);
+        if (transferResult.duplicateFound()) {
+            dataEnergistics$returnEncodedPatternAsBlankToNetwork();
+            this.getPlayer().sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                    "[此设备已有相同样板,已清空样板并返回网络]"));
+            dataEnergistics$syncPatternProvidersFromNetwork();
+            return;
+        }
+
+        ItemStack remainder = transferResult.remainder();
+        if (!transferResult.transferred()) {
             return;
         }
 
@@ -643,6 +652,37 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         ItemStack reduced = slotStack.copy();
         reduced.shrink((int) inserted);
         this.blankPatternSlot.set(reduced.isEmpty() ? ItemStack.EMPTY : reduced);
+    }
+
+    @Unique
+    private void dataEnergistics$returnEncodedPatternAsBlankToNetwork() {
+        ItemStack encodedPattern = this.encodedPatternSlot.getItem();
+        if (!PatternDetailsHelper.isEncodedPattern(encodedPattern) || encodedPattern.isEmpty() || !this.canInteractWithGrid()) {
+            return;
+        }
+
+        var blankPatternKey = AEItemKey.of(AEItems.BLANK_PATTERN);
+        if (blankPatternKey == null) {
+            return;
+        }
+
+        long inserted = StorageHelper.poweredInsert(
+                this.energySource,
+                this.storage,
+                blankPatternKey,
+                encodedPattern.getCount(),
+                this.getActionSource(),
+                Actionable.MODULATE);
+        if (inserted <= 0) {
+            return;
+        }
+
+        if (inserted >= encodedPattern.getCount()) {
+            this.encodedPatternSlot.set(ItemStack.EMPTY);
+            return;
+        }
+
+        this.encodedPatternSlot.set(AEItems.BLANK_PATTERN.stack(encodedPattern.getCount() - (int) inserted));
     }
 
 }

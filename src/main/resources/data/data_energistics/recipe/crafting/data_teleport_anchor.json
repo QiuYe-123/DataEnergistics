@@ -3,7 +3,7 @@
   "pattern": [
     " S ",
     "WTW",
-    " F "
+    "BFB"
   ],
   "key": {
     "S": {
@@ -17,10 +17,13 @@
     },
     "F": {
       "item": "data_energistics:data_framework"
+    },
+    "B": {
+      "item": "data_energistics:residual_data"
     }
   },
   "result": {
     "id": "data_energistics:data_teleport_anchor",
-    "count": 1
+    "count": 2
   }
 }

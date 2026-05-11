@@ -13,10 +13,12 @@ import dev.emi.emi.api.EmiEntrypoint;
 import dev.emi.emi.api.EmiPlugin;
 import dev.emi.emi.api.EmiRegistry;
 import dev.emi.emi.api.recipe.EmiCraftingRecipe;
+import dev.emi.emi.api.recipe.EmiInfoRecipe;
 import dev.emi.emi.api.stack.EmiStack;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
 @EmiEntrypoint
@@ -38,6 +40,9 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 .forEach(registry::addRecipe);
 
         buildUniversalTerminalRecipes().forEach(registry::addRecipe);
+        registry.addRecipe(new DataCaptureBallEmiCondenserRecipe());
+        registry.addRecipe(buildResidualDataInfoRecipe());
+        registry.addRecipe(buildDeactivatedRedstoneDustInfoRecipe());
     }
 
     private static List<EmiCraftingRecipe> buildUniversalTerminalRecipes() {
@@ -67,5 +72,24 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
 
     private static String sanitize(String terminalName) {
         return terminalName.replace(':', '_').replace('/', '_');
+    }
+
+    private static EmiInfoRecipe buildResidualDataInfoRecipe() {
+        return new EmiInfoRecipe(
+                List.of(EmiStack.of(ModItems.RESIDUAL_DATA.get())),
+                List.of(Component.translatable("jei.data_energistics.residual_data.line1")),
+                Data_Energistics.id("info/residual_data"));
+    }
+
+    private static EmiInfoRecipe buildDeactivatedRedstoneDustInfoRecipe() {
+        return new EmiInfoRecipe(
+                List.of(EmiStack.of(ModItems.DEACTIVATED_REDSTONE_DUST.get())),
+                List.of(
+                        Component.translatable("jei.data_energistics.deactivated_redstone_dust.line1"),
+                        Component.translatable("jei.data_energistics.deactivated_redstone_dust.line2"),
+                        Component.translatable("jei.data_energistics.deactivated_redstone_dust.line3"),
+                        Component.translatable("jei.data_energistics.deactivated_redstone_dust.line4"),
+                        Component.translatable("jei.data_energistics.deactivated_redstone_dust.line5")),
+                Data_Energistics.id("info/deactivated_redstone_dust"));
     }
 }
