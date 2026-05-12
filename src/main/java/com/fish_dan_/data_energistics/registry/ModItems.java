@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.item.DataFlowPortableCellItem;
 import com.fish_dan_.data_energistics.item.DataFlowStorageCellItem;
 import com.fish_dan_.data_energistics.item.DataRipperPartItem;
 import com.fish_dan_.data_energistics.item.DataStorageComponentItem;
+import com.fish_dan_.data_energistics.item.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.ResidualDataItem;
 import com.fish_dan_.data_energistics.item.UniversalTerminalPartItem;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
@@ -98,6 +99,9 @@ public final class ModItems {
     public static final DeferredItem<Item> DATA_CAPTURE_BALL = ITEMS.register(
             "data_capture_ball",
             () -> new DataCaptureBallItem(new Item.Properties()));
+    public static final DeferredItem<MatterConvergingCrossbowItem> MATTER_CONVERGING_CROSSBOW = ITEMS.register(
+            "matter_converging_crossbow",
+            () -> new MatterConvergingCrossbowItem(new Item.Properties()));
     public static final DeferredItem<DataRipperPartItem> DATA_RIPPER = ITEMS.register("data_ripper",
             () -> new DataRipperPartItem(new Item.Properties()));
 

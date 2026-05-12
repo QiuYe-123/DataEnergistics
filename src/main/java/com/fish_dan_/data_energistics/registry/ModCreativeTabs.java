@@ -69,6 +69,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_PROCESSOR);
                         output.accept(ModItems.RESIDUAL_DATA);
                         output.accept(ModItems.DATA_CAPTURE_BALL);
+                        output.accept(ModItems.MATTER_CONVERGING_CROSSBOW);
                         output.accept(ModItems.DATA_RIPPER);
                     })
                     .withTabsBefore(CreativeModeTabs.SPAWN_EGGS.location())

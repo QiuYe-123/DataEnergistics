@@ -16,8 +16,15 @@ import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IRecipeTransferRegistration;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
 import org.slf4j.Logger;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
@@ -65,6 +72,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
         registration.addRecipes(DataCaptureBallCondenserCategory.RECIPE_TYPE, List.of(DataCaptureBallCondenserRecipe.INSTANCE));
+        registerMatterConvergingCrossbowAnvilRecipes(registration);
         registration.addIngredientInfo(
                 ModItems.RESIDUAL_DATA.get(),
                 Component.translatable("jei.data_energistics.residual_data.line1"));
@@ -75,6 +83,29 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                 Component.translatable("jei.data_energistics.deactivated_redstone_dust.line3"),
                 Component.translatable("jei.data_energistics.deactivated_redstone_dust.line4"),
                 Component.translatable("jei.data_energistics.deactivated_redstone_dust.line5"));
+    }
+
+    private static void registerMatterConvergingCrossbowAnvilRecipes(IRecipeRegistration registration) {
+        HolderLookup.RegistryLookup<net.minecraft.world.item.enchantment.Enchantment> lookup =
+                net.minecraft.client.Minecraft.getInstance().level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+        var power = lookup.getOrThrow(Enchantments.POWER);
+
+        ItemStack baseCrossbow = ModItems.MATTER_CONVERGING_CROSSBOW.get().getDefaultInstance();
+        ItemStack enchantedCrossbow = baseCrossbow.copy();
+        enchantedCrossbow.enchant(power, 1);
+
+        ItemStack powerBook = new ItemStack(Items.ENCHANTED_BOOK);
+        ItemEnchantments.Mutable builder = new ItemEnchantments.Mutable(ItemEnchantments.EMPTY);
+        builder.upgrade(power, 1);
+        powerBook.set(DataComponents.STORED_ENCHANTMENTS, builder.toImmutable());
+
+        registration.addRecipes(
+                mezz.jei.api.constants.RecipeTypes.ANVIL,
+                List.of(registration.getVanillaRecipeFactory().createAnvilRecipe(
+                        baseCrossbow,
+                        List.of(powerBook),
+                        List.of(enchantedCrossbow),
+                        Data_Energistics.id("anvil/matter_converging_crossbow_power"))));
     }
 
     @SuppressWarnings("unchecked")

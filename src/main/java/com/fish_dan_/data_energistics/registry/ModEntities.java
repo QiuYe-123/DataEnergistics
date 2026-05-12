@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
+import com.fish_dan_.data_energistics.entity.MatterConvergingBoltEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
@@ -21,6 +22,13 @@ public final class ModEntities {
                     .clientTrackingRange(8)
                     .updateInterval(1)
                     .build("dispersing_data"));
+    public static final DeferredHolder<EntityType<?>, EntityType<MatterConvergingBoltEntity>> MATTER_CONVERGING_BOLT =
+            ENTITY_TYPES.register("matter_converging_bolt", () -> EntityType.Builder
+                    .<MatterConvergingBoltEntity>of(MatterConvergingBoltEntity::new, MobCategory.MISC)
+                    .sized(0.25F, 0.25F)
+                    .clientTrackingRange(4)
+                    .updateInterval(10)
+                    .build("matter_converging_bolt"));
 
     private ModEntities() {
     }

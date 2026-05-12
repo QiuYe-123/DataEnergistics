@@ -9,17 +9,20 @@ import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.fish_dan_.data_energistics.util.UniversalTerminalData;
+import dev.emi.emi.EmiPort;
 import dev.emi.emi.api.EmiEntrypoint;
 import dev.emi.emi.api.EmiPlugin;
 import dev.emi.emi.api.EmiRegistry;
 import dev.emi.emi.api.recipe.EmiCraftingRecipe;
 import dev.emi.emi.api.recipe.EmiInfoRecipe;
 import dev.emi.emi.api.stack.EmiStack;
+import dev.emi.emi.recipe.special.EmiAnvilEnchantRecipe;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.Enchantments;
 
 @EmiEntrypoint
 public final class DataEnergisticsEmiPlugin implements EmiPlugin {
@@ -41,6 +44,11 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
 
         buildUniversalTerminalRecipes().forEach(registry::addRecipe);
         registry.addRecipe(new DataCaptureBallEmiCondenserRecipe());
+        registry.addRecipe(new EmiAnvilEnchantRecipe(
+                ModItems.MATTER_CONVERGING_CROSSBOW.get(),
+                EmiPort.getEnchantmentRegistry().get(Enchantments.POWER.location()),
+                1,
+                Data_Energistics.id("emi/anvil/matter_converging_crossbow_power")));
         registry.addRecipe(buildResidualDataInfoRecipe());
         registry.addRecipe(buildDeactivatedRedstoneDustInfoRecipe());
     }

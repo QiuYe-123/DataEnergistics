@@ -1,0 +1,112 @@
+---
+navigation:
+  parent: data_energistics:items-blocks-machines/data_energistics.md
+  title: 原料/来源
+  icon: data_energistics:budding_redstone_crystal
+  position: 1
+item_ids:
+- minecraft:redstone
+- data_energistics:data_capture_ball
+- data_energistics:residual_data
+- data_energistics:data_inscriber_template
+- data_energistics:redstone_crystal
+- data_energistics:obsidian_dust
+- data_energistics:solidified_obsidian
+- data_energistics:redstone_crystal_block
+- data_energistics:budding_redstone_crystal
+- data_energistics:small_redstone_crystal_bud
+- data_energistics:medium_redstone_crystal_bud
+- data_energistics:large_redstone_crystal_bud
+- data_energistics:redstone_crystal_cluster
+- data_energistics:residual_data_ore
+---
+
+# 原料
+
+## 红石晶体家族
+其具有良好的导电性以及坚固性
+<Row>
+  <ItemImage id="redstone_crystal_block" scale="6" />
+  <ItemImage id="budding_redstone_crystal" scale="6" />
+  <ItemImage id="redstone_crystal_cluster" scale="6" />
+  <ItemImage id="deactivated_redstone_dust" scale="6" />
+</Row>
+
+---
+
+##  红石晶体母岩/块
+
+<Row>
+    <ItemImage id="budding_redstone_crystal" scale="4" />
+    <ItemImage id="redstone_crystal_block" scale="4" />
+</Row>
+
+它与赛特斯石英一样。随宇宙中的陨石而来。在其内经过高温变异，你可以在落地中的陨石内有45%发现它
+
+---
+
+##  红石晶簇
+
+<Row>
+  <ItemImage id="small_redstone_crystal_bud" scale="4" />
+  <ItemImage id="medium_redstone_crystal_bud" scale="4" />
+  <ItemImage id="large_redstone_crystal_bud" scale="4" />
+  <ItemImage id="redstone_crystal_cluster" scale="4" />
+  <ItemImage id="deactivated_redstone_dust" scale="4" />
+</Row>
+
+##  对照表
+
+| 阶段 | 非精准采集下掉落 | 掉落概率 |
+| :-- | :-- | :-- |
+| <ItemImage id="data_energistics:small_redstone_crystal_bud" /> | <ItemImage id="data_energistics:deactivated_redstone_dust" /> |  0% <ItemImage id="data_energistics:deactivated_redstone_dust" /> |
+| <ItemImage id="data_energistics:medium_redstone_crystal_bud" /> | <ItemImage id="data_energistics:deactivated_redstone_dust" /> | 15% <ItemImage id="data_energistics:deactivated_redstone_dust" /> |
+| <ItemImage id="large_redstone_crystal_bud" /> | <ItemImage id="data_energistics:deactivated_redstone_dust" /> | 25% <ItemImage id="data_energistics:deactivated_redstone_dust" /> |
+| <ItemImage id="data_energistics:redstone_crystal_cluster" /> | <ItemImage id="data_energistics:deactivated_redstone_dust" />  <ItemImage id="minecraft:redstone" /> | 40% <ItemImage id="data_energistics:deactivated_redstone_dust" />(未掉落时60% <ItemImage id="minecraft:redstone" />) |
+
+##  红石晶体
+<Column>
+    <Row>
+        <Recipe id="data_energistics:ae2/charger/redstone_crystal" />
+        <RecipeFor id="data_energistics:redstone_crystal" />
+        <Recipe id="data_energistics:crafting/redstone_crystal" />
+    </Row>
+</Column>
+由于一瞬间的猛烈激活而具有良好的导电性以及晶体韧性，往往被用于做成各个设备的框架
+
+---
+
+##  黑曜石粉|固化黑曜石
+由黑曜石或哭泣黑曜石粉碎而来
+<Row>
+    <RecipeFor id="data_energistics:obsidian_dust" />
+</Row>
+
+---
+
+由黑曜石粉充能而来，因极其的稳定性，从而可用于被制成电路板
+<Row>
+    <RecipeFor id="data_energistics:solidified_obsidian" />
+</Row>
+
+---
+
+## 残存数据
+
+<Row>
+  <ItemImage id="data_energistics:residual_data_ore" scale="6" />
+</Row>
+
+<GameScene zoom="6" background="transparent">
+  <Entity id="data_energistics:dispersing_data" rotationY="45" x="0.5" y="0.0" z="0.5" />
+  <IsometricCamera yaw="195" pitch="25" />
+</GameScene>
+自末地的矿石似乎是前代文明留下,你暂没有完全挖透它的用途， 你只知道在破坏它时，似乎有什么东西进入了体内，对自己造成了一点点微乎其微的更改,你只能以数据捕捉的形式，将它留于身边,即散数据以实体形式存在.一分钟不理它，它将会被抹杀
+
+---
+
+<Row>
+    <ItemImage id="data_energistics:data_capture_ball" scale="4" />
+    <ItemImage id="data_energistics:residual_data" scale="4" />
+</Row>
+你使用压缩再压缩的方式。获得了这个神奇的球。它能稳定地捕捉即散数据

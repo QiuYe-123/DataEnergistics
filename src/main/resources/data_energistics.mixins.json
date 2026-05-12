@@ -33,6 +33,7 @@
     "AppliedCreatePatternProviderLogicMixin",
     "ExtendedAePatternProviderPartMixin",
     "Ae2ltOverloadedPatternProviderLogicMixin",
+    "LivingEntityAccessor",
     "PatternEncodingTermMenuMixin",
     "JeiEncodePatternTransferHandlerMixin",
     "EmiEncodePatternHandlerMixin",

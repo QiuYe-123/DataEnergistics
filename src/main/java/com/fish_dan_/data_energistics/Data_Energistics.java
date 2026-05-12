@@ -28,6 +28,7 @@ import com.fish_dan_.data_energistics.client.screen.WirelessPatternEncodingTermS
 import com.fish_dan_.data_energistics.client.render.DataExtractorRenderer;
 import com.fish_dan_.data_energistics.client.render.DispersingDataRenderer;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
+import com.fish_dan_.data_energistics.client.render.MatterConvergingBoltRenderer;
 import com.fish_dan_.data_energistics.client.screen.DataDistributionTowerScreen;
 import com.fish_dan_.data_energistics.client.screen.DataExtractorScreen;
 import com.fish_dan_.data_energistics.client.screen.DataMimeticFieldScreen;
@@ -35,6 +36,7 @@ import com.fish_dan_.data_energistics.client.screen.DataSolarPanelScreen;
 import com.fish_dan_.data_energistics.client.screen.DataTeleportAnchorScreen;
 import com.fish_dan_.data_energistics.client.ModItemColors;
 import com.fish_dan_.data_energistics.client.ModKeyMappings;
+import com.fish_dan_.data_energistics.item.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.client.screen.DataRipperScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalCraftingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalMEStorageScreen;
@@ -58,6 +60,7 @@ import com.fish_dan_.data_energistics.recipe.TimeShiftTransformLogic;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -144,6 +147,18 @@ public class Data_Energistics {
             Upgrades.add(AEItems.CAPACITY_CARD, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 3, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
             Upgrades.add(AEItems.SPEED_CARD, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 4, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
             Upgrades.add(AEItems.SPEED_CARD, ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 4, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
+            Upgrades.add(AEItems.ENERGY_CARD, ModItems.MATTER_CONVERGING_CROSSBOW.get(), 2,
+                    "item.data_energistics.matter_converging_crossbow");
+            Upgrades.add(AEItems.FUZZY_CARD, ModItems.MATTER_CONVERGING_CROSSBOW.get(), 1,
+                    "item.data_energistics.matter_converging_crossbow");
+            Upgrades.add(AEItems.INVERTER_CARD, ModItems.MATTER_CONVERGING_CROSSBOW.get(), 1,
+                    "item.data_energistics.matter_converging_crossbow");
+            Upgrades.add(AEItems.VOID_CARD, ModItems.MATTER_CONVERGING_CROSSBOW.get(), 1,
+                    "item.data_energistics.matter_converging_crossbow");
+            Upgrades.add(AEItems.SPEED_CARD, ModItems.MATTER_CONVERGING_CROSSBOW.get(), 4,
+                    "item.data_energistics.matter_converging_crossbow");
+            Upgrades.add(AEItems.REDSTONE_CARD, ModItems.MATTER_CONVERGING_CROSSBOW.get(), 1,
+                    "item.data_energistics.matter_converging_crossbow");
             Upgrades.add(ModItems.REDSTONE_TUNING_CARD.get(), AEBlocks.PATTERN_PROVIDER.block(), 1, "block.ae2.pattern_provider");
             Upgrades.add(ModItems.REDSTONE_TUNING_CARD.get(), ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 1, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
             Upgrades.add(ModItems.REDSTONE_TUNING_CARD.get(), ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 1,
@@ -365,6 +380,7 @@ public class Data_Energistics {
             event.enqueueWork(() -> {
                 ModAE2Keys.registerClient();
                 ModStorageCells.registerClientModels();
+                registerMatterConvergingCrossbowProperties();
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenOpening);
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenInitPost);
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenRenderPost);
@@ -397,6 +413,38 @@ public class Data_Energistics {
             event.registerBlockEntityRenderer(ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(), DataExtractorRenderer::new);
             event.registerBlockEntityRenderer(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), DataDistributionTowerRenderer::new);
             event.registerEntityRenderer(ModEntities.DISPERSING_DATA.get(), DispersingDataRenderer::new);
+            event.registerEntityRenderer(ModEntities.MATTER_CONVERGING_BOLT.get(), MatterConvergingBoltRenderer::new);
+        }
+
+        private static void registerMatterConvergingCrossbowProperties() {
+            var item = ModItems.MATTER_CONVERGING_CROSSBOW.get();
+            ItemProperties.register(item, ResourceLocation.withDefaultNamespace("pull"),
+                    (stack, level, entity, seed) -> {
+                        if (entity == null) {
+                            return 0.0F;
+                        }
+                        if (net.minecraft.world.item.CrossbowItem.isCharged(stack)) {
+                            return 0.0F;
+                        }
+                        return entity.getUseItem() != stack
+                                ? 0.0F
+                                : (float) (stack.getUseDuration(entity) - entity.getUseItemRemainingTicks())
+                                        / (float) MatterConvergingCrossbowItem.getChargeDuration(stack, entity);
+                    });
+            ItemProperties.register(item, ResourceLocation.withDefaultNamespace("pulling"),
+                    (stack, level, entity, seed) -> entity != null
+                            && entity.isUsingItem()
+                            && entity.getUseItem() == stack
+                            && !net.minecraft.world.item.CrossbowItem.isCharged(stack)
+                                    ? 1.0F
+                                    : 0.0F);
+            ItemProperties.register(item, ResourceLocation.withDefaultNamespace("charged"),
+                    (stack, level, entity, seed) -> net.minecraft.world.item.CrossbowItem.isCharged(stack) ? 1.0F : 0.0F);
+            ItemProperties.register(item, ResourceLocation.withDefaultNamespace("firework"),
+                    (stack, level, entity, seed) -> {
+                        var charged = stack.get(net.minecraft.core.component.DataComponents.CHARGED_PROJECTILES);
+                        return charged != null && charged.contains(Items.FIREWORK_ROCKET) ? 1.0F : 0.0F;
+                    });
         }
 
         public static void onScreenInitPost(ScreenEvent.Init.Post event) {
