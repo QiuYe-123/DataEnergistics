@@ -4,10 +4,16 @@
   "time": "all",
   "ingredients": [
     {
-      "item": "ae2:singularity"
+      "ingredient": {
+        "item": "ae2:singularity"
+      },
+      "count": 2
     },
     {
-      "item": "minecraft:clock"
+      "ingredient": {
+        "item": "minecraft:clock"
+      },
+      "count": 8
     }
   ],
   "results": [

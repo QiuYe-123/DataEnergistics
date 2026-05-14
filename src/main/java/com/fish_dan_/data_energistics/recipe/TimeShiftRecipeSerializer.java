@@ -13,7 +13,7 @@ import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 
 public final class TimeShiftRecipeSerializer implements RecipeSerializer<TimeShiftRecipe> {
-    private static final Codec<List<Ingredient>> INGREDIENTS_CODEC = Ingredient.CODEC_NONEMPTY.listOf()
+    private static final Codec<List<TimeShiftIngredient>> INGREDIENTS_CODEC = TimeShiftIngredient.CODEC.codec().listOf()
             .flatXmap(
                     ingredients -> ingredients.isEmpty()
                             ? DataResult.error(() -> "Time shift recipe must have at least one ingredient")
@@ -33,15 +33,15 @@ public final class TimeShiftRecipeSerializer implements RecipeSerializer<TimeShi
                     DataResult::success);
 
     private static final MapCodec<TimeShiftRecipe> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-            INGREDIENTS_CODEC.fieldOf("ingredients").forGetter(recipe -> recipe.getIngredients()),
+            INGREDIENTS_CODEC.fieldOf("ingredients").forGetter(recipe -> List.copyOf(recipe.getItemInputs())),
             RESULTS_CODEC.fieldOf("results").forGetter(TimeShiftRecipe::getResults),
             MINUTES_CODEC.fieldOf("minutes").forGetter(TimeShiftRecipe::getDurationMinutes),
             TimeShiftTimeCondition.CODEC.optionalFieldOf("time", TimeShiftTimeCondition.ALL).forGetter(TimeShiftRecipe::getTimeCondition)
     ).apply(instance, TimeShiftRecipe::new));
 
     private static final StreamCodec<RegistryFriendlyByteBuf, TimeShiftRecipe> STREAM_CODEC = StreamCodec.composite(
-            Ingredient.CONTENTS_STREAM_CODEC.apply(ByteBufCodecs.list()),
-            recipe -> recipe.getIngredients(),
+            TimeShiftIngredient.STREAM_CODEC.apply(ByteBufCodecs.list()),
+            recipe -> List.copyOf(recipe.getItemInputs()),
             ItemStack.STREAM_CODEC.apply(ByteBufCodecs.list()),
             TimeShiftRecipe::getResults,
             ByteBufCodecs.VAR_INT,

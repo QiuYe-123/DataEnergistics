@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.recipe;
 
 import com.fish_dan_.data_energistics.registry.ModRecipes;
+import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
@@ -14,20 +15,22 @@ import net.minecraft.world.level.Level;
 public final class TimeShiftRecipe implements Recipe<TimeShiftRecipeInput> {
     public static final int TICKS_PER_MINUTE = 20 * 60;
 
+    private final NonNullList<TimeShiftIngredient> itemInputs;
     private final NonNullList<Ingredient> ingredients;
     private final NonNullList<ItemStack> results;
     private final int durationTicks;
     private final TimeShiftTimeCondition timeCondition;
 
-    public TimeShiftRecipe(List<Ingredient> ingredients, List<ItemStack> results, int durationTicks, TimeShiftTimeCondition timeCondition) {
-        this.ingredients = NonNullList.copyOf(ingredients);
+    public TimeShiftRecipe(List<TimeShiftIngredient> itemInputs, List<ItemStack> results, int durationTicks, TimeShiftTimeCondition timeCondition) {
+        this.itemInputs = NonNullList.copyOf(itemInputs);
+        this.ingredients = expandIngredients(itemInputs);
         this.results = NonNullList.copyOf(results);
         this.durationTicks = Math.max(1, durationTicks);
         this.timeCondition = timeCondition;
     }
 
-    public TimeShiftRecipe(List<Ingredient> ingredients, List<ItemStack> results, double minutes, TimeShiftTimeCondition timeCondition) {
-        this(ingredients, results, (int) Math.ceil(minutes * TICKS_PER_MINUTE), timeCondition);
+    public TimeShiftRecipe(List<TimeShiftIngredient> itemInputs, List<ItemStack> results, double minutes, TimeShiftTimeCondition timeCondition) {
+        this(itemInputs, results, (int) Math.ceil(minutes * TICKS_PER_MINUTE), timeCondition);
     }
 
     @Override
@@ -36,7 +39,7 @@ public final class TimeShiftRecipe implements Recipe<TimeShiftRecipeInput> {
             return false;
         }
 
-        if (input.size() < this.ingredients.size()) {
+        if (getTotalItemCount(input.items()) < this.ingredients.size()) {
             return false;
         }
 
@@ -83,6 +86,10 @@ public final class TimeShiftRecipe implements Recipe<TimeShiftRecipeInput> {
         return this.ingredients;
     }
 
+    public NonNullList<TimeShiftIngredient> getItemInputs() {
+        return this.itemInputs;
+    }
+
     public NonNullList<ItemStack> getResults() {
         return this.results;
     }
@@ -116,5 +123,23 @@ public final class TimeShiftRecipe implements Recipe<TimeShiftRecipeInput> {
     @Override
     public boolean isSpecial() {
         return true;
+    }
+
+    private static NonNullList<Ingredient> expandIngredients(List<TimeShiftIngredient> itemInputs) {
+        List<Ingredient> expanded = new ArrayList<>();
+        for (TimeShiftIngredient input : itemInputs) {
+            for (int i = 0; i < input.count(); i++) {
+                expanded.add(input.ingredient());
+            }
+        }
+        return NonNullList.copyOf(expanded);
+    }
+
+    private static int getTotalItemCount(List<ItemStack> items) {
+        int total = 0;
+        for (ItemStack stack : items) {
+            total += stack.getCount();
+        }
+        return total;
     }
 }

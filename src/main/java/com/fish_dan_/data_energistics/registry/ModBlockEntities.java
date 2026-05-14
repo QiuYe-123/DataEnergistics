@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataFlowGeneratorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataFrameworkBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import net.minecraft.core.registries.Registries;
@@ -33,6 +34,11 @@ public final class ModBlockEntities {
             BLOCK_ENTITY_TYPES.register(
                     "data_extractor",
                     () -> BlockEntityType.Builder.of(DataExtractorBlockEntity::new, ModBlocks.DATA_EXTRACTOR.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataRipperReassemblerBlockEntity>> DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register(
+                    "data_reassembler",
+                    () -> BlockEntityType.Builder.of(DataRipperReassemblerBlockEntity::new, ModBlocks.DATA_RIPPER_REASSEMBLER.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataFrameworkBlockEntity>> DATA_FRAMEWORK_BLOCK_ENTITY =
             BLOCK_ENTITY_TYPES.register(

@@ -4,26 +4,40 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.Map;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.jetbrains.annotations.Nullable;
 
+import appeng.api.stacks.GenericStack;
+import appeng.helpers.IPatternTerminalMenuHost;
 import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.menu.slot.FakeSlot;
 import appeng.parts.encoding.EncodingMode;
+import appeng.parts.encoding.PatternEncodingLogic;
+import appeng.util.ConfigInventory;
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.menu.common.PatternEncodingTransferKeyAware;
+import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipeInput;
+import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.TagParser;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -31,14 +45,25 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import org.slf4j.Logger;
 
 public final class PatternEncodingSourceHelper {
+    private static final Logger LOGGER = com.mojang.logging.LogUtils.getLogger();
+    private static final int PROCESSING_INPUT_SLOT_BASE = 10;
+    private static final int DATA_RIPPER_KEY_INPUT_SLOT = DataRipperReassemblerRecipe.KEY_INPUT_SLOT_INDEX;
     public static final String ACTION_SET_PATTERN_SOURCE = "dataEnergisticsSetPatternSource";
+    public static final String ACTION_SET_TRANSFER_KEY_INPUT = "dataEnergisticsSetTransferKeyInput";
     public static final String CLEAR_PATTERN_SOURCE = "";
+    public static final String CLEAR_TRANSFER_KEY_INPUT = "";
     private static final String PLAYER_PATTERN_SOURCE_ROOT = "data_energistics_pattern_source";
     private static final String TAG_PENDING = "pending";
     private static final String TAG_LAST = "last";
     private static final String TAG_ENABLED = "enabled";
+    private static final Map<UUID, ResourceLocation> SESSION_LAST_ENCODED_PATTERN_SOURCES = new ConcurrentHashMap<>();
+    private static final Map<UUID, GenericStack> SESSION_PENDING_TRANSFER_KEY_INPUTS = new ConcurrentHashMap<>();
     private static final String WORKSTATION_MAPPINGS_RESOURCE = "data_energistics/pattern_workstation_mappings.json";
     private static final ResourceLocation CRAFTING_TABLE_ID = ResourceLocation.withDefaultNamespace("crafting_table");
     private static final ResourceLocation FURNACE_ID = ResourceLocation.withDefaultNamespace("furnace");
@@ -49,6 +74,8 @@ public final class PatternEncodingSourceHelper {
     private static final ResourceLocation SMITHING_TABLE_ID = ResourceLocation.withDefaultNamespace("smithing_table");
     private static final ResourceLocation AE2_INSCRIBER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "inscriber");
     private static final ResourceLocation AE2_CHARGER_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
+    private static final ResourceLocation DATA_RIPPER_REASSEMBLER_ID =
+            ResourceLocation.fromNamespaceAndPath("data_energistics", "data_reassembler");
     private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID =
             ResourceLocation.fromNamespaceAndPath("extendedae", "assembler_matrix_speed");
     private static final ResourceLocation EXTENDEDAE_CRYSTAL_ASSEMBLER_ID =
@@ -221,7 +248,7 @@ public final class PatternEncodingSourceHelper {
     }
 
     public static void rememberTransferSource(PatternEncodingTermMenu menu, @Nullable Object recipe,
-                                              @Nullable Object transferContext) {
+                                               @Nullable Object transferContext) {
         if (menu instanceof PatternEncodingSourceAware sourceAware) {
             if (shouldIgnoreWorkstationMemory(sourceAware)) {
                 sourceAware.setPendingPatternSource(null);
@@ -235,6 +262,119 @@ public final class PatternEncodingSourceHelper {
                 sourceAware.setLastEncodedPatternSource(workstationId);
             }
         }
+    }
+
+    public static void rememberTransferKeyInput(PatternEncodingTermMenu menu, @Nullable Object recipe,
+                                                @Nullable Object transferContext) {
+        if (menu.getMode() != EncodingMode.PROCESSING) {
+            syncPendingTransferKeyInput(menu, null);
+            return;
+        }
+
+        DataRipperReassemblerRecipe dataRipperRecipe = resolveDataRipperReassemblerRecipe(recipe, transferContext);
+        syncPendingTransferKeyInput(menu, dataRipperRecipe != null ? dataRipperRecipe.getKeyInput() : null);
+    }
+
+    public static void syncManualTransferKeyInput(PatternEncodingTermMenu menu, @Nullable GenericStack keyInput) {
+        syncPendingTransferKeyInput(menu, keyInput);
+    }
+
+    public static void applyPendingTransferKeyInput(PatternEncodingTermMenu menu) {
+        if (menu.getMode() != EncodingMode.PROCESSING) {
+            return;
+        }
+
+        ResourceLocation pendingPatternSource = readPendingPatternSource(menu.getPlayer());
+        if (!DATA_RIPPER_REASSEMBLER_ID.equals(pendingPatternSource)) {
+            return;
+        }
+
+        GenericStack keyInput = readPendingTransferKeyInput(menu.getPlayer());
+        if (keyInput == null) {
+            LOGGER.info("[DE][PatternKey] pending key is null");
+            return;
+        }
+
+        if (!(menu.getHost() instanceof IPatternTerminalMenuHost host)) {
+            return;
+        }
+
+        PatternEncodingLogic logic = host.getLogic();
+        ConfigInventory encodedInputsInv = logic.getEncodedInputInv();
+        int keySlot = DATA_RIPPER_KEY_INPUT_SLOT;
+        if (keySlot < 0 || keySlot >= encodedInputsInv.size()) {
+            LOGGER.info("[DE][PatternKey] pending key slot {} out of bounds size={}", keySlot, encodedInputsInv.size());
+            return;
+        }
+
+        LOGGER.info("[DE][PatternKey] applying pending key {}", describeGenericStack(keyInput));
+        applyTransferKeyInputServer(encodedInputsInv, keySlot, keyInput);
+    }
+
+    public static void resolveAndApplyDataRipperRecipeKeyInput(PatternEncodingTermMenu menu) {
+        if (menu.getMode() != EncodingMode.PROCESSING) {
+            return;
+        }
+        if (!(menu.getHost() instanceof IPatternTerminalMenuHost host)) {
+            return;
+        }
+
+        PatternEncodingLogic logic = host.getLogic();
+        ConfigInventory encodedInputsInv = logic.getEncodedInputInv();
+        ConfigInventory encodedOutputsInv = logic.getEncodedOutputInv();
+        if (DATA_RIPPER_KEY_INPUT_SLOT >= encodedInputsInv.size()) {
+            LOGGER.info("[DE][PatternKey] resolve key slot {} out of bounds size={}",
+                    DATA_RIPPER_KEY_INPUT_SLOT, encodedInputsInv.size());
+            return;
+        }
+
+        List<ItemStack> items = new ArrayList<>(DataRipperReassemblerRecipe.ITEM_INPUT_SLOTS);
+        for (int i = 0; i < DataRipperReassemblerRecipe.ITEM_INPUT_SLOTS && i < encodedInputsInv.size(); i++) {
+            GenericStack stack = encodedInputsInv.getStack(i);
+            if (stack == null || !(stack.what() instanceof appeng.api.stacks.AEItemKey itemKey)) {
+                continue;
+            }
+            items.add(itemKey.toStack((int) Math.min(Integer.MAX_VALUE, stack.amount())));
+        }
+
+        LOGGER.info("[DE][PatternKey] resolve items={}", describeItems(items));
+
+        if (items.isEmpty()) {
+            LOGGER.info("[DE][PatternKey] resolve aborted: items empty");
+            return;
+        }
+
+        List<ItemStack> outputs = new ArrayList<>(encodedOutputsInv.size());
+        for (int i = 0; i < encodedOutputsInv.size(); i++) {
+            GenericStack stack = encodedOutputsInv.getStack(i);
+            if (stack == null || !(stack.what() instanceof appeng.api.stacks.AEItemKey itemKey)) {
+                outputs.add(ItemStack.EMPTY);
+                continue;
+            }
+            outputs.add(itemKey.toStack((int) Math.min(Integer.MAX_VALUE, stack.amount())));
+        }
+
+        LOGGER.info("[DE][PatternKey] resolve outputs={}", describeItems(outputs));
+
+        var level = menu.getPlayer().level();
+        for (RecipeHolder<DataRipperReassemblerRecipe> holder : level.getRecipeManager()
+                .getAllRecipesFor(ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get())) {
+            DataRipperReassemblerRecipe recipe = holder.value();
+            if (!recipe.matches(new DataRipperReassemblerRecipeInput(items, List.of(), null), level)) {
+                continue;
+            }
+            if (!matchesEncodedOutputs(recipe, outputs)) {
+                continue;
+            }
+
+            GenericStack keyInput = recipe.getKeyInput();
+            LOGGER.info("[DE][PatternKey] matched recipe={} key={}", holder.id(), describeGenericStack(keyInput));
+            writePendingTransferKeyInput(menu.getPlayer(), keyInput);
+            applyTransferKeyInputServer(encodedInputsInv, DATA_RIPPER_KEY_INPUT_SLOT, keyInput);
+            return;
+        }
+
+        LOGGER.info("[DE][PatternKey] no data_reassembler recipe matched");
     }
 
     public static void applyPatternSource(ItemStack stack, PatternEncodingSourceAware sourceAware,
@@ -282,6 +422,120 @@ public final class PatternEncodingSourceHelper {
     }
 
     @Nullable
+    private static DataRipperReassemblerRecipe resolveDataRipperReassemblerRecipe(@Nullable Object recipe,
+                                                                                  @Nullable Object transferContext) {
+        DataRipperReassemblerRecipe resolved = unwrapDataRipperReassemblerRecipe(recipe);
+        if (resolved != null) {
+            return resolved;
+        }
+
+        return unwrapDataRipperReassemblerRecipe(transferContext);
+    }
+
+    @Nullable
+    private static DataRipperReassemblerRecipe unwrapDataRipperReassemblerRecipe(@Nullable Object candidate) {
+        if (candidate instanceof DataRipperReassemblerRecipe recipe) {
+            return recipe;
+        }
+
+        if (candidate instanceof RecipeHolder<?> holder && holder.value() instanceof DataRipperReassemblerRecipe recipe) {
+            return recipe;
+        }
+
+        return null;
+    }
+
+    private static void applyTransferKeyInputServer(ConfigInventory encodedInputsInv, int keySlot,
+                                                    @Nullable GenericStack keyInput) {
+        encodedInputsInv.setStack(keySlot, keyInput == null ? null : new GenericStack(keyInput.what(), keyInput.amount()));
+    }
+
+    private static boolean matchesEncodedOutputs(DataRipperReassemblerRecipe recipe, List<ItemStack> encodedOutputs) {
+        List<ItemStack> recipeOutputs = recipe.getItemOutputs();
+        if (recipeOutputs.isEmpty()) {
+            return false;
+        }
+
+        for (int i = 0; i < recipeOutputs.size(); i++) {
+            if (i >= encodedOutputs.size()) {
+                return false;
+            }
+
+            ItemStack expected = recipeOutputs.get(i);
+            ItemStack actual = encodedOutputs.get(i);
+            if (actual.isEmpty()) {
+                return false;
+            }
+            if (!ItemStack.isSameItemSameComponents(expected, actual)) {
+                return false;
+            }
+            if (actual.getCount() < expected.getCount()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static void applyTransferKeyInputAction(PatternEncodingTermMenu menu, @Nullable String serializedKeyInput) {
+        GenericStack keyInput = deserializeTransferKeyInput(menu, serializedKeyInput);
+        LOGGER.info("[DE][PatternKey] transfer action key={}", describeGenericStack(keyInput));
+        writePendingTransferKeyInput(menu.getPlayer(), keyInput);
+
+        if (menu.getMode() != EncodingMode.PROCESSING) {
+            return;
+        }
+        if (!(menu.getHost() instanceof IPatternTerminalMenuHost host)) {
+            return;
+        }
+
+        PatternEncodingLogic logic = host.getLogic();
+        ConfigInventory encodedInputsInv = logic.getEncodedInputInv();
+        int keySlot = DATA_RIPPER_KEY_INPUT_SLOT;
+        if (keySlot < 0 || keySlot >= encodedInputsInv.size()) {
+            LOGGER.info("[DE][PatternKey] transfer action key slot {} out of bounds size={}", keySlot, encodedInputsInv.size());
+            return;
+        }
+
+        applyTransferKeyInputServer(encodedInputsInv, keySlot, keyInput);
+    }
+
+    private static void syncPendingTransferKeyInput(PatternEncodingTermMenu menu, @Nullable GenericStack keyInput) {
+        if (menu.isClientSide()) {
+            if (menu instanceof PatternEncodingTransferKeyAware transferKeyAware) {
+                transferKeyAware.dataEnergistics$sendTransferKeyInputAction(serializeTransferKeyInput(menu, keyInput));
+            }
+            return;
+        }
+
+        writePendingTransferKeyInput(menu.getPlayer(), keyInput);
+    }
+
+    private static String serializeTransferKeyInput(PatternEncodingTermMenu menu, @Nullable GenericStack keyInput) {
+        if (keyInput == null) {
+            return CLEAR_TRANSFER_KEY_INPUT;
+        }
+
+        CompoundTag tag = GenericStack.writeTag(menu.getPlayer().registryAccess(), keyInput);
+        return tag.toString();
+    }
+
+    @Nullable
+    private static GenericStack deserializeTransferKeyInput(PatternEncodingTermMenu menu,
+                                                            @Nullable String serializedKeyInput) {
+        if (serializedKeyInput == null || serializedKeyInput.isEmpty()) {
+            return null;
+        }
+
+        try {
+            CompoundTag tag = TagParser.parseTag(serializedKeyInput);
+            return GenericStack.readTag(menu.getPlayer().registryAccess(), tag);
+        } catch (CommandSyntaxException ignored) {
+            return null;
+        }
+    }
+
+    @Nullable
     public static ResourceLocation readPendingPatternSource(Player player) {
         CompoundTag tag = getPatternSourceData(player, false);
         if (tag == null) {
@@ -308,27 +562,60 @@ public final class PatternEncodingSourceHelper {
 
     @Nullable
     public static ResourceLocation readLastEncodedPatternSource(Player player) {
-        CompoundTag tag = getPatternSourceData(player, false);
-        if (tag == null) {
-            return null;
-        }
-
-        String value = tag.getString(TAG_LAST);
-        return value.isEmpty() ? null : ResourceLocation.tryParse(value);
+        return SESSION_LAST_ENCODED_PATTERN_SOURCES.get(player.getUUID());
     }
 
     public static void writeLastEncodedPatternSource(Player player, @Nullable ResourceLocation workstationId) {
-        CompoundTag tag = getPatternSourceData(player, workstationId != null);
-        if (tag == null) {
+        if (player.level().isClientSide()) {
             return;
         }
 
         if (workstationId == null) {
-            tag.remove(TAG_LAST);
+            SESSION_LAST_ENCODED_PATTERN_SOURCES.remove(player.getUUID());
         } else {
-            tag.putString(TAG_LAST, workstationId.toString());
+            SESSION_LAST_ENCODED_PATTERN_SOURCES.put(player.getUUID(), workstationId);
         }
-        cleanupPatternSourceData(player, tag);
+        clearPersistedLastEncodedPatternSource(player);
+    }
+
+    @Nullable
+    public static GenericStack readPendingTransferKeyInput(Player player) {
+        GenericStack keyInput = SESSION_PENDING_TRANSFER_KEY_INPUTS.get(player.getUUID());
+        return keyInput == null ? null : new GenericStack(keyInput.what(), keyInput.amount());
+    }
+
+    public static void writePendingTransferKeyInput(Player player, @Nullable GenericStack keyInput) {
+        if (player.level().isClientSide()) {
+            return;
+        }
+
+        LOGGER.info("[DE][PatternKey] store pending key for {} => {}",
+                player.getName().getString(), describeGenericStack(keyInput));
+        if (keyInput == null || keyInput.amount() <= 0) {
+            SESSION_PENDING_TRANSFER_KEY_INPUTS.remove(player.getUUID());
+        } else {
+            SESSION_PENDING_TRANSFER_KEY_INPUTS.put(player.getUUID(),
+                    new GenericStack(keyInput.what(), keyInput.amount()));
+        }
+    }
+
+    private static String describeItems(List<ItemStack> stacks) {
+        List<String> result = new ArrayList<>(stacks.size());
+        for (ItemStack stack : stacks) {
+            if (stack == null || stack.isEmpty()) {
+                result.add("empty");
+            } else {
+                result.add(BuiltInRegistries.ITEM.getKey(stack.getItem()) + "x" + stack.getCount());
+            }
+        }
+        return result.toString();
+    }
+
+    private static String describeGenericStack(@Nullable GenericStack stack) {
+        if (stack == null) {
+            return "null";
+        }
+        return stack.what() + " x " + stack.amount();
     }
 
     public static boolean readPatternSourceEnabled(Player player) {
@@ -342,11 +629,38 @@ public final class PatternEncodingSourceHelper {
         if (!enabled) {
             tag.remove(TAG_PENDING);
             tag.remove(TAG_LAST);
+            SESSION_LAST_ENCODED_PATTERN_SOURCES.remove(player.getUUID());
         }
         cleanupPatternSourceData(player, tag);
     }
 
+    private static void clearPersistedLastEncodedPatternSource(Player player) {
+        CompoundTag tag = getPatternSourceData(player, false);
+        if (tag == null || !tag.contains(TAG_LAST)) {
+            return;
+        }
+
+        tag.remove(TAG_LAST);
+        cleanupPatternSourceData(player, tag);
+    }
+
+    @EventBusSubscriber(modid = Data_Energistics.MODID)
+    public static final class SessionEvents {
+        private SessionEvents() {
+        }
+
+        @SubscribeEvent
+        public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+            SESSION_LAST_ENCODED_PATTERN_SOURCES.remove(event.getEntity().getUUID());
+            SESSION_PENDING_TRANSFER_KEY_INPUTS.remove(event.getEntity().getUUID());
+        }
+    }
+
     public static Component resolveWorkstationDisplayName(ResourceLocation workstationId) {
+        if (DATA_RIPPER_REASSEMBLER_ID.equals(workstationId)) {
+            return Component.translatable("workstation.data_energistics.data_reassembler");
+        }
+
         var item = BuiltInRegistries.ITEM.getOptional(workstationId).orElse(null);
         if (item != null) {
             return item.getDefaultInstance().getHoverName().copy();
@@ -939,6 +1253,7 @@ public final class PatternEncodingSourceHelper {
         mappings.put("minecraft:smithing", SMITHING_TABLE_ID);
         mappings.put("ae2:inscriber", AE2_INSCRIBER_ID);
         mappings.put("ae2:charger", AE2_CHARGER_ID);
+        mappings.put("data_energistics:data_reassembler", DATA_RIPPER_REASSEMBLER_ID);
         mappings.put("extendedae:crystal_assembler", EXTENDEDAE_CRYSTAL_ASSEMBLER_ID);
         mappings.put("mekanism:combining", MEKANISM_COMBINER_ID);
         mappings.put("mekanism:compressing", MEKANISM_OSMIUM_COMPRESSOR_ID);

@@ -6,6 +6,7 @@ navigation:
   position: 1
 item_ids:
 - minecraft:redstone
+- data_energistics:deactivated_redstone_dust
 - data_energistics:data_capture_ball
 - data_energistics:residual_data
 - data_energistics:data_inscriber_template

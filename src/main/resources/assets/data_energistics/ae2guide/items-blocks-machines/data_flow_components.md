@@ -3,7 +3,7 @@ navigation:
   parent: data_energistics:items-blocks-machines/data_energistics.md
   title: 数据流元件
   icon: data_energistics:data_flow_component_housing
-  position: 10
+  position: 2
 item_ids:
 - data_energistics:data_storage_component_1k
 - data_energistics:data_storage_component_4k

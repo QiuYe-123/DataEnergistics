@@ -106,6 +106,9 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 this::renamePatternProviderFromClient);
         this.patternSourceEnabled = PatternEncodingSourceHelper.readPatternSourceEnabled(this.getPlayer());
         this.lastEncodedPatternSource = PatternEncodingSourceHelper.readLastEncodedPatternSource(this.getPlayer());
+        if (this.isServerSide()) {
+            PatternEncodingSourceHelper.writeLastEncodedPatternSource(this.getPlayer(), this.lastEncodedPatternSource);
+        }
         writeFallbackPatternSourceEnabled(this.patternSourceEnabled);
         writeFallbackPendingPatternSource(PatternEncodingSourceHelper.readPendingPatternSource(this.getPlayer()));
         writeFallbackLastEncodedPatternSource(this.lastEncodedPatternSource);
@@ -328,6 +331,10 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
     @Override
     public @Nullable net.minecraft.resources.ResourceLocation getLastEncodedPatternSource() {
+        if (this.lastEncodedPatternSource != null) {
+            return this.lastEncodedPatternSource;
+        }
+
         net.minecraft.resources.ResourceLocation fallback = readFallbackLastEncodedPatternSource();
         return fallback != null ? fallback : PatternEncodingSourceHelper.readLastEncodedPatternSource(this.getPlayer());
     }

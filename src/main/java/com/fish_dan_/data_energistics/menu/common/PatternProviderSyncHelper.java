@@ -72,6 +72,8 @@ public final class PatternProviderSyncHelper {
             ResourceLocation.fromNamespaceAndPath("ae2", "inscriber");
     private static final ResourceLocation AE2_CHARGER_ID =
             ResourceLocation.fromNamespaceAndPath("ae2", "charger");
+    private static final ResourceLocation DATA_RIPPER_REASSEMBLER_ID =
+            ResourceLocation.fromNamespaceAndPath("data_energistics", "data_reassembler");
     private static final ResourceLocation EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID =
             ResourceLocation.fromNamespaceAndPath("extendedae", "assembler_matrix_speed");
     private static final ResourceLocation EXTENDEDAE_PLUS_ASSEMBLER_MATRIX_SPEED_ID =
@@ -1023,6 +1025,7 @@ public final class PatternProviderSyncHelper {
                 || STONECUTTER_ID.equals(workstationId)
                 || SMITHING_TABLE_ID.equals(workstationId)
                 || AE2_MOLECULAR_ASSEMBLER_ID.equals(workstationId)
+                || DATA_RIPPER_REASSEMBLER_ID.equals(workstationId)
                 || EXTENDEDAE_CRYSTAL_ASSEMBLER_ID.equals(workstationId)
                 || EXTENDEDAE_ASSEMBLER_MATRIX_SPEED_ID.equals(workstationId);
     }
@@ -1461,6 +1464,10 @@ public final class PatternProviderSyncHelper {
     }
 
     private static Component resolveWorkstationDisplayName(ResourceLocation workstationId) {
+        if (DATA_RIPPER_REASSEMBLER_ID.equals(workstationId)) {
+            return Component.translatable("workstation.data_energistics.data_reassembler");
+        }
+
         var item = BuiltInRegistries.ITEM.getOptional(workstationId).orElse(null);
         if (item != null) {
             return item.getDefaultInstance().getHoverName();

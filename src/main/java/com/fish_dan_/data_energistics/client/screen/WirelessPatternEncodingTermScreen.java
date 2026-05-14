@@ -408,17 +408,11 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
 
     @Override
     public void onClose() {
-        if (this.menu instanceof PatternEncodingSourceAware sourceAware) {
-            sourceAware.clearPendingPatternSource();
-        }
         super.onClose();
     }
 
     @Override
     public void removed() {
-        if (this.menu instanceof PatternEncodingSourceAware sourceAware) {
-            sourceAware.clearPendingPatternSource();
-        }
         super.removed();
     }
 

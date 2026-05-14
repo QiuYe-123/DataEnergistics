@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
@@ -12,6 +13,7 @@ import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.menu.DataExtractorMenu;
 import com.fish_dan_.data_energistics.menu.DataMimeticFieldMenu;
 import com.fish_dan_.data_energistics.menu.DataRipperMenu;
+import com.fish_dan_.data_energistics.menu.DataRipperReassemblerMenu;
 import com.fish_dan_.data_energistics.menu.DataSolarPanelMenu;
 import com.fish_dan_.data_energistics.menu.DataTeleportAnchorMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
@@ -51,6 +53,11 @@ public final class ModMenus {
             MENUS.register("data_extractor", () -> MenuTypeBuilder
                     .create(DataExtractorMenu::new, DataExtractorBlockEntity.class)
                     .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_extractor")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<DataRipperReassemblerMenu>> DATA_RIPPER_REASSEMBLER =
+            MENUS.register("data_reassembler", () -> MenuTypeBuilder
+                    .create(DataRipperReassemblerMenu::new, DataRipperReassemblerBlockEntity.class)
+                    .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_reassembler")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<DataMimeticFieldMenu>> DATA_MIMETIC_FIELD =
             MENUS.register("data_mimetic_field", () -> MenuTypeBuilder

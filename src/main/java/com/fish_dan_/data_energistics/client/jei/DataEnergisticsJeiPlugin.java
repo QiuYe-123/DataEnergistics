@@ -3,7 +3,9 @@ package com.fish_dan_.data_energistics.client.jei;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
+import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.registry.ModRecipes;
 import com.mojang.logging.LogUtils;
 import appeng.core.definitions.AEBlocks;
 import mezz.jei.api.IModPlugin;
@@ -17,7 +19,9 @@ import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IRecipeTransferRegistration;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.core.registries.Registries;
@@ -46,12 +50,16 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     @Override
     public void registerCategories(IRecipeCategoryRegistration registration) {
-        registration.addRecipeCategories(new DataCaptureBallCondenserCategory(registration.getJeiHelpers().getGuiHelper()));
+        registration.addRecipeCategories(
+                new TimeShiftRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
+                new DataCaptureBallCondenserCategory(registration.getJeiHelpers().getGuiHelper()),
+                new DataRipperReassemblerRecipeCategory(registration.getJeiHelpers().getGuiHelper()));
     }
 
     @Override
     public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
         registration.addRecipeCatalyst(AEBlocks.CONDENSER, DataCaptureBallCondenserCategory.RECIPE_TYPE);
+        registration.addRecipeCatalyst(ModBlocks.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerRecipeCategory.RECIPE_TYPE);
     }
 
     @Override
@@ -72,6 +80,19 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
         registration.addRecipes(DataCaptureBallCondenserCategory.RECIPE_TYPE, List.of(DataCaptureBallCondenserRecipe.INSTANCE));
+        var level = Minecraft.getInstance().level;
+        if (level != null) {
+            registration.addRecipes(
+                    TimeShiftRecipeCategory.RECIPE_TYPE,
+                    level.getRecipeManager().getAllRecipesFor(ModRecipes.TIME_SHIFT_TYPE.get()).stream()
+                            .map(RecipeHolder::value)
+                            .toList());
+            registration.addRecipes(
+                    DataRipperReassemblerRecipeCategory.RECIPE_TYPE,
+                    level.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get()).stream()
+                            .map(RecipeHolder::value)
+                            .toList());
+        }
         registerMatterConvergingCrossbowAnvilRecipes(registration);
         registration.addIngredientInfo(
                 ModItems.RESIDUAL_DATA.get(),

@@ -41,4 +41,5 @@ run
 /aecs_tree.json
 /.codex-temp/
 /.codex_tmp_wtlib/
+/.codex_tmp_eae/
 /tmp/

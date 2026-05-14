@@ -9,6 +9,7 @@
     "minecraft:smithing": "minecraft:smithing_table",
     "ae2:inscriber": "ae2:inscriber",
     "ae2:charger": "ae2:charger",
+    "data_energistics:data_reassembler": "data_energistics:data_reassembler",
     "extendedae:crystal_assembler": "extendedae:crystal_assembler",
     "mekanism:combining": "mekanism:combiner",
     "mekanism:compressing": "mekanism:osmium_compressor",

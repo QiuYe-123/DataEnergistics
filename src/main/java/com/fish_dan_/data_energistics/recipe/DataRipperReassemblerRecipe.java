@@ -1,0 +1,185 @@
+package com.fish_dan_.data_energistics.recipe;
+
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.GenericStack;
+import com.fish_dan_.data_energistics.registry.ModRecipes;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.NonNullList;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.level.Level;
+import org.jetbrains.annotations.Nullable;
+
+public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReassemblerRecipeInput> {
+    public static final int PROCESS_TICKS = 200;
+    public static final int ITEM_INPUT_SLOTS = 9;
+    public static final int KEY_INPUT_SLOTS = 1;
+    public static final int FLUID_INPUT_SLOTS = 2;
+    public static final int ITEM_OUTPUT_SLOTS = 3;
+    public static final int KEY_OUTPUT_SLOTS = 1;
+    public static final int FLUID_OUTPUT_SLOTS = 2;
+    public static final int KEY_INPUT_SLOT_INDEX = ITEM_INPUT_SLOTS;
+    private final NonNullList<DataRipperReassemblerIngredient> itemInputs;
+    private final List<GenericStack> fluidInputs;
+    private final NonNullList<ItemStack> itemOutputs;
+    private final List<GenericStack> fluidOutputs;
+    private final int processTicks;
+    @Nullable
+    private final GenericStack keyInput;
+
+    public DataRipperReassemblerRecipe(List<DataRipperReassemblerIngredient> itemInputs,
+                                       List<GenericStack> fluidInputs,
+                                       List<ItemStack> itemOutputs,
+                                       List<GenericStack> fluidOutputs,
+                                       int processTicks,
+                                       @Nullable GenericStack keyInput) {
+        this.itemInputs = NonNullList.copyOf(itemInputs);
+        this.fluidInputs = List.copyOf(fluidInputs);
+        this.itemOutputs = NonNullList.copyOf(itemOutputs);
+        this.fluidOutputs = List.copyOf(fluidOutputs);
+        this.processTicks = processTicks;
+        this.keyInput = keyInput != null && keyInput.amount() > 0 ? keyInput : null;
+    }
+
+    @Override
+    public boolean matches(DataRipperReassemblerRecipeInput input, Level level) {
+        if (!matchesKeyInput(input.keyInput())) {
+            return false;
+        }
+        if (!matchesFluidInputs(input.fluidInputs())) {
+            return false;
+        }
+
+        List<ItemStack> remaining = new ArrayList<>(input.items().size());
+        for (ItemStack stack : input.items()) {
+            remaining.add(stack.copy());
+        }
+
+        for (DataRipperReassemblerIngredient countedIngredient : this.itemInputs) {
+            int required = countedIngredient.count();
+            for (ItemStack stack : remaining) {
+                if (required <= 0) {
+                    break;
+                }
+                if (!countedIngredient.ingredient().test(stack)) {
+                    continue;
+                }
+
+                int consumed = Math.min(required, stack.getCount());
+                required -= consumed;
+                stack.shrink(consumed);
+            }
+
+            if (required > 0) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    @Override
+    public ItemStack assemble(DataRipperReassemblerRecipeInput input, HolderLookup.Provider registries) {
+        return this.getResultItem(registries).copy();
+    }
+
+    @Override
+    public boolean canCraftInDimensions(int width, int height) {
+        return true;
+    }
+
+    @Override
+    public ItemStack getResultItem(HolderLookup.Provider registries) {
+        return this.itemOutputs.isEmpty() ? ItemStack.EMPTY : this.itemOutputs.getFirst();
+    }
+
+    @Override
+    public NonNullList<Ingredient> getIngredients() {
+        NonNullList<Ingredient> expanded = NonNullList.create();
+        for (DataRipperReassemblerIngredient countedIngredient : this.itemInputs) {
+            for (int i = 0; i < countedIngredient.count(); i++) {
+                expanded.add(countedIngredient.ingredient());
+            }
+        }
+        return expanded;
+    }
+
+    public NonNullList<DataRipperReassemblerIngredient> getItemInputs() {
+        return this.itemInputs;
+    }
+
+    public List<GenericStack> getFluidInputs() {
+        return this.fluidInputs;
+    }
+
+    public NonNullList<ItemStack> getItemOutputs() {
+        return this.itemOutputs;
+    }
+
+    public List<GenericStack> getFluidOutputs() {
+        return this.fluidOutputs;
+    }
+
+    public int getProcessTicks() {
+        return this.processTicks;
+    }
+
+    @Nullable
+    public GenericStack getKeyInput() {
+        return this.keyInput;
+    }
+
+    private boolean matchesKeyInput(@Nullable GenericStack inputKey) {
+        if (this.keyInput == null) {
+            return true;
+        }
+        if (inputKey == null) {
+            return false;
+        }
+        return this.keyInput.what().equals(inputKey.what()) && inputKey.amount() >= this.keyInput.amount();
+    }
+
+    private boolean matchesFluidInputs(List<GenericStack> inputFluids) {
+        if (this.fluidInputs.isEmpty()) {
+            return true;
+        }
+
+        Map<AEKey, Long> available = new HashMap<>();
+        for (GenericStack fluid : inputFluids) {
+            if (fluid == null || !(fluid.what() instanceof AEFluidKey) || fluid.amount() <= 0) {
+                continue;
+            }
+            available.merge(fluid.what(), fluid.amount(), Long::sum);
+        }
+
+        for (GenericStack required : this.fluidInputs) {
+            if (available.getOrDefault(required.what(), 0L) < required.amount()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public RecipeSerializer<?> getSerializer() {
+        return ModRecipes.DATA_RIPPER_REASSEMBLER_SERIALIZER.get();
+    }
+
+    @Override
+    public RecipeType<?> getType() {
+        return ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get();
+    }
+
+    @Override
+    public boolean isSpecial() {
+        return true;
+    }
+}

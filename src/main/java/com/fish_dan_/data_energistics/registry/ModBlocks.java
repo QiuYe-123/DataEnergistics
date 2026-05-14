@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
+import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.block.RedstoneCrystalBuddingBlock;
 import com.fish_dan_.data_energistics.block.ResidualDataOreBlock;
@@ -36,6 +37,11 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> DATA_EXTRACTOR = BLOCKS.registerBlock(
             "data_extractor",
             DataExtractorBlock::new,
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK));
+
+    public static final DeferredBlock<Block> DATA_RIPPER_REASSEMBLER = BLOCKS.registerBlock(
+            "data_reassembler",
+            DataRipperReassemblerBlock::new,
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK));
 
     public static final DeferredBlock<Block> DATA_FRAMEWORK = BLOCKS.registerBlock(

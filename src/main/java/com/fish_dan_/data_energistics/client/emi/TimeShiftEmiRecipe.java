@@ -1,8 +1,9 @@
 package com.fish_dan_.data_energistics.client.emi;
 
-import appeng.core.definitions.AEItems;
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.recipe.TimeShiftIngredient;
 import com.fish_dan_.data_energistics.recipe.TimeShiftRecipe;
+import com.fish_dan_.data_energistics.registry.ModItems;
 import dev.emi.emi.api.recipe.BasicEmiRecipe;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.render.EmiTexture;
@@ -28,7 +29,7 @@ public final class TimeShiftEmiRecipe extends BasicEmiRecipe {
 
     public static final EmiRecipeCategory CATEGORY = new EmiRecipeCategory(
             Data_Energistics.id("time_shift"),
-            EmiStack.of(AEItems.FLUIX_CRYSTAL)) {
+            EmiStack.of(ModItems.REDSTONE_CRYSTAL.get())) {
         @Override
         public Component getName() {
             return Component.translatable("recipe.data_energistics.time_shift");
@@ -41,8 +42,8 @@ public final class TimeShiftEmiRecipe extends BasicEmiRecipe {
         super(CATEGORY, holder.id(), WIDTH, HEIGHT);
         this.recipe = holder.value();
 
-        for (var ingredient : this.recipe.getIngredients()) {
-            this.inputs.add(EmiIngredient.of(ingredient));
+        for (TimeShiftIngredient ingredient : this.recipe.getItemInputs()) {
+            this.inputs.add(EmiIngredient.of(ingredient.ingredient(), ingredient.count()));
         }
         for (ItemStack result : this.recipe.getResults()) {
             this.outputs.add(EmiStack.of(result.copy()));

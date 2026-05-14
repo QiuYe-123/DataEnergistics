@@ -5,6 +5,7 @@ import appeng.integration.modules.emi.EmiUseCraftingRecipeHandler;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
+import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
@@ -40,6 +41,11 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.addCategory(TimeShiftEmiRecipe.CATEGORY);
         registry.getRecipeManager().getAllRecipesFor(ModRecipes.TIME_SHIFT_TYPE.get()).stream()
                 .map(TimeShiftEmiRecipe::new)
+                .forEach(registry::addRecipe);
+        registry.addCategory(DataRipperReassemblerEmiRecipe.CATEGORY);
+        registry.addWorkstation(DataRipperReassemblerEmiRecipe.CATEGORY, EmiStack.of(ModBlocks.DATA_RIPPER_REASSEMBLER.get()));
+        registry.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get()).stream()
+                .map(DataRipperReassemblerEmiRecipe::new)
                 .forEach(registry::addRecipe);
 
         buildUniversalTerminalRecipes().forEach(registry::addRecipe);

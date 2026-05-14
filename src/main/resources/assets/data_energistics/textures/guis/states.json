@@ -1,7 +1,7 @@
 {
   "texture": "data_energistics:textures/guis/states.png",
-  "width": 64,
-  "height": 64,
+  "width": 128,
+  "height": 128,
   "icons": {
     "BACKGROUND_BLOCK": {
       "x": 0,
@@ -48,6 +48,12 @@
     "CONDENSER_OUTPUT_DATA_CAPTURE_BALL": {
       "x": 48,
       "y": 48,
+      "width": 16,
+      "height": 16
+    },
+    "PLACEMENT_TOOLBOX": {
+      "x": 160,
+      "y": 0,
       "width": 16,
       "height": 16
     }

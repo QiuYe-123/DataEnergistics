@@ -40,6 +40,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_FLOW_GENERATOR);
                         output.accept(ModItems.DATA_SOLAR_PANEL);
                         output.accept(ModItems.DATA_EXTRACTOR);
+                        output.accept(ModItems.DATA_RIPPER_REASSEMBLER);
                         output.accept(ModItems.DATA_FRAMEWORK);
                         output.accept(ModItems.DATA_DISTRIBUTION_TOWER);
                         output.accept(ModItems.DATA_MIMETIC_FIELD);
