@@ -11,9 +11,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.Heightmap;
 
 public class EnderCohesionMeteoriteBlock extends Block {
+    private static final int TELEPORT_HALF_RANGE = 3;
     private final float enderDustChance;
     private final float skyDustChance;
     private final float teleportChance;
@@ -47,11 +47,15 @@ public class EnderCohesionMeteoriteBlock extends Block {
     private static void teleportRandomly(ServerLevel level, ServerPlayer player, RandomSource random) {
         BlockPos origin = player.blockPosition();
         for (int i = 0; i < 16; i++) {
-            int x = origin.getX() + random.nextIntBetweenInclusive(-32, 32);
-            int z = origin.getZ() + random.nextIntBetweenInclusive(-32, 32);
-            BlockPos surface = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, new BlockPos(x, origin.getY(), z));
-            BlockPos target = surface.above();
+            int x = origin.getX() + random.nextIntBetweenInclusive(-TELEPORT_HALF_RANGE, TELEPORT_HALF_RANGE);
+            int y = origin.getY() + random.nextIntBetweenInclusive(-TELEPORT_HALF_RANGE, TELEPORT_HALF_RANGE);
+            int z = origin.getZ() + random.nextIntBetweenInclusive(-TELEPORT_HALF_RANGE, TELEPORT_HALF_RANGE);
+            BlockPos target = new BlockPos(x, y, z);
             if (target.getY() <= level.getMinBuildHeight() || target.getY() >= level.getMaxBuildHeight() - 2) {
+                continue;
+            }
+            BlockPos floor = target.below();
+            if (level.getBlockState(floor).isAir()) {
                 continue;
             }
             if (!level.getBlockState(target).isAir() || !level.getBlockState(target.above()).isAir()) {
