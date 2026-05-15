@@ -1,12 +1,16 @@
 package com.fish_dan_.data_energistics.block;
 
-import appeng.core.definitions.AEItems;
+import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
+import com.fish_dan_.data_energistics.registry.ModEntities;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -32,15 +36,46 @@ public class EnderCohesionMeteoriteBlock extends Block {
             return;
         }
 
+        int silkTouchLevel = EnchantmentHelper.getItemEnchantmentLevel(
+                level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH),
+                tool);
+        if (silkTouchLevel <= 0) {
+            int fortuneLevel = EnchantmentHelper.getItemEnchantmentLevel(
+                    level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.FORTUNE),
+                    tool);
+            this.spawnDispersingData(serverLevel, pos, serverLevel.getRandom(), fortuneLevel);
+        }
+
         RandomSource random = serverLevel.getRandom();
-        if (random.nextFloat() < this.enderDustChance) {
-            popResource(serverLevel, pos, new ItemStack(AEItems.ENDER_DUST.asItem()));
-        }
-        if (random.nextFloat() < this.skyDustChance) {
-            popResource(serverLevel, pos, new ItemStack(AEItems.SKY_DUST.asItem()));
-        }
         if (this.teleportChance > 0.0F && random.nextFloat() < this.teleportChance && player instanceof ServerPlayer serverPlayer) {
             teleportRandomly(serverLevel, serverPlayer, random);
+        }
+    }
+
+    private void spawnDispersingData(ServerLevel level, BlockPos pos, RandomSource random, int fortuneLevel) {
+        float dispersingDataChance = this.enderDustChance + fortuneLevel * 0.03F;
+        if (dispersingDataChance <= 0.0F || random.nextFloat() >= dispersingDataChance) {
+            return;
+        }
+
+        int count = this.teleportChance > 0.0F ? 1 + random.nextInt(2) : 1;
+        for (int i = 0; i < count; i++) {
+            DispersingDataEntity entity = ModEntities.DISPERSING_DATA.get().create(level);
+            if (entity == null) {
+                continue;
+            }
+
+            double x = pos.getX() + 0.35D + random.nextDouble() * 0.3D;
+            double y = pos.getY() + 0.7D + random.nextDouble() * 0.4D;
+            double z = pos.getZ() + 0.35D + random.nextDouble() * 0.3D;
+            entity.setPos(x, y, z);
+            entity.setTextureVariant(random.nextInt(4));
+            entity.setDeltaMovement(
+                    (random.nextDouble() - 0.5D) * 0.08D,
+                    0.01D + random.nextDouble() * 0.03D,
+                    (random.nextDouble() - 0.5D) * 0.08D
+            );
+            level.addFreshEntity(entity);
         }
     }
 

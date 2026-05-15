@@ -79,20 +79,20 @@ public final class ModBlocks {
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> ENDER_COHESION_METEORITE_0 = BLOCKS.registerBlock(
-            "ender_cohesion_meteorite_0",
-            properties -> new EnderCohesionMeteoriteBlock(properties, 0.10F, 0.00F, 0.00F),
+            "data_cohesion_meteorite_0",
+            properties -> new EnderCohesionMeteoriteBlock(properties, 0.05F, 0.00F, 0.00F),
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.ANCIENT_DEBRIS)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> ENDER_COHESION_METEORITE_1 = BLOCKS.registerBlock(
-            "ender_cohesion_meteorite_1",
-            properties -> new EnderCohesionMeteoriteBlock(properties, 0.20F, 0.10F, 0.00F),
+            "data_cohesion_meteorite_1",
+            properties -> new EnderCohesionMeteoriteBlock(properties, 0.10F, 0.00F, 0.00F),
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.ANCIENT_DEBRIS)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> ENDER_COHESION_METEORITE_2 = BLOCKS.registerBlock(
-            "ender_cohesion_meteorite_2",
-            properties -> new EnderCohesionMeteoriteBlock(properties, 0.30F, 0.10F, 0.15F),
+            "data_cohesion_meteorite_2",
+            properties -> new EnderCohesionMeteoriteBlock(properties, 0.15F, 0.00F, 0.15F),
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.ANCIENT_DEBRIS)
                     .requiresCorrectToolForDrops());
 
