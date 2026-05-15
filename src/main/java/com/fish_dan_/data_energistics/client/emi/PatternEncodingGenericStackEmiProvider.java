@@ -1,0 +1,32 @@
+package com.fish_dan_.data_energistics.client.emi;
+
+import appeng.api.stacks.GenericStack;
+import appeng.client.gui.StackWithBounds;
+import appeng.integration.modules.emi.EmiStackHelper;
+import com.fish_dan_.data_energistics.client.screen.GenericStackLookupScreen;
+import dev.emi.emi.api.EmiStackProvider;
+import dev.emi.emi.api.stack.EmiStack;
+import dev.emi.emi.api.stack.EmiStackInteraction;
+import net.minecraft.client.gui.screens.Screen;
+
+public final class PatternEncodingGenericStackEmiProvider implements EmiStackProvider<Screen> {
+    @Override
+    public EmiStackInteraction getStackAt(Screen screen, int x, int y) {
+        if (!(screen instanceof GenericStackLookupScreen lookupScreen)) {
+            return EmiStackInteraction.EMPTY;
+        }
+
+        StackWithBounds hovered = lookupScreen.dataEnergistics$getGenericStackUnderMouse(x, y);
+        if (hovered == null) {
+            return EmiStackInteraction.EMPTY;
+        }
+
+        GenericStack stack = hovered.stack();
+        EmiStack emiStack = EmiStackHelper.toEmiStack(stack);
+        if (emiStack == null) {
+            return EmiStackInteraction.EMPTY;
+        }
+
+        return new EmiStackInteraction(emiStack, null, true);
+    }
+}

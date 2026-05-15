@@ -16,8 +16,11 @@ import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.helpers.patternprovider.PatternContainer;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnChemicalHandler;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
+import mekanism.api.chemical.IChemicalHandler;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuHostLocator;
@@ -52,6 +55,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.items.IItemHandler;
@@ -98,6 +102,8 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     private AdaptivePatternProviderState adaptiveState;
     private final IUpgradeInventory upgrades;
     private final IItemHandler externalReturnItemHandler = new AdaptivePatternProviderReturnItemHandler(this::getAdaptiveLogic);
+    private final IFluidHandler externalReturnFluidHandler = new AdaptivePatternProviderReturnFluidHandler(this::getAdaptiveLogic);
+    private final IChemicalHandler externalReturnChemicalHandler = new AdaptivePatternProviderReturnChemicalHandler(this::getAdaptiveLogic);
     private int syncedPatternSlotCount = 0;
 
     public AdaptivePatternProviderBlockEntity(BlockPos blockPos, BlockState blockState) {
@@ -127,6 +133,22 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
             return null;
         }
         return this.externalReturnItemHandler;
+    }
+
+    @Nullable
+    public IFluidHandler getExternalReturnFluidHandler(@Nullable Direction side) {
+        if (side != null && !this.getTargets().contains(side)) {
+            return null;
+        }
+        return this.externalReturnFluidHandler;
+    }
+
+    @Nullable
+    public IChemicalHandler getExternalReturnChemicalHandler(@Nullable Direction side) {
+        if (side != null && !this.getTargets().contains(side)) {
+            return null;
+        }
+        return this.externalReturnChemicalHandler;
     }
 
     public int getProviderSlotLimit() {

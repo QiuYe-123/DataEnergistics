@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client;
 
+import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AmountFormat;
 import appeng.api.stacks.GenericStack;
 import java.util.Locale;
@@ -16,6 +17,9 @@ public final class GenericStackDisplayHelper {
     }
 
     public static String formatCompactAmount(GenericStack stack) {
+        if (stack.what() instanceof AEFluidKey) {
+            return formatCompactFluidAmount(stack.amount());
+        }
         return formatCompactAmount(stack.amount());
     }
 
@@ -34,6 +38,15 @@ public final class GenericStackDisplayHelper {
             return compact(amount, 1_000_000_000D, "B");
         }
         return compact(amount, 1_000_000_000_000D, "T");
+    }
+
+    public static String formatCompactFluidAmount(long amount) {
+        long abs = Math.abs(amount);
+        if (abs < 1_000L) {
+            return amount + "mB";
+        }
+        long buckets = amount / 1_000L;
+        return buckets + "B";
     }
 
     public static Component createAmountTooltip(GenericStack stack) {

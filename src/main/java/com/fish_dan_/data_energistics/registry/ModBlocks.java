@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.DataFrameworkBlock;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
+import com.fish_dan_.data_energistics.block.EnderCohesionMeteoriteBlock;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.block.RedstoneCrystalBuddingBlock;
@@ -74,6 +75,24 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> RESIDUAL_DATA_ORE = BLOCKS.registerBlock(
             "residual_data_ore",
             ResidualDataOreBlock::new,
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.ANCIENT_DEBRIS)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> ENDER_COHESION_METEORITE_0 = BLOCKS.registerBlock(
+            "ender_cohesion_meteorite_0",
+            properties -> new EnderCohesionMeteoriteBlock(properties, 0.10F, 0.00F, 0.00F),
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.ANCIENT_DEBRIS)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> ENDER_COHESION_METEORITE_1 = BLOCKS.registerBlock(
+            "ender_cohesion_meteorite_1",
+            properties -> new EnderCohesionMeteoriteBlock(properties, 0.20F, 0.10F, 0.00F),
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.ANCIENT_DEBRIS)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> ENDER_COHESION_METEORITE_2 = BLOCKS.registerBlock(
+            "ender_cohesion_meteorite_2",
+            properties -> new EnderCohesionMeteoriteBlock(properties, 0.30F, 0.10F, 0.15F),
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.ANCIENT_DEBRIS)
                     .requiresCorrectToolForDrops());
 

@@ -9,6 +9,7 @@ import appeng.api.implementations.blockentities.ICraftingMachine;
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.inventories.ISegmentedInventory;
 import appeng.api.inventories.InternalInventory;
+import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
@@ -16,6 +17,7 @@ import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.AEKeyTypes;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
+import appeng.api.storage.MEStorage;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.api.upgrades.UpgradeInventories;
@@ -45,6 +47,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -116,6 +119,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private final GenericStackInv keyMenuInventory = createKeyMenuInventory();
     private final GenericStackInv keyOutputMenuInventory = createKeyOutputMenuInventory();
     private final IFluidHandler externalFluidHandler = new ReassemblerFluidHandler();
+    private final MEStorage externalPatternInputStorage = new PatternInputStorage();
     private final ConfigManager configManager = new ConfigManager(this::onConfigChanged);
     private boolean syncingFluidMenu;
     private boolean syncingKeyMenu;
@@ -184,10 +188,6 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     @Override
     public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, Direction ejectionDirection) {
-        if (!isOnline()) {
-            return false;
-        }
-
         PatternPushState state = new PatternPushState(copyInputSlots(), this.fluidInputTankA.getFluid().copy(),
                 this.fluidInputTankB.getFluid().copy(), copyKeyStack(this.keyInputStack));
         if (!canAcceptPatternInputs(state, inputHolder)) {
@@ -210,6 +210,10 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     public IFluidHandler getExternalFluidHandler() {
         return this.externalFluidHandler;
+    }
+
+    public MEStorage getExternalPatternInputStorage() {
+        return this.externalPatternInputStorage;
     }
 
     public ConfigMenuInventory getFluidMenuInventoryA() {
@@ -273,7 +277,20 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     public Set<Direction> getOutputSides() {
-        return this.outputSides;
+        if (this.outputSides.isEmpty()) {
+            return EnumSet.noneOf(Direction.class);
+        }
+        return EnumSet.copyOf(this.outputSides);
+    }
+
+    public void setOutputSideEnabled(Direction side, boolean enabled) {
+        boolean changed = enabled ? this.outputSides.add(side) : this.outputSides.remove(side);
+        if (!changed) {
+            return;
+        }
+
+        saveChanges();
+        markForClientUpdate();
     }
 
     @Override
@@ -326,8 +343,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                     this.outputSides.add(side);
                 }
             }
-        }
-        if (this.outputSides.isEmpty()) {
+        } else {
             this.outputSides.addAll(EnumSet.allOf(Direction.class));
         }
         this.progress = data.getInt(PROGRESS_TAG);
@@ -1361,6 +1377,36 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return null;
         }
         return new GenericStack(stack.what(), stack.amount());
+    }
+
+    private final class PatternInputStorage implements MEStorage {
+        @Override
+        public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
+            MEStorage.checkPreconditions(what, amount, mode, source);
+            if (amount <= 0) {
+                return 0L;
+            }
+
+            PatternPushState state = new PatternPushState(copyInputSlots(),
+                    fluidInputTankA.getFluid().copy(),
+                    fluidInputTankB.getFluid().copy(),
+                    copyKeyStack(keyInputStack));
+            if (!canAcceptPatternInput(state, what, amount)) {
+                return 0L;
+            }
+
+            if (mode == Actionable.MODULATE) {
+                applyPatternPushState(state);
+                saveChanges();
+                markForClientUpdate();
+            }
+            return amount;
+        }
+
+        @Override
+        public Component getDescription() {
+            return ModBlocks.DATA_RIPPER_REASSEMBLER.get().getName();
+        }
     }
 
     public GenericStack getKeyInputStack() {

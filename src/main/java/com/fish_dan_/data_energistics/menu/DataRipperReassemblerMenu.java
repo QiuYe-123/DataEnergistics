@@ -81,7 +81,7 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
 
     @Override
     public void broadcastChanges() {
-        if (this.getHost() != null) {
+        if (this.isServerSide() && this.getHost() != null) {
             var host = this.getHost();
             this.online = host.isOnline();
             syncFluid(host.getFluidInputA(), 0);
@@ -228,14 +228,8 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
         }
 
         boolean enabled = Boolean.parseBoolean(payload.substring(separator + 1));
-        if (enabled) {
-            this.getHost().getOutputSides().add(side);
-        } else {
-            this.getHost().getOutputSides().remove(side);
-        }
+        this.getHost().setOutputSideEnabled(side, enabled);
         this.outputSidesMask = encodeOutputSides(this.getHost().getOutputSides());
-        this.getHost().saveChanges();
-        this.getHost().markForClientUpdate();
         broadcastChanges();
     }
 

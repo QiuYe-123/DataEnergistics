@@ -33,6 +33,8 @@ import com.fish_dan_.data_energistics.menu.common.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingTransferKeyAware;
 import com.fish_dan_.data_energistics.util.PatternProviderNameHelper;
 import com.fish_dan_.data_energistics.util.PatternEncodingSourceHelper;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import net.minecraft.nbt.TagParser;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
@@ -101,6 +103,9 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     @Unique
     @Nullable
     private ResourceLocation dataEnergistics$lastEncodedPatternSource;
+    @Unique
+    @Nullable
+    private String dataEnergistics$displayTransferKeyInputSerialized;
 
     @Shadow
     @Final
@@ -444,7 +449,46 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     @Override
     public void dataEnergistics$sendTransferKeyInputAction(@Nullable String serializedKeyInput) {
         if (this.isClientSide()) {
+            this.dataEnergistics$displayTransferKeyInputSerialized = serializedKeyInput;
             sendClientAction(PatternEncodingSourceHelper.ACTION_SET_TRANSFER_KEY_INPUT, serializedKeyInput);
+        }
+    }
+
+    @Override
+    public @Nullable GenericStack dataEnergistics$getDisplayedTransferKeyInput() {
+        if (this.dataEnergistics$displayTransferKeyInputSerialized == null
+                || this.dataEnergistics$displayTransferKeyInputSerialized.isEmpty()) {
+            return PatternEncodingSourceHelper.readPendingTransferKeyInput(this.getPlayer());
+        }
+        try {
+            return GenericStack.readTag(this.getPlayer().registryAccess(),
+                    TagParser.parseTag(this.dataEnergistics$displayTransferKeyInputSerialized));
+        } catch (CommandSyntaxException ignored) {
+            return PatternEncodingSourceHelper.readPendingTransferKeyInput(this.getPlayer());
+        }
+    }
+
+    @Override
+    public void dataEnergistics$setDisplayedTransferKeyInputSerialized(@Nullable String serializedKeyInput) {
+        this.dataEnergistics$displayTransferKeyInputSerialized = serializedKeyInput;
+    }
+
+    @Override
+    public @Nullable String dataEnergistics$getDisplayedTransferKeyInputSerialized() {
+        return this.dataEnergistics$displayTransferKeyInputSerialized;
+    }
+
+    @Override
+    public void dataEnergistics$sendTransferFluidInputsAction(@Nullable String serializedFluidInputs) {
+        if (this.isClientSide()) {
+            sendClientAction(PatternEncodingSourceHelper.ACTION_SET_TRANSFER_FLUID_INPUTS, serializedFluidInputs);
+        }
+    }
+
+    @Override
+    public void dataEnergistics$sendTransferFluidOutputsAction(@Nullable String serializedFluidOutputs) {
+        if (this.isClientSide()) {
+            sendClientAction(PatternEncodingSourceHelper.ACTION_SET_TRANSFER_FLUID_OUTPUTS, serializedFluidOutputs);
         }
     }
 
@@ -479,6 +523,12 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         registerClientAction(PatternEncodingSourceHelper.ACTION_SET_TRANSFER_KEY_INPUT, String.class,
                 serializedKeyInput -> PatternEncodingSourceHelper.applyTransferKeyInputAction(
                         (PatternEncodingTermMenu) (Object) this, serializedKeyInput));
+        registerClientAction(PatternEncodingSourceHelper.ACTION_SET_TRANSFER_FLUID_INPUTS, String.class,
+                serializedFluidInputs -> PatternEncodingSourceHelper.applyTransferFluidInputsAction(
+                        (PatternEncodingTermMenu) (Object) this, serializedFluidInputs));
+        registerClientAction(PatternEncodingSourceHelper.ACTION_SET_TRANSFER_FLUID_OUTPUTS, String.class,
+                serializedFluidOutputs -> PatternEncodingSourceHelper.applyTransferFluidOutputsAction(
+                        (PatternEncodingTermMenu) (Object) this, serializedFluidOutputs));
         registerClientAction(DATA_ENERGISTICS_ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER, Long.class,
                 this::dataEnergistics$transferEncodedPatternToProviderFromClient);
         registerClientAction(DATA_ENERGISTICS_ACTION_OPEN_PATTERN_PROVIDER_MENU, Long.class,
@@ -512,6 +562,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     @Inject(method = "broadcastChanges", at = @At("HEAD"))
     private void dataEnergistics$syncPreviewDataBeforeBroadcast(CallbackInfo ci) {
         if (this.isServerSide()) {
+            PatternEncodingSourceHelper.sanitizeActiveDataRipperTransferLayout((PatternEncodingTermMenu) (Object) this);
             dataEnergistics$flushBlankPatternSlotToNetwork();
             dataEnergistics$syncPatternProvidersIfNeeded();
         }

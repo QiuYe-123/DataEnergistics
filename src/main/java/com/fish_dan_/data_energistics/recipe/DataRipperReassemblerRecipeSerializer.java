@@ -17,11 +17,7 @@ import net.minecraft.world.item.crafting.RecipeSerializer;
 
 public final class DataRipperReassemblerRecipeSerializer implements RecipeSerializer<DataRipperReassemblerRecipe> {
     private static final Codec<List<DataRipperReassemblerIngredient>> INPUTS_CODEC =
-            DataRipperReassemblerIngredient.CODEC.codec().listOf().flatXmap(
-                    inputs -> inputs.isEmpty()
-                            ? DataResult.error(() -> "Data rippper reassembler recipe must have at least one item input")
-                            : DataResult.success(inputs),
-                    DataResult::success);
+            DataRipperReassemblerIngredient.CODEC.codec().listOf();
     private static final Codec<List<ItemStack>> OUTPUTS_CODEC = ItemStack.CODEC.listOf().flatXmap(
             outputs -> outputs.isEmpty()
                     ? DataResult.error(() -> "Data rippper reassembler recipe must have at least one item output")
@@ -62,7 +58,7 @@ public final class DataRipperReassemblerRecipeSerializer implements RecipeSerial
                     DataRipperReassemblerRecipeSerializer::readGenericStackList);
 
     private static final MapCodec<DataRipperReassemblerRecipe> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-            INPUTS_CODEC.fieldOf("item_inputs").forGetter(DataRipperReassemblerRecipe::getItemInputs),
+            INPUTS_CODEC.optionalFieldOf("item_inputs", List.of()).forGetter(DataRipperReassemblerRecipe::getItemInputs),
             FLUID_INPUTS_CODEC.optionalFieldOf("fluid_inputs", List.of()).forGetter(DataRipperReassemblerRecipe::getFluidInputs),
             OUTPUTS_CODEC.fieldOf("item_outputs").forGetter(DataRipperReassemblerRecipe::getItemOutputs),
             FLUID_OUTPUTS_CODEC.optionalFieldOf("fluid_outputs", List.of()).forGetter(DataRipperReassemblerRecipe::getFluidOutputs),

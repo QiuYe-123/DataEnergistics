@@ -102,6 +102,7 @@ public class ResidualDataOreBlock extends DropExperienceBlock {
             double y = pos.getY() + 0.7D + random.nextDouble() * 0.4D;
             double z = pos.getZ() + 0.35D + random.nextDouble() * 0.3D;
             entity.setPos(x, y, z);
+            entity.setTextureVariant(random.nextInt(4));
             entity.setDeltaMovement(
                     (random.nextDouble() - 0.5D) * 0.08D,
                     0.01D + random.nextDouble() * 0.03D,

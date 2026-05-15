@@ -20,9 +20,12 @@ import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnChemicalHandler;
+import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
+import mekanism.api.chemical.IChemicalHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
@@ -39,6 +42,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.items.IItemHandler;
 import org.jetbrains.annotations.Nullable;
 
@@ -69,6 +73,8 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     private AdaptivePatternProviderState adaptiveState;
     private final IUpgradeInventory upgrades;
     private final IItemHandler externalReturnItemHandler = new AdaptivePatternProviderReturnItemHandler(this::getLogic);
+    private final IFluidHandler externalReturnFluidHandler = new AdaptivePatternProviderReturnFluidHandler(this::getLogic);
+    private final IChemicalHandler externalReturnChemicalHandler = new AdaptivePatternProviderReturnChemicalHandler(this::getLogic);
 
     public AdaptivePatternProviderPart(IPartItem<?> partItem) {
         super(partItem);
@@ -92,6 +98,14 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
 
     public IItemHandler getExternalReturnItemHandler() {
         return this.externalReturnItemHandler;
+    }
+
+    public IFluidHandler getExternalReturnFluidHandler() {
+        return this.externalReturnFluidHandler;
+    }
+
+    public IChemicalHandler getExternalReturnChemicalHandler() {
+        return this.externalReturnChemicalHandler;
     }
 
     @Override

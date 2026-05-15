@@ -38,7 +38,6 @@
     "JeiEncodePatternTransferHandlerMixin",
     "EmiEncodePatternHandlerMixin",
     "EncodedPatternItemMixin",
-    "MeteoritePlacerMixin",
     "Ae2ltWirelessConnectorUsePacketMixin",
     "Ae2ltEjectCapabilityMixin"
   ],

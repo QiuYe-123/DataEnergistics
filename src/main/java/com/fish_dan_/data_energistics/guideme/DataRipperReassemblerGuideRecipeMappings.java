@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.guideme;
 
 import appeng.api.stacks.GenericStack;
 import appeng.core.AppEng;
+import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerIngredient;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -57,35 +58,15 @@ public final class DataRipperReassemblerGuideRecipeMappings implements RecipeTyp
     private static final class RecipeBody extends AbstractTexturedMachineGuideRecipeBody {
         private static final ResourceLocation TEXTURE = AppEng.makeId("textures/guis/data_reassembler.png");
         private static final ResourceLocation PROGRESS_TEXTURE = AppEng.makeId("textures/guis/crystal_assembler.png");
-        private static final int WIDTH = 162;
-        private static final int HEIGHT = 58;
-        private static final int ITEM_INPUT_START_X = 7;
-        private static final int ITEM_INPUT_START_Y = 3;
-        private static final int SLOT_SPACING = 18;
-        private static final int KEY_INPUT_X = 63;
-        private static final int KEY_INPUT_Y = 21;
-        private static final int FLUID_INPUT_A_X = 63;
-        private static final int FLUID_INPUT_A_Y = 3;
-        private static final int FLUID_INPUT_B_X = 63;
-        private static final int FLUID_INPUT_B_Y = 39;
-        private static final int FLUID_OUTPUT_A_X = 132;
-        private static final int FLUID_OUTPUT_A_Y = 39;
-        private static final int FLUID_OUTPUT_B_X = 132;
-        private static final int FLUID_OUTPUT_B_Y = 3;
-        private static final int PROGRESS_X = 153;
-        private static final int PROGRESS_Y = 20;
-        private static final int PROGRESS_WIDTH = 6;
-        private static final int PROGRESS_HEIGHT = 18;
-        private static final int[][] OUTPUT_POSITIONS = {
-                {114, 2},
-                {114, 20},
-                {114, 38}
-        };
 
         private final DataRipperReassemblerRecipe recipe;
 
         private RecipeBody(DataRipperReassemblerRecipe recipe) {
-            super(TEXTURE, 11, 19, WIDTH, HEIGHT, PROGRESS_TEXTURE, PROGRESS_X, PROGRESS_Y, PROGRESS_WIDTH, PROGRESS_HEIGHT);
+            super(TEXTURE, 11, 19,
+                    DataReassemblerLayout.RECIPE_WIDTH, DataReassemblerLayout.RECIPE_HEIGHT,
+                    PROGRESS_TEXTURE,
+                    DataReassemblerLayout.PROGRESS_X, DataReassemblerLayout.PROGRESS_Y,
+                    DataReassemblerLayout.PROGRESS_WIDTH, DataReassemblerLayout.PROGRESS_HEIGHT);
             this.recipe = recipe;
         }
 
@@ -106,55 +87,53 @@ public final class DataRipperReassemblerGuideRecipeMappings implements RecipeTyp
         @Override
         protected Optional<GuideTooltip> getTooltipAt(float x, float y) {
             for (int i = 0; i < this.recipe.getItemInputs().size(); i++) {
+                var pos = DataReassemblerLayout.guideItemInput(i);
                 Optional<GuideTooltip> tooltip = getItemTooltipIfHovered(
                         x,
                         y,
                         getDisplayedInputStack(this.recipe.getItemInputs().get(i)),
-                        ITEM_INPUT_START_X + i % 3 * SLOT_SPACING,
-                        ITEM_INPUT_START_Y + i / 3 * SLOT_SPACING);
+                        pos.x(),
+                        pos.y());
                 if (tooltip.isPresent()) {
                     return tooltip;
                 }
             }
 
-            for (int i = 0; i < this.recipe.getItemOutputs().size() && i < OUTPUT_POSITIONS.length; i++) {
-                int[] pos = OUTPUT_POSITIONS[i];
+            for (int i = 0; i < this.recipe.getItemOutputs().size() && i < DataRipperReassemblerRecipe.ITEM_OUTPUT_SLOTS; i++) {
+                var pos = DataReassemblerLayout.guideItemOutput(i);
                 Optional<GuideTooltip> tooltip = getItemTooltipIfHovered(
-                        x, y, this.recipe.getItemOutputs().get(i).copy(), pos[0], pos[1]);
+                        x, y, this.recipe.getItemOutputs().get(i).copy(), pos.x(), pos.y());
                 if (tooltip.isPresent()) {
                     return tooltip;
                 }
             }
 
-            for (int i = 0; i < this.recipe.getFluidInputs().size() && i < 2; i++) {
-                int[] pos = i == 0
-                        ? new int[]{FLUID_INPUT_A_X, FLUID_INPUT_A_Y}
-                        : new int[]{FLUID_INPUT_B_X, FLUID_INPUT_B_Y};
+            for (int i = 0; i < this.recipe.getFluidInputs().size() && i < DataRipperReassemblerRecipe.FLUID_INPUT_SLOTS; i++) {
+                var pos = DataReassemblerLayout.guideFluidInput(i);
                 Optional<GuideTooltip> tooltip = getGenericTooltipIfHovered(
-                        x, y, this.recipe.getFluidInputs().get(i), pos[0], pos[1], List.of());
+                        x, y, this.recipe.getFluidInputs().get(i), pos.x(), pos.y(), List.of());
                 if (tooltip.isPresent()) {
                     return tooltip;
                 }
             }
 
-            for (int i = 0; i < this.recipe.getFluidOutputs().size() && i < 2; i++) {
-                int[] pos = i == 0
-                        ? new int[]{FLUID_OUTPUT_A_X, FLUID_OUTPUT_A_Y}
-                        : new int[]{FLUID_OUTPUT_B_X, FLUID_OUTPUT_B_Y};
+            for (int i = 0; i < this.recipe.getFluidOutputs().size() && i < DataRipperReassemblerRecipe.FLUID_OUTPUT_SLOTS; i++) {
+                var pos = DataReassemblerLayout.guideFluidOutput(i);
                 Optional<GuideTooltip> tooltip = getGenericTooltipIfHovered(
-                        x, y, this.recipe.getFluidOutputs().get(i), pos[0], pos[1], List.of());
+                        x, y, this.recipe.getFluidOutputs().get(i), pos.x(), pos.y(), List.of());
                 if (tooltip.isPresent()) {
                     return tooltip;
                 }
             }
 
             if (this.recipe.getKeyInput() != null) {
+                var pos = DataReassemblerLayout.guideKeyInput();
                 return getGenericTooltipIfHovered(
                         x,
                         y,
                         this.recipe.getKeyInput(),
-                        KEY_INPUT_X,
-                        KEY_INPUT_Y,
+                        pos.x(),
+                        pos.y(),
                         List.of());
             }
 
@@ -163,43 +142,41 @@ public final class DataRipperReassemblerGuideRecipeMappings implements RecipeTyp
 
         private void renderItemInputs(RenderContext context) {
             for (int i = 0; i < this.recipe.getItemInputs().size(); i++) {
+                var pos = DataReassemblerLayout.guideItemInput(i);
                 renderItemStack(
                         context,
                         getDisplayedInputStack(this.recipe.getItemInputs().get(i)),
-                        ITEM_INPUT_START_X + i % 3 * SLOT_SPACING,
-                        ITEM_INPUT_START_Y + i / 3 * SLOT_SPACING);
+                        pos.x(),
+                        pos.y());
             }
         }
 
         private void renderItemOutputs(RenderContext context) {
-            for (int i = 0; i < this.recipe.getItemOutputs().size() && i < OUTPUT_POSITIONS.length; i++) {
-                int[] pos = OUTPUT_POSITIONS[i];
-                renderItemStack(context, this.recipe.getItemOutputs().get(i), pos[0], pos[1]);
+            for (int i = 0; i < this.recipe.getItemOutputs().size() && i < DataRipperReassemblerRecipe.ITEM_OUTPUT_SLOTS; i++) {
+                var pos = DataReassemblerLayout.guideItemOutput(i);
+                renderItemStack(context, this.recipe.getItemOutputs().get(i), pos.x(), pos.y());
             }
         }
 
         private void renderFluidInputs(RenderContext context) {
-            for (int i = 0; i < this.recipe.getFluidInputs().size() && i < 2; i++) {
-                int[] pos = i == 0
-                        ? new int[]{FLUID_INPUT_A_X, FLUID_INPUT_A_Y}
-                        : new int[]{FLUID_INPUT_B_X, FLUID_INPUT_B_Y};
-                renderGenericStack(context, this.recipe.getFluidInputs().get(i), pos[0], pos[1]);
+            for (int i = 0; i < this.recipe.getFluidInputs().size() && i < DataRipperReassemblerRecipe.FLUID_INPUT_SLOTS; i++) {
+                var pos = DataReassemblerLayout.guideFluidInput(i);
+                renderGenericStack(context, this.recipe.getFluidInputs().get(i), pos.x(), pos.y());
             }
         }
 
         private void renderFluidOutputs(RenderContext context) {
-            for (int i = 0; i < this.recipe.getFluidOutputs().size() && i < 2; i++) {
-                int[] pos = i == 0
-                        ? new int[]{FLUID_OUTPUT_A_X, FLUID_OUTPUT_A_Y}
-                        : new int[]{FLUID_OUTPUT_B_X, FLUID_OUTPUT_B_Y};
-                renderGenericStack(context, this.recipe.getFluidOutputs().get(i), pos[0], pos[1]);
+            for (int i = 0; i < this.recipe.getFluidOutputs().size() && i < DataRipperReassemblerRecipe.FLUID_OUTPUT_SLOTS; i++) {
+                var pos = DataReassemblerLayout.guideFluidOutput(i);
+                renderGenericStack(context, this.recipe.getFluidOutputs().get(i), pos.x(), pos.y());
             }
         }
 
         private void renderKeyInput(RenderContext context) {
             if (this.recipe.getKeyInput() != null) {
-                renderGenericStack(context, this.recipe.getKeyInput(), KEY_INPUT_X, KEY_INPUT_Y);
-                renderGenericStackAmount(context, this.recipe.getKeyInput(), KEY_INPUT_X, KEY_INPUT_Y, formatCompactAmount(this.recipe.getKeyInput()));
+                var pos = DataReassemblerLayout.guideKeyInput();
+                renderGenericStack(context, this.recipe.getKeyInput(), pos.x(), pos.y());
+                renderGenericStackAmount(context, this.recipe.getKeyInput(), pos.x(), pos.y(), formatCompactAmount(this.recipe.getKeyInput()));
             }
         }
 

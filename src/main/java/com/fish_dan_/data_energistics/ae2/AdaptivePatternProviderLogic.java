@@ -1999,6 +1999,30 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic implement
         return remainder;
     }
 
+    public long insertReturnInventoryStack(int slot, GenericStack stack, boolean simulate) {
+        if (stack == null || stack.what() == null || stack.amount() <= 0 || slot < 0 || slot >= getReturnInv().size()) {
+            return 0;
+        }
+
+        return getReturnInv().insert(
+                slot,
+                stack.what(),
+                stack.amount(),
+                simulate ? Actionable.SIMULATE : Actionable.MODULATE);
+    }
+
+    public long insertReturnInventoryKey(AEKey key, long amount, boolean simulate) {
+        if (key == null || amount <= 0) {
+            return 0;
+        }
+
+        return getReturnInv().insert(
+                key,
+                amount,
+                simulate ? Actionable.SIMULATE : Actionable.MODULATE,
+                this.actionSource);
+    }
+
     private boolean isAdvancedAeFilteredImportEnabled() {
         return this.host instanceof AdaptivePatternProviderHost adaptivePatternProviderHost
                 && adaptivePatternProviderHost.isAdvancedAeProviderSelected()

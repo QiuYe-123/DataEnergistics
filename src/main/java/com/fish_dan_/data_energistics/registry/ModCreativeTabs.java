@@ -47,6 +47,9 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_TELEPORT_ANCHOR);
                         output.accept(ModItems.ADAPTIVE_PATTERN_PROVIDER);
                         output.accept(ModItems.RESIDUAL_DATA_ORE);
+                        output.accept(ModItems.ENDER_COHESION_METEORITE_0);
+                        output.accept(ModItems.ENDER_COHESION_METEORITE_1);
+                        output.accept(ModItems.ENDER_COHESION_METEORITE_2);
                         output.accept(ModItems.REDSTONE_CRYSTAL_BLOCK);
                         output.accept(ModItems.BUDDING_REDSTONE_CRYSTAL);
                         output.accept(ModItems.SMALL_REDSTONE_CRYSTAL_BUD);

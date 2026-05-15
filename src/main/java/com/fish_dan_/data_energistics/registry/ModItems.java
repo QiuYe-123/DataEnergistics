@@ -54,6 +54,9 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> DATA_TELEPORT_ANCHOR = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_TELEPORT_ANCHOR);
     public static final DeferredItem<BlockItem> ADAPTIVE_PATTERN_PROVIDER = ITEMS.registerSimpleBlockItem(ModBlocks.ADAPTIVE_PATTERN_PROVIDER);
     public static final DeferredItem<BlockItem> RESIDUAL_DATA_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.RESIDUAL_DATA_ORE);
+    public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_0 = ITEMS.registerSimpleBlockItem(ModBlocks.ENDER_COHESION_METEORITE_0);
+    public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_1 = ITEMS.registerSimpleBlockItem(ModBlocks.ENDER_COHESION_METEORITE_1);
+    public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_2 = ITEMS.registerSimpleBlockItem(ModBlocks.ENDER_COHESION_METEORITE_2);
     public static final DeferredItem<BlockItem> REDSTONE_CRYSTAL_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.REDSTONE_CRYSTAL_BLOCK);
     public static final DeferredItem<BlockItem> BUDDING_REDSTONE_CRYSTAL = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_REDSTONE_CRYSTAL);
     public static final DeferredItem<BlockItem> SMALL_REDSTONE_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(ModBlocks.SMALL_REDSTONE_CRYSTAL_BUD);

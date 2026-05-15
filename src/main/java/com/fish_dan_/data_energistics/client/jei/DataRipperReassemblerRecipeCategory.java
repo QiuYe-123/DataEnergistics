@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.client.jei;
 import appeng.core.AppEng;
 import appeng.api.client.AEKeyRendering;
 import appeng.api.stacks.GenericStack;
+import appeng.items.misc.WrappedGenericStack;
+import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerIngredient;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
@@ -31,24 +33,6 @@ import net.minecraft.world.item.TooltipFlag;
 public final class DataRipperReassemblerRecipeCategory extends AbstractRecipeCategory<DataRipperReassemblerRecipe> {
     private static final ResourceLocation TEXTURE = AppEng.makeId("textures/guis/data_reassembler.png");
     private static final ResourceLocation PROGRESS_TEXTURE = AppEng.makeId("textures/guis/crystal_assembler.png");
-    private static final int ITEM_INPUT_START_X = 7;
-    private static final int ITEM_INPUT_START_Y = 3;
-    private static final int SLOT_SPACING = 18;
-    private static final int KEY_INPUT_X = 62;
-    private static final int KEY_INPUT_Y = 20;
-    private static final int FLUID_INPUT_A_X = 62;
-    private static final int FLUID_INPUT_A_Y = 2;
-    private static final int FLUID_INPUT_B_X = 62;
-    private static final int FLUID_INPUT_B_Y = 38;
-    private static final int FLUID_OUTPUT_A_X = 132;
-    private static final int FLUID_OUTPUT_A_Y = 39;
-    private static final int FLUID_OUTPUT_B_X = 132;
-    private static final int FLUID_OUTPUT_B_Y = 3;
-    private static final int[][] OUTPUT_POSITIONS = {
-            {113, 2},
-            {113, 20},
-            {113, 38}
-    };
     public static final RecipeType<DataRipperReassemblerRecipe> RECIPE_TYPE =
             RecipeType.create("data_energistics", "data_reassembler", DataRipperReassemblerRecipe.class);
 
@@ -60,9 +44,10 @@ public final class DataRipperReassemblerRecipeCategory extends AbstractRecipeCat
                 RECIPE_TYPE,
                 Component.translatable("recipe.data_energistics.data_reassembler"),
                 guiHelper.createDrawableItemLike(ModBlocks.DATA_RIPPER_REASSEMBLER.get()),
-                162,
-                58);
-        this.background = guiHelper.createDrawable(TEXTURE, 11, 19, 162, 58);
+                DataReassemblerLayout.RECIPE_WIDTH,
+                DataReassemblerLayout.RECIPE_HEIGHT);
+        this.background = guiHelper.createDrawable(TEXTURE, 11, 19,
+                DataReassemblerLayout.RECIPE_WIDTH, DataReassemblerLayout.RECIPE_HEIGHT);
         this.progress = guiHelper.drawableBuilder(PROGRESS_TEXTURE, 176, 0, 6, 18)
                 .buildAnimated(40, IDrawableAnimated.StartDirection.BOTTOM, false);
     }
@@ -71,32 +56,30 @@ public final class DataRipperReassemblerRecipeCategory extends AbstractRecipeCat
     public void draw(DataRipperReassemblerRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics,
                      double mouseX, double mouseY) {
         this.background.draw(guiGraphics);
-        this.progress.draw(guiGraphics, 153, 20);
+        this.progress.draw(guiGraphics, DataReassemblerLayout.PROGRESS_X, DataReassemblerLayout.PROGRESS_Y);
     }
 
     @Override
     public void setRecipe(IRecipeLayoutBuilder builder, DataRipperReassemblerRecipe recipe, IFocusGroup focuses) {
         for (int i = 0; i < recipe.getItemInputs().size(); i++) {
             DataRipperReassemblerIngredient ingredient = recipe.getItemInputs().get(i);
-            int x = ITEM_INPUT_START_X + i % 3 * SLOT_SPACING;
-            int y = ITEM_INPUT_START_Y + i / 3 * SLOT_SPACING;
-            builder.addInputSlot(x, y).addItemStacks(withCount(ingredient));
+            var pos = DataReassemblerLayout.jeiItemInput(i);
+            builder.addInputSlot(pos.x(), pos.y()).addItemStacks(withCount(ingredient));
         }
 
-        for (int i = 0; i < recipe.getItemOutputs().size() && i < OUTPUT_POSITIONS.length; i++) {
-            int[] pos = OUTPUT_POSITIONS[i];
-            builder.addOutputSlot(pos[0], pos[1]).addItemStack(recipe.getItemOutputs().get(i).copy());
+        for (int i = 0; i < recipe.getItemOutputs().size() && i < DataRipperReassemblerRecipe.ITEM_OUTPUT_SLOTS; i++) {
+            var pos = DataReassemblerLayout.jeiItemOutput(i);
+            builder.addOutputSlot(pos.x(), pos.y()).addItemStack(recipe.getItemOutputs().get(i).copy());
         }
 
-        addGenericStackInputs(builder, recipe.getFluidInputs(),
-                new int[][]{{FLUID_INPUT_A_X, FLUID_INPUT_A_Y}, {FLUID_INPUT_B_X, FLUID_INPUT_B_Y}});
-        addGenericStackOutputs(builder, recipe.getFluidOutputs(),
-                new int[][]{{FLUID_OUTPUT_A_X, FLUID_OUTPUT_A_Y}, {FLUID_OUTPUT_B_X, FLUID_OUTPUT_B_Y}});
+        addGenericStackInputs(builder, recipe.getFluidInputs());
+        addGenericStackOutputs(builder, recipe.getFluidOutputs());
 
         GenericStack keyInput = recipe.getKeyInput();
         if (keyInput != null) {
-            builder.addInputSlot(KEY_INPUT_X, KEY_INPUT_Y)
-                    .addItemStack(keyInput.what().wrapForDisplayOrFilter())
+            var pos = DataReassemblerLayout.jeiKeyInput();
+            builder.addInputSlot(pos.x(), pos.y())
+                    .addItemStack(WrappedGenericStack.wrap(keyInput))
                     .setCustomRenderer(VanillaTypes.ITEM_STACK, new NoCountItemRenderer(keyInput))
                     .addRichTooltipCallback((slotView, tooltip) -> {
                         tooltip.add(createKeyTooltip(keyInput));
@@ -118,12 +101,12 @@ public final class DataRipperReassemblerRecipeCategory extends AbstractRecipeCat
                 .append(keyInput.what().getDisplayName());
     }
 
-    private static void addGenericStackInputs(IRecipeLayoutBuilder builder, List<GenericStack> stacks, int[][] positions) {
-        for (int i = 0; i < stacks.size() && i < positions.length; i++) {
+    private static void addGenericStackInputs(IRecipeLayoutBuilder builder, List<GenericStack> stacks) {
+        for (int i = 0; i < stacks.size() && i < DataRipperReassemblerRecipe.FLUID_INPUT_SLOTS; i++) {
             GenericStack stack = stacks.get(i);
-            int[] pos = positions[i];
-            builder.addInputSlot(pos[0], pos[1])
-                    .addItemStack(stack.what().wrapForDisplayOrFilter())
+            var pos = DataReassemblerLayout.jeiFluidInput(i);
+            builder.addInputSlot(pos.x(), pos.y())
+                    .addItemStack(WrappedGenericStack.wrap(stack))
                     .setCustomRenderer(VanillaTypes.ITEM_STACK, new NoCountItemRenderer(stack))
                     .addRichTooltipCallback((slotView, tooltip) -> {
                         tooltip.add(createKeyTooltip(stack));
@@ -132,12 +115,12 @@ public final class DataRipperReassemblerRecipeCategory extends AbstractRecipeCat
         }
     }
 
-    private static void addGenericStackOutputs(IRecipeLayoutBuilder builder, List<GenericStack> stacks, int[][] positions) {
-        for (int i = 0; i < stacks.size() && i < positions.length; i++) {
+    private static void addGenericStackOutputs(IRecipeLayoutBuilder builder, List<GenericStack> stacks) {
+        for (int i = 0; i < stacks.size() && i < DataRipperReassemblerRecipe.FLUID_OUTPUT_SLOTS; i++) {
             GenericStack stack = stacks.get(i);
-            int[] pos = positions[i];
-            builder.addOutputSlot(pos[0], pos[1])
-                    .addItemStack(stack.what().wrapForDisplayOrFilter())
+            var pos = DataReassemblerLayout.jeiFluidOutput(i);
+            builder.addOutputSlot(pos.x(), pos.y())
+                    .addItemStack(WrappedGenericStack.wrap(stack))
                     .setCustomRenderer(VanillaTypes.ITEM_STACK, new NoCountItemRenderer(stack))
                     .addRichTooltipCallback((slotView, tooltip) -> {
                         tooltip.add(createKeyTooltip(stack));

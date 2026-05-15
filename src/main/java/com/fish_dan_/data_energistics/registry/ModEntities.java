@@ -17,8 +17,8 @@ public final class ModEntities {
     public static final DeferredHolder<EntityType<?>, EntityType<DispersingDataEntity>> DISPERSING_DATA =
             ENTITY_TYPES.register("dispersing_data", () -> EntityType.Builder
                     .<DispersingDataEntity>of(DispersingDataEntity::new, MobCategory.MISC)
-                    .sized(0.4F, 0.4F)
-                    .eyeHeight(0.2F)
+                    .sized(0.125F, 0.125F)
+                    .eyeHeight(0.0625F)
                     .clientTrackingRange(8)
                     .updateInterval(1)
                     .build("dispersing_data"));

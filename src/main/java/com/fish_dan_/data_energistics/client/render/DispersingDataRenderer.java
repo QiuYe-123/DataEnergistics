@@ -13,16 +13,17 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
 public class DispersingDataRenderer extends EntityRenderer<DispersingDataEntity> {
-    private static final ResourceLocation ORB_TEXTURE =
-            ResourceLocation.withDefaultNamespace("textures/entity/experience_orb.png");
-    private static final RenderType RENDER_TYPE = RenderType.itemEntityTranslucentCull(ORB_TEXTURE);
-    private static final int RED = 0x87;
-    private static final int GREEN = 0x5F;
-    private static final int BLUE = 0xFF;
+    private static final float DISPLAY_HALF_SIZE = 0.125F;
+    private static final ResourceLocation[] ORB_TEXTURES = new ResourceLocation[] {
+            ResourceLocation.fromNamespaceAndPath("data_energistics", "textures/entity/dispersing_data_0.png"),
+            ResourceLocation.fromNamespaceAndPath("data_energistics", "textures/entity/dispersing_data_1.png"),
+            ResourceLocation.fromNamespaceAndPath("data_energistics", "textures/entity/dispersing_data_2.png"),
+            ResourceLocation.fromNamespaceAndPath("data_energistics", "textures/entity/dispersing_data_3.png")
+    };
 
     public DispersingDataRenderer(EntityRendererProvider.Context context) {
         super(context);
-        this.shadowRadius = 0.12F;
+        this.shadowRadius = 0.04F;
         this.shadowStrength = 0.4F;
     }
 
@@ -35,17 +36,18 @@ public class DispersingDataRenderer extends EntityRenderer<DispersingDataEntity>
     public void render(DispersingDataEntity entity, float entityYaw, float partialTick, PoseStack poseStack,
             MultiBufferSource buffer, int packedLight) {
         poseStack.pushPose();
-        float bob = Mth.sin((entity.tickCount + partialTick) * 0.15F) * 0.1F;
-        poseStack.translate(0.0F, 0.15F + bob, 0.0F);
+        float bob = Mth.sin((entity.tickCount + partialTick) * 0.15F) * 0.03F;
+        float pulse = 1.0F + Mth.sin((entity.tickCount + partialTick) * 0.25F) * 0.05F;
+        poseStack.translate(0.0F, bob, 0.0F);
         poseStack.mulPose(this.entityRenderDispatcher.cameraOrientation());
-        poseStack.scale(0.35F, 0.35F, 0.35F);
 
-        VertexConsumer vertexConsumer = buffer.getBuffer(RENDER_TYPE);
+        VertexConsumer vertexConsumer = buffer.getBuffer(RenderType.itemEntityTranslucentCull(this.getTextureLocation(entity)));
         PoseStack.Pose pose = poseStack.last();
-        vertex(vertexConsumer, pose, -0.5F, -0.25F, 0.0F, 0.25F, packedLight);
-        vertex(vertexConsumer, pose, 0.5F, -0.25F, 0.25F, 0.25F, packedLight);
-        vertex(vertexConsumer, pose, 0.5F, 0.75F, 0.25F, 0.0F, packedLight);
-        vertex(vertexConsumer, pose, -0.5F, 0.75F, 0.0F, 0.0F, packedLight);
+        float halfSize = DISPLAY_HALF_SIZE * pulse;
+        vertex(vertexConsumer, pose, -halfSize, -halfSize, 0.0F, 1.0F, packedLight);
+        vertex(vertexConsumer, pose, halfSize, -halfSize, 1.0F, 1.0F, packedLight);
+        vertex(vertexConsumer, pose, halfSize, halfSize, 1.0F, 0.0F, packedLight);
+        vertex(vertexConsumer, pose, -halfSize, halfSize, 0.0F, 0.0F, packedLight);
 
         poseStack.popPose();
         super.render(entity, entityYaw, partialTick, poseStack, buffer, packedLight);
@@ -54,7 +56,7 @@ public class DispersingDataRenderer extends EntityRenderer<DispersingDataEntity>
     private static void vertex(VertexConsumer consumer, PoseStack.Pose pose, float x, float y, float u, float v,
             int packedLight) {
         consumer.addVertex(pose, x, y, 0.0F)
-                .setColor(RED, GREEN, BLUE, 200)
+                .setColor(255, 255, 255, 255)
                 .setUv(u, v)
                 .setOverlay(OverlayTexture.NO_OVERLAY)
                 .setLight(packedLight)
@@ -63,6 +65,6 @@ public class DispersingDataRenderer extends EntityRenderer<DispersingDataEntity>
 
     @Override
     public ResourceLocation getTextureLocation(DispersingDataEntity entity) {
-        return ORB_TEXTURE;
+        return ORB_TEXTURES[Math.floorMod(entity.getTextureVariant(), ORB_TEXTURES.length)];
     }
 }

@@ -1,7 +1,9 @@
 package com.fish_dan_.data_energistics.guideme;
 
 import appeng.api.client.AEKeyRendering;
+import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.GenericStack;
+import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
 import guideme.document.LytRect;
 import guideme.document.block.LytBlock;
 import guideme.document.interaction.GuideTooltip;
@@ -243,6 +245,9 @@ abstract class AbstractTexturedMachineGuideRecipeBody extends LytBlock implement
     }
 
     protected final String formatCompactAmount(GenericStack stack) {
+        if (stack.what() instanceof AEFluidKey) {
+            return GenericStackDisplayHelper.formatCompactFluidAmount(stack.amount());
+        }
         return formatCompactAmount(stack.amount());
     }
 

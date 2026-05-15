@@ -2,30 +2,41 @@ package com.fish_dan_.data_energistics.client.screen;
 
 import appeng.api.config.Settings;
 import appeng.api.config.YesNo;
+import appeng.api.client.AEKeyRendering;
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.implementations.UpgradeableScreen;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.ProgressBar;
 import appeng.client.gui.widgets.ProgressBar.Direction;
 import appeng.client.gui.widgets.ServerSettingToggleButton;
+import appeng.core.AppEng;
 import appeng.core.localization.Tooltips;
 import appeng.menu.SlotSemantics;
+import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.menu.DataRipperReassemblerMenu;
 import com.glodblock.github.extendedae.client.button.ActionEPPButton;
 import com.glodblock.github.extendedae.client.button.EPPIcon;
 import com.glodblock.github.extendedae.client.gui.subgui.OutputSideConfig;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.fluids.FluidStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.jetbrains.annotations.Nullable;
 
 public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperReassemblerMenu> {
+    private static final ResourceLocation MISSING_FLUID = AppEng.makeId("block/missing");
     private final ProgressBar progressBar;
     private final ServerSettingToggleButton<YesNo> autoExportButton;
     private final ActionEPPButton outputSideButton;
@@ -99,6 +110,13 @@ public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperRea
                     .dest(slot.x, slot.y)
                     .blit(guiGraphics);
         }
+
+        GenericStack genericStack = getDisplayedGenericStack(slot);
+        if (genericStack != null) {
+            renderGenericSlot(guiGraphics, slot, genericStack);
+            return;
+        }
+
         super.renderSlot(guiGraphics, slot);
     }
 
@@ -153,5 +171,55 @@ public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperRea
         }
         return Component.literal(amount + " / " + this.menu.getKeyOutputCapacity())
                 .withStyle(Tooltips.NORMAL_TOOLTIP_TEXT);
+    }
+
+    private void renderGenericSlot(GuiGraphics guiGraphics, Slot slot, GenericStack genericStack) {
+        AEKeyRendering.drawInGui(Minecraft.getInstance(), guiGraphics, slot.x, slot.y, genericStack.what());
+        GenericStackDisplayHelper.renderSmallOverlay(
+                guiGraphics,
+                slot.x,
+                slot.y,
+                GenericStackDisplayHelper.formatCompactAmount(genericStack));
+    }
+
+    private @Nullable GenericStack getDisplayedGenericStack(Slot slot) {
+        if (slot == null || !slot.isActive()) {
+            return null;
+        }
+
+        var semantic = this.menu.getSlotSemantic(slot);
+        if (semantic == SlotSemantics.STORAGE) {
+            return fluidStack(this.menu.fluidInputAId, this.menu.fluidInputAAmount);
+        }
+        if (semantic == DataRipperReassemblerMenu.FLUID_INPUT_B) {
+            return fluidStack(this.menu.fluidInputBId, this.menu.fluidInputBAmount);
+        }
+        if (semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_A) {
+            return fluidStack(this.menu.fluidOutputAId, this.menu.fluidOutputAAmount);
+        }
+        if (semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_B) {
+            return fluidStack(this.menu.fluidOutputBId, this.menu.fluidOutputBAmount);
+        }
+        if (semantic == DataRipperReassemblerMenu.KEY_INPUT) {
+            return GenericStack.fromItemStack(slot.getItem());
+        }
+        if (semantic == DataRipperReassemblerMenu.KEY_OUTPUT) {
+            return GenericStack.fromItemStack(slot.getItem());
+        }
+        return null;
+    }
+
+    private @Nullable GenericStack fluidStack(String fluidId, int amount) {
+        if (fluidId == null || fluidId.isBlank() || amount <= 0) {
+            return null;
+        }
+
+        var fluid = BuiltInRegistries.FLUID.getOptional(ResourceLocation.parse(fluidId)).orElse(null);
+        if (fluid == null) {
+            return null;
+        }
+
+        AEKey key = AEFluidKey.of(new FluidStack(fluid, amount));
+        return key == null ? null : new GenericStack(key, amount);
     }
 }

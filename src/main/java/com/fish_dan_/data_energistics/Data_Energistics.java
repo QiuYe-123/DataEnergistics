@@ -55,6 +55,7 @@ import com.fish_dan_.data_energistics.registry.ModEntities;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
+import com.fish_dan_.data_energistics.registry.ModStructures;
 import com.fish_dan_.data_energistics.registry.ModStorageCells;
 import com.fish_dan_.data_energistics.registry.UniversalTerminalAdapters;
 import com.fish_dan_.data_energistics.recipe.TimeShiftTransformLogic;
@@ -110,6 +111,7 @@ public class Data_Energistics {
         ModCreativeTabs.register(modEventBus);
         ModMenus.register(modEventBus);
         ModRecipes.register(modEventBus);
+        ModStructures.register(modEventBus);
         UniversalTerminalAdapters.init();
 
         modEventBus.addListener(this::commonSetup);
@@ -289,6 +291,11 @@ public class Data_Energistics {
                 (blockEntity, context) -> blockEntity
         );
         event.registerBlockEntity(
+                AECapabilities.ME_STORAGE,
+                ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getExternalPatternInputStorage()
+        );
+        event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalInventory().toItemHandler()
@@ -324,6 +331,14 @@ public class Data_Energistics {
                 (blockEntity, context) -> blockEntity
         );
         event.registerBlockEntity(
+                AECapabilities.GENERIC_INTERNAL_INV,
+                ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> {
+                    var logic = blockEntity.getLogic();
+                    return logic != null ? logic.getReturnInv() : null;
+                }
+        );
+        event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity
@@ -332,6 +347,16 @@ public class Data_Energistics {
                 Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalReturnItemHandler(context)
+        );
+        event.registerBlockEntity(
+                Capabilities.FluidHandler.BLOCK,
+                ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getExternalReturnFluidHandler(context)
+        );
+        event.registerBlockEntity(
+                mekanism.common.capabilities.Capabilities.CHEMICAL.block(),
+                ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getExternalReturnChemicalHandler(context)
         );
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
@@ -344,6 +369,38 @@ public class Data_Energistics {
                     var part = blockEntity.getPart(context);
                     if (part instanceof AdaptivePatternProviderPart adaptivePart) {
                         return adaptivePart.getExternalReturnItemHandler();
+                    }
+
+                    return null;
+                }
+        );
+        event.registerBlockEntity(
+                Capabilities.FluidHandler.BLOCK,
+                AEBlockEntities.CABLE_BUS.get(),
+                (CableBusBlockEntity blockEntity, Direction context) -> {
+                    if (context == null) {
+                        return null;
+                    }
+
+                    var part = blockEntity.getPart(context);
+                    if (part instanceof AdaptivePatternProviderPart adaptivePart) {
+                        return adaptivePart.getExternalReturnFluidHandler();
+                    }
+
+                    return null;
+                }
+        );
+        event.registerBlockEntity(
+                mekanism.common.capabilities.Capabilities.CHEMICAL.block(),
+                AEBlockEntities.CABLE_BUS.get(),
+                (CableBusBlockEntity blockEntity, Direction context) -> {
+                    if (context == null) {
+                        return null;
+                    }
+
+                    var part = blockEntity.getPart(context);
+                    if (part instanceof AdaptivePatternProviderPart adaptivePart) {
+                        return adaptivePart.getExternalReturnChemicalHandler();
                     }
 
                     return null;
