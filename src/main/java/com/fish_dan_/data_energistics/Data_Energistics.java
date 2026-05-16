@@ -62,6 +62,7 @@ import com.fish_dan_.data_energistics.recipe.TimeShiftTransformLogic;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.renderer.entity.TntRenderer;
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -495,6 +496,7 @@ public class Data_Energistics {
             event.registerBlockEntityRenderer(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), DataDistributionTowerRenderer::new);
             event.registerEntityRenderer(ModEntities.DISPERSING_DATA.get(), DispersingDataRenderer::new);
             event.registerEntityRenderer(ModEntities.MATTER_CONVERGING_BOLT.get(), MatterConvergingBoltRenderer::new);
+            event.registerEntityRenderer(ModEntities.TNT_0_PRIMED.get(), TntRenderer::new);
         }
 
         private static void registerMatterConvergingCrossbowProperties() {

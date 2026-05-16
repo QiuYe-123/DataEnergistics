@@ -11,8 +11,9 @@ import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.block.EnderCohesionMeteoriteBlock;
 import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
-import com.fish_dan_.data_energistics.block.RedstoneCrystalBuddingBlock;
+import com.fish_dan_.data_energistics.block.DataCrystalBuddingBlock;
 import com.fish_dan_.data_energistics.block.ResidualDataOreBlock;
+import com.fish_dan_.data_energistics.block.Tnt0Block;
 import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -72,6 +73,11 @@ public final class ModBlocks {
             properties -> new AdaptivePatternProviderBlock(properties),
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK));
 
+    public static final DeferredBlock<Block> TNT_0 = BLOCKS.registerBlock(
+            "tnt_0",
+            Tnt0Block::new,
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.TNT));
+
     public static final DeferredBlock<Block> RESIDUAL_DATA_ORE = BLOCKS.registerBlock(
             "residual_data_ore",
             ResidualDataOreBlock::new,
@@ -79,55 +85,55 @@ public final class ModBlocks {
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> ENDER_COHESION_METEORITE_0 = BLOCKS.registerBlock(
-            "data_cohesion_meteorite_0",
-            properties -> new EnderCohesionMeteoriteBlock(properties, 0.05F, 0.00F, 0.00F),
+            "data_meteorite_0",
+            properties -> new EnderCohesionMeteoriteBlock(properties, 0.05F, 0.10F, 0.00F, 0.00F),
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.ANCIENT_DEBRIS)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> ENDER_COHESION_METEORITE_1 = BLOCKS.registerBlock(
-            "data_cohesion_meteorite_1",
-            properties -> new EnderCohesionMeteoriteBlock(properties, 0.10F, 0.00F, 0.00F),
+            "data_meteorite_1",
+            properties -> new EnderCohesionMeteoriteBlock(properties, 0.10F, 0.20F, 0.10F, 0.00F),
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.ANCIENT_DEBRIS)
                     .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> ENDER_COHESION_METEORITE_2 = BLOCKS.registerBlock(
-            "data_cohesion_meteorite_2",
-            properties -> new EnderCohesionMeteoriteBlock(properties, 0.15F, 0.00F, 0.15F),
+            "data_meteorite_2",
+            properties -> new EnderCohesionMeteoriteBlock(properties, 0.15F, 0.25F, 0.15F, 0.15F),
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.ANCIENT_DEBRIS)
                     .requiresCorrectToolForDrops());
 
-    public static final DeferredBlock<Block> REDSTONE_CRYSTAL_BLOCK = BLOCKS.registerBlock(
-            "redstone_crystal_block",
+    public static final DeferredBlock<Block> DATA_CRYSTAL_BLOCK = BLOCKS.registerBlock(
+            "data_crystal_block",
             Block::new,
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.REDSTONE_BLOCK)
                     .requiresCorrectToolForDrops());
 
-    public static final DeferredBlock<Block> BUDDING_REDSTONE_CRYSTAL = BLOCKS.registerBlock(
-            "budding_redstone_crystal",
-            RedstoneCrystalBuddingBlock::new,
+    public static final DeferredBlock<Block> BUDDING_DATA_CRYSTAL = BLOCKS.registerBlock(
+            "budding_data_crystal",
+            DataCrystalBuddingBlock::new,
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.BUDDING_AMETHYST)
                     .requiresCorrectToolForDrops());
 
-    public static final DeferredBlock<Block> SMALL_REDSTONE_CRYSTAL_BUD = BLOCKS.registerBlock(
-            "small_redstone_crystal_bud",
+    public static final DeferredBlock<Block> SMALL_DATA_CRYSTAL_BUD = BLOCKS.registerBlock(
+            "small_data_crystal_bud",
             properties -> new AmethystClusterBlock(3.0F, 4.0F, properties),
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.SMALL_AMETHYST_BUD)
                     .requiresCorrectToolForDrops());
 
-    public static final DeferredBlock<Block> MEDIUM_REDSTONE_CRYSTAL_BUD = BLOCKS.registerBlock(
-            "medium_redstone_crystal_bud",
+    public static final DeferredBlock<Block> MEDIUM_DATA_CRYSTAL_BUD = BLOCKS.registerBlock(
+            "medium_data_crystal_bud",
             properties -> new AmethystClusterBlock(4.0F, 3.0F, properties),
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.MEDIUM_AMETHYST_BUD)
                     .requiresCorrectToolForDrops());
 
-    public static final DeferredBlock<Block> LARGE_REDSTONE_CRYSTAL_BUD = BLOCKS.registerBlock(
-            "large_redstone_crystal_bud",
+    public static final DeferredBlock<Block> LARGE_DATA_CRYSTAL_BUD = BLOCKS.registerBlock(
+            "large_data_crystal_bud",
             properties -> new AmethystClusterBlock(5.0F, 3.0F, properties),
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.LARGE_AMETHYST_BUD)
                     .requiresCorrectToolForDrops());
 
-    public static final DeferredBlock<Block> REDSTONE_CRYSTAL_CLUSTER = BLOCKS.registerBlock(
-            "redstone_crystal_cluster",
+    public static final DeferredBlock<Block> DATA_CRYSTAL_CLUSTER = BLOCKS.registerBlock(
+            "data_crystal_cluster",
             properties -> new AmethystClusterBlock(7.0F, 3.0F, properties),
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.AMETHYST_CLUSTER)
                     .requiresCorrectToolForDrops());

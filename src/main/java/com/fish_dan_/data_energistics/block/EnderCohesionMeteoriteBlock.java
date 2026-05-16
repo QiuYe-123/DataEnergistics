@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.block;
 
+import appeng.core.definitions.AEItems;
 import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
 import com.fish_dan_.data_energistics.registry.ModEntities;
 import net.minecraft.core.BlockPos;
@@ -18,12 +19,14 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public class EnderCohesionMeteoriteBlock extends Block {
     private static final int TELEPORT_HALF_RANGE = 3;
+    private final float dispersingDataChance;
     private final float enderDustChance;
     private final float skyDustChance;
     private final float teleportChance;
 
-    public EnderCohesionMeteoriteBlock(Properties properties, float enderDustChance, float skyDustChance, float teleportChance) {
+    public EnderCohesionMeteoriteBlock(Properties properties, float dispersingDataChance, float enderDustChance, float skyDustChance, float teleportChance) {
         super(properties);
+        this.dispersingDataChance = dispersingDataChance;
         this.enderDustChance = enderDustChance;
         this.skyDustChance = skyDustChance;
         this.teleportChance = teleportChance;
@@ -47,13 +50,19 @@ public class EnderCohesionMeteoriteBlock extends Block {
         }
 
         RandomSource random = serverLevel.getRandom();
+        if (random.nextFloat() < this.enderDustChance) {
+            popResource(serverLevel, pos, new ItemStack(AEItems.ENDER_DUST.asItem()));
+        }
+        if (random.nextFloat() < this.skyDustChance) {
+            popResource(serverLevel, pos, new ItemStack(AEItems.SKY_DUST.asItem()));
+        }
         if (this.teleportChance > 0.0F && random.nextFloat() < this.teleportChance && player instanceof ServerPlayer serverPlayer) {
             teleportRandomly(serverLevel, serverPlayer, random);
         }
     }
 
     private void spawnDispersingData(ServerLevel level, BlockPos pos, RandomSource random, int fortuneLevel) {
-        float dispersingDataChance = this.enderDustChance + fortuneLevel * 0.03F;
+        float dispersingDataChance = this.dispersingDataChance + fortuneLevel * 0.03F;
         if (dispersingDataChance <= 0.0F || random.nextFloat() >= dispersingDataChance) {
             return;
         }

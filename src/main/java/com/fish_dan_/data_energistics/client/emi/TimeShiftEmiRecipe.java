@@ -29,7 +29,7 @@ public final class TimeShiftEmiRecipe extends BasicEmiRecipe {
 
     public static final EmiRecipeCategory CATEGORY = new EmiRecipeCategory(
             Data_Energistics.id("time_shift"),
-            EmiStack.of(ModItems.REDSTONE_CRYSTAL.get())) {
+            EmiStack.of(ModItems.DATA_CRYSTAL.get())) {
         @Override
         public Component getName() {
             return Component.translatable("recipe.data_energistics.time_shift");

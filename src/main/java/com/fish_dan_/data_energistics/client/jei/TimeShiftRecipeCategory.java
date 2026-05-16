@@ -39,7 +39,7 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<TimeSh
         super(
                 RECIPE_TYPE,
                 Component.translatable("recipe.data_energistics.time_shift"),
-                guiHelper.createDrawableItemLike(ModItems.REDSTONE_CRYSTAL.get()),
+                guiHelper.createDrawableItemLike(ModItems.DATA_CRYSTAL.get()),
                 WIDTH,
                 HEIGHT);
         this.background = guiHelper.createBlankDrawable(WIDTH, HEIGHT);

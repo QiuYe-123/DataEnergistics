@@ -1,7 +1,0 @@
-{
-  "parent": "minecraft:block/cross",
-  "render_type": "cutout",
-  "textures": {
-    "cross": "data_energistics:block/small_redstone_crystal_bud"
-  }
-}

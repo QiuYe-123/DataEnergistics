@@ -3,10 +3,10 @@
 	"credit": "Made with Blockbench",
   "parent": "minecraft:block/cube_all",
 	"textures": {
-		"0": "data_energistics:block/redstone_crystal_cluster/redstone_crystal_cluster_on",
-		"1": "data_energistics:block/redstone_crystal_cluster/redstone_crystal_cluster_top_on",
+		"0": "data_energistics:block/data_crystal_cluster/data_crystal_cluster_on",
+		"1": "data_energistics:block/data_crystal_cluster/data_crystal_cluster_top_on",
 		"2": "ae2:block/generics/bottom",
-		"particle": "data_energistics:block/redstone_crystal_cluster/redstone_crystal_cluster_on"
+		"particle": "data_energistics:block/data_crystal_cluster/data_crystal_cluster_on"
 	},
 	"elements": [
 		{

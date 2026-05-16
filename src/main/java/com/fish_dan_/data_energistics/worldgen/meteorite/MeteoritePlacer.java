@@ -38,8 +38,8 @@ public final class MeteoritePlacer {
     private static final float EXPOSED_METEORITE_CHANCE = 0.12F;
     private static final float SHATTERED_METEORITE_CHANCE = 0.05F;
     private static final float END_STONE_METEORITE_CHANCE = 0.06F;
-    private static final float BUDDING_REDSTONE_CRYSTAL_CHANCE = 0.48F;
-    private static final float REDSTONE_CRYSTAL_BLOCK_CHANCE = 0.10F;
+    private static final float BUDDING_DATA_CRYSTAL_CHANCE = 0.48F;
+    private static final float DATA_CRYSTAL_BLOCK_CHANCE = 0.10F;
     private static final float CORE_CRYSTAL_BLOCK_MIX_CHANCE = 0.12F;
     private static final int CORE_RADIUS = 1;
     private static final int METEORITE_BODY_RADIUS = 20;
@@ -49,12 +49,12 @@ public final class MeteoritePlacer {
     private final BlockState exposedMeteorite;
     private final BlockState shatteredMeteorite;
     private final BlockState endStone;
-    private final BlockState buddingRedstoneCrystal;
-    private final BlockState redstoneCrystalBlock;
+    private final BlockState buddingDataCrystal;
+    private final BlockState dataCrystalBlock;
     private final BlockState certusQuartzBlock;
     private final List<BlockState> quartzBlocks;
     private final List<BlockState> quartzBuds;
-    private final List<BlockState> redstoneCrystalGrowths;
+    private final List<BlockState> dataCrystalGrowths;
     private final Map<Long, CoreColumnData> coreColumns = new HashMap<>();
     private final MeteoriteBlockPutter putter = new MeteoriteBlockPutter();
     private final LevelAccessor level;
@@ -103,14 +103,14 @@ public final class MeteoritePlacer {
         this.exposedMeteorite = ModBlocks.ENDER_COHESION_METEORITE_1.get().defaultBlockState();
         this.shatteredMeteorite = ModBlocks.ENDER_COHESION_METEORITE_2.get().defaultBlockState();
         this.endStone = Blocks.END_STONE.defaultBlockState();
-        this.buddingRedstoneCrystal = ModBlocks.BUDDING_REDSTONE_CRYSTAL.get().defaultBlockState();
-        this.redstoneCrystalBlock = ModBlocks.REDSTONE_CRYSTAL_BLOCK.get().defaultBlockState();
+        this.buddingDataCrystal = ModBlocks.BUDDING_DATA_CRYSTAL.get().defaultBlockState();
+        this.dataCrystalBlock = ModBlocks.DATA_CRYSTAL_BLOCK.get().defaultBlockState();
         this.certusQuartzBlock = AEBlocks.QUARTZ_BLOCK.block().defaultBlockState();
-        this.redstoneCrystalGrowths = Stream.of(
-                        ModBlocks.SMALL_REDSTONE_CRYSTAL_BUD,
-                        ModBlocks.MEDIUM_REDSTONE_CRYSTAL_BUD,
-                        ModBlocks.LARGE_REDSTONE_CRYSTAL_BUD,
-                        ModBlocks.REDSTONE_CRYSTAL_CLUSTER)
+        this.dataCrystalGrowths = Stream.of(
+                        ModBlocks.SMALL_DATA_CRYSTAL_BUD,
+                        ModBlocks.MEDIUM_DATA_CRYSTAL_BUD,
+                        ModBlocks.LARGE_DATA_CRYSTAL_BUD,
+                        ModBlocks.DATA_CRYSTAL_CLUSTER)
                 .map(def -> def.get().defaultBlockState())
                 .toList();
         this.type = this.getFallout(level, boundingBox.getCenter(), settings.getFallout());
@@ -270,14 +270,14 @@ public final class MeteoritePlacer {
 
     private CoreColumnData createCoreColumnData() {
         float coreRoll = this.random.nextFloat();
-        if (coreRoll < BUDDING_REDSTONE_CRYSTAL_CHANCE) {
+        if (coreRoll < BUDDING_DATA_CRYSTAL_CHANCE) {
             BlockState motherRock = this.random.nextFloat() < CORE_CRYSTAL_BLOCK_MIX_CHANCE
-                    ? this.redstoneCrystalBlock
-                    : this.buddingRedstoneCrystal;
-            return new CoreColumnData(motherRock, this.randomRedstoneGrowth());
+                    ? this.dataCrystalBlock
+                    : this.buddingDataCrystal;
+            return new CoreColumnData(motherRock, this.randomDataCrystalGrowth());
         }
-        if (coreRoll < BUDDING_REDSTONE_CRYSTAL_CHANCE + REDSTONE_CRYSTAL_BLOCK_CHANCE) {
-            return new CoreColumnData(this.redstoneCrystalBlock, this.randomRedstoneGrowth());
+        if (coreRoll < BUDDING_DATA_CRYSTAL_CHANCE + DATA_CRYSTAL_BLOCK_CHANCE) {
+            return new CoreColumnData(this.dataCrystalBlock, this.randomDataCrystalGrowth());
         }
 
         int certusIndex = this.random.nextInt(this.quartzBlocks.size());
@@ -288,8 +288,8 @@ public final class MeteoritePlacer {
         return new CoreColumnData(motherRock, this.randomQuartzGrowth());
     }
 
-    private BlockState randomRedstoneGrowth() {
-        return Util.getRandom(this.redstoneCrystalGrowths, this.random).setValue(AmethystClusterBlock.FACING, Direction.UP);
+    private BlockState randomDataCrystalGrowth() {
+        return Util.getRandom(this.dataCrystalGrowths, this.random).setValue(AmethystClusterBlock.FACING, Direction.UP);
     }
 
     private BlockState randomQuartzGrowth() {

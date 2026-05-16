@@ -53,16 +53,17 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> DATA_MIMETIC_FIELD = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_MIMETIC_FIELD);
     public static final DeferredItem<BlockItem> DATA_TELEPORT_ANCHOR = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_TELEPORT_ANCHOR);
     public static final DeferredItem<BlockItem> ADAPTIVE_PATTERN_PROVIDER = ITEMS.registerSimpleBlockItem(ModBlocks.ADAPTIVE_PATTERN_PROVIDER);
+    public static final DeferredItem<BlockItem> TNT_0 = ITEMS.registerSimpleBlockItem(ModBlocks.TNT_0);
     public static final DeferredItem<BlockItem> RESIDUAL_DATA_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.RESIDUAL_DATA_ORE);
     public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_0 = ITEMS.registerSimpleBlockItem(ModBlocks.ENDER_COHESION_METEORITE_0);
     public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_1 = ITEMS.registerSimpleBlockItem(ModBlocks.ENDER_COHESION_METEORITE_1);
     public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_2 = ITEMS.registerSimpleBlockItem(ModBlocks.ENDER_COHESION_METEORITE_2);
-    public static final DeferredItem<BlockItem> REDSTONE_CRYSTAL_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.REDSTONE_CRYSTAL_BLOCK);
-    public static final DeferredItem<BlockItem> BUDDING_REDSTONE_CRYSTAL = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_REDSTONE_CRYSTAL);
-    public static final DeferredItem<BlockItem> SMALL_REDSTONE_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(ModBlocks.SMALL_REDSTONE_CRYSTAL_BUD);
-    public static final DeferredItem<BlockItem> MEDIUM_REDSTONE_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(ModBlocks.MEDIUM_REDSTONE_CRYSTAL_BUD);
-    public static final DeferredItem<BlockItem> LARGE_REDSTONE_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(ModBlocks.LARGE_REDSTONE_CRYSTAL_BUD);
-    public static final DeferredItem<BlockItem> REDSTONE_CRYSTAL_CLUSTER = ITEMS.registerSimpleBlockItem(ModBlocks.REDSTONE_CRYSTAL_CLUSTER);
+    public static final DeferredItem<BlockItem> DATA_CRYSTAL_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_CRYSTAL_BLOCK);
+    public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_DATA_CRYSTAL);
+    public static final DeferredItem<BlockItem> SMALL_DATA_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(ModBlocks.SMALL_DATA_CRYSTAL_BUD);
+    public static final DeferredItem<BlockItem> MEDIUM_DATA_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(ModBlocks.MEDIUM_DATA_CRYSTAL_BUD);
+    public static final DeferredItem<BlockItem> LARGE_DATA_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(ModBlocks.LARGE_DATA_CRYSTAL_BUD);
+    public static final DeferredItem<BlockItem> DATA_CRYSTAL_CLUSTER = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_CRYSTAL_CLUSTER);
     public static final DeferredItem<PartItem<AdaptivePatternProviderPart>> ADAPTIVE_PATTERN_PROVIDER_PART = ITEMS.register(
             "adaptive_pattern_provider_part",
             () -> new PartItem<>(new Item.Properties(), AdaptivePatternProviderPart.class, AdaptivePatternProviderPart::new)
@@ -71,7 +72,7 @@ public final class ModItems {
             "universal_terminal",
             () -> new UniversalTerminalPartItem(new Item.Properties())
     );
-    public static final DeferredItem<Item> REDSTONE_CRYSTAL = ITEMS.registerSimpleItem("redstone_crystal");
+    public static final DeferredItem<Item> DATA_CRYSTAL = ITEMS.registerSimpleItem("data_crystal");
     public static final DeferredItem<Item> REDSTONE_TUNING_CARD = ITEMS.register(
             "redstone_tuning_card",
             () -> Upgrades.createUpgradeCardItem(new Item.Properties())
@@ -90,6 +91,7 @@ public final class ModItems {
     public static final DeferredItem<Item> DATA_INSCRIBER_TEMPLATE = ITEMS.registerSimpleItem("data_inscriber_template");
     public static final DeferredItem<Item> DATA_CIRCUIT_BOARD = ITEMS.registerSimpleItem("data_circuit_board");
     public static final DeferredItem<Item> DATA_PROCESSOR = ITEMS.registerSimpleItem("data_processor");
+    public static final DeferredItem<Item> SHUYAO_MEMORY_ALLOY = ITEMS.registerSimpleItem("shuyao_memory_alloy");
     public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_1K = ITEMS.registerSimpleItem("data_storage_component_1k");
     public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_4K = ITEMS.registerSimpleItem("data_storage_component_4k");
     public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_16K = ITEMS.registerSimpleItem("data_storage_component_16k");

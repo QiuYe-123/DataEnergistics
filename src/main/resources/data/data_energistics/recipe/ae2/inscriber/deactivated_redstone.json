@@ -3,7 +3,7 @@
   "mode": "inscribe",
   "ingredients": {
     "middle": {
-      "tag": "c:gems/redstone_crystal"
+      "tag": "c:gems/data_crystal"
     }
   },
   "result": {

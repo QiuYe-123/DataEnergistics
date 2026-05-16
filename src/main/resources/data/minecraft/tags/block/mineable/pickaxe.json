@@ -1,4 +1,4 @@
-{
+﻿{
   "replace": false,
   "values": [
     "data_energistics:data_extractor",
@@ -6,14 +6,14 @@
     "data_energistics:data_mimetic_field",
     "data_energistics:adaptive_pattern_provider",
     "data_energistics:residual_data_ore",
-    "data_energistics:data_cohesion_meteorite_0",
-    "data_energistics:data_cohesion_meteorite_1",
-    "data_energistics:data_cohesion_meteorite_2",
-    "data_energistics:redstone_crystal_block",
-    "data_energistics:budding_redstone_crystal",
-    "data_energistics:small_redstone_crystal_bud",
-    "data_energistics:medium_redstone_crystal_bud",
-    "data_energistics:large_redstone_crystal_bud",
-    "data_energistics:redstone_crystal_cluster"
+    "data_energistics:data_meteorite_0",
+    "data_energistics:data_meteorite_1",
+    "data_energistics:data_meteorite_2",
+    "data_energistics:data_crystal_block",
+    "data_energistics:budding_data_crystal",
+    "data_energistics:small_data_crystal_bud",
+    "data_energistics:medium_data_crystal_bud",
+    "data_energistics:large_data_crystal_bud",
+    "data_energistics:data_crystal_cluster"
   ]
 }

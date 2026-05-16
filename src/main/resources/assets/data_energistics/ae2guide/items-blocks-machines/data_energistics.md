@@ -1,7 +1,7 @@
 ---
 navigation:
   title: 数据能源
-  icon: redstone_crystal
+  icon: data_crystal
   position: 200
 categories:
 - devices

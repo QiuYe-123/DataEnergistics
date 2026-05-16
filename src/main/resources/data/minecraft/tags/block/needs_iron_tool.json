@@ -1,10 +1,10 @@
-{
+﻿{
   "replace": false,
   "values": [
-    "data_energistics:data_cohesion_meteorite_0",
-    "data_energistics:data_cohesion_meteorite_1",
-    "data_energistics:data_cohesion_meteorite_2",
-    "data_energistics:redstone_crystal_block",
-    "data_energistics:budding_redstone_crystal"
+    "data_energistics:data_meteorite_0",
+    "data_energistics:data_meteorite_1",
+    "data_energistics:data_meteorite_2",
+    "data_energistics:data_crystal_block",
+    "data_energistics:budding_data_crystal"
   ]
 }
