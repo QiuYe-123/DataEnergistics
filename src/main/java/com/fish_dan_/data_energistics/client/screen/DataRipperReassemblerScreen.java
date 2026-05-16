@@ -9,18 +9,14 @@ import appeng.api.stacks.GenericStack;
 import appeng.client.gui.implementations.UpgradeableScreen;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.ProgressBar;
-import appeng.client.gui.widgets.ProgressBar.Direction;
 import appeng.client.gui.widgets.ServerSettingToggleButton;
 import appeng.core.AppEng;
 import appeng.core.localization.Tooltips;
 import appeng.menu.SlotSemantics;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
-import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
+import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
 import com.fish_dan_.data_energistics.menu.DataRipperReassemblerMenu;
-import com.glodblock.github.extendedae.client.button.ActionEPPButton;
-import com.glodblock.github.extendedae.client.button.EPPIcon;
-import com.glodblock.github.extendedae.client.gui.subgui.OutputSideConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -28,7 +24,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.fluids.FluidStack;
 
 import java.util.ArrayList;
@@ -39,16 +34,15 @@ public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperRea
     private static final ResourceLocation MISSING_FLUID = AppEng.makeId("block/missing");
     private final ProgressBar progressBar;
     private final ServerSettingToggleButton<YesNo> autoExportButton;
-    private final ActionEPPButton outputSideButton;
+    private final OutputSideActionButton outputSideButton;
 
     public DataRipperReassemblerScreen(DataRipperReassemblerMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
         this.autoExportButton = new ServerSettingToggleButton<>(Settings.AUTO_EXPORT, YesNo.NO);
         this.addToLeftToolbar(this.autoExportButton);
-        this.outputSideButton = new ActionEPPButton(button -> openOutputConfig(), EPPIcon.OUTPUT_SIDES);
-        this.outputSideButton.setMessage(Component.translatable("gui.extendedae.set_output_sides.open"));
+        this.outputSideButton = new OutputSideActionButton(button -> openOutputConfig());
         this.addToLeftToolbar(this.outputSideButton);
-        this.progressBar = new ProgressBar(this.menu, style.getImage("progressBar"), Direction.VERTICAL);
+        this.progressBar = new ProgressBar(this.menu, style.getImage("progressBar"), ProgressBar.Direction.VERTICAL);
         widgets.add("progressBar", this.progressBar);
     }
 
@@ -56,14 +50,11 @@ public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperRea
         if (this.menu.getHost() == null) {
             return;
         }
-
-        this.switchToScreen(new OutputSideConfig<>(
+        this.switchToScreen(new DataRipperReassemblerOutputSideScreen(
                 this,
-                new ItemStack(ModBlocks.DATA_RIPPER_REASSEMBLER.get()),
                 this.menu.getHost(),
                 this.menu.getOutputSides(),
-                this.menu::sendSetOutputSide
-        ));
+                this.menu::sendSetOutputSide));
     }
 
     @Override

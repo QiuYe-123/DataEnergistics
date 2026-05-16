@@ -14,7 +14,7 @@ item_ids:
 ## 时间核心
 <Row>
     <ItemImage id="data_energistics:time_core" scale="6" />
-  <Recipe id="data_energistics:time_shift/time_core" />
+  <Recipe id="data_energistics:transform/time_core" />
 </Row>
 对崩坏，时间，存在的肯定，以他人未知的理解融合一体，扭曲时间与空间的存在。
 

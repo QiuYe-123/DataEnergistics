@@ -144,6 +144,11 @@
     "item.data_energistics.universal_terminal":  "Universal Terminal",
     "item.data_energistics.universal_terminal.desc":  "Installed Terminals:",
     "gui.data_energistics.universal_terminal.switch_terminal":  "Switch Terminal",
+    "gui.data_energistics.set_output_sides":  "Output Side",
+    "gui.data_energistics.set_output_sides.open":  "Open Output Config",
+    "gui.data_energistics.set_output_sides.clear":  "Clear All Sides",
+    "gui.data_energistics.set_output_sides.on":  "Enabled",
+    "gui.data_energistics.set_output_sides.off":  "Disabled",
     "gui.data_energistics.universal_terminal.current":  "Current: %s",
     "gui.data_energistics.universal_terminal.next":  "Left-click: Next %s",
     "gui.data_energistics.universal_terminal.previous":  "Right-click: Previous %s",
@@ -170,6 +175,7 @@
     "item.data_energistics.carrier.progress":  "Collection: %s / %s",
     "item.data_energistics.carrier.completed":  "Sample Complete",
     "recipe.data_energistics.time_shift":  "World Interaction",
+    "recipe.data_energistics.time_shift.category":  "World Interaction",
     "recipe.data_energistics.data_reassembler":  "Data Reassembler",
     "recipe.data_energistics.data_reassembler.data_flow":  "Data Flow: %s",
     "recipe.data_energistics.data_reassembler.duration":  "Duration: %ss",
@@ -267,5 +273,7 @@
     "tooltip.data_energistics.pattern_encoding_source":  "Encoded via: %s",
     "message.data_energistics.data_extractor.range.enabled":  "Extractor range display enabled",
     "message.data_energistics.data_extractor.range.disabled":  "Extractor range display disabled",
-    "block.data_energistics.tnt_0":  "Horizon TNT"
+    "block.data_energistics.tnt_0":  "Horizon TNT",
+    "block.data_energistics.tnt_1":  "Stoneplain TNT",
+    "block.data_energistics.tnt_configurable":  "Configurable Flattening TNT"
 }

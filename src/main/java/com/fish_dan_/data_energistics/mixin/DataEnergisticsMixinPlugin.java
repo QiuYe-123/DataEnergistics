@@ -7,6 +7,8 @@ import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 import java.util.List;
 import java.util.Set;
 
+import net.neoforged.fml.ModList;
+
 public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
     private static final String AE2LT_SENTINEL_CLASS = "com/moakiee/ae2lt/logic/EjectModeRegistry.class";
     private static final String AE2LT_MIXIN_PREFIX = "com.fish_dan_.data_energistics.mixin.Ae2lt";
@@ -26,8 +28,7 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
             "tamaized/ae2jeiintegration/integration/modules/jei/transfer/EncodePatternTransferHandler.class";
     private static final String EMI_API_SENTINEL_CLASS = "dev/emi/emi/api/EmiPlugin.class";
     private static final String EMI_HANDLER_SENTINEL_CLASS = "appeng/integration/modules/emi/EmiEncodePatternHandler.class";
-    private static final String NEOECOAE_CLIENT_SENTINEL_CLASS =
-            "cn/dancingsnow/neoecoae/client/NeoECOAEClient.class";
+    private static final String NEOECOAE_MOD_ID = "neoecoae";
     private static final boolean AE2LT_PRESENT = isClassPresent(AE2LT_SENTINEL_CLASS);
     private static final boolean ADVANCED_AE_PRESENT = isClassPresent(ADVANCED_AE_SENTINEL_CLASS);
     private static final boolean AE2CS_PRESENT = isClassPresent(AE2CS_SENTINEL_CLASS);
@@ -36,7 +37,7 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
     private static final boolean JEI_TRANSFER_PRESENT = isClassPresent(JEI_TRANSFER_SENTINEL_CLASS);
     private static final boolean EMI_PRESENT =
             isClassPresent(EMI_API_SENTINEL_CLASS) && isClassPresent(EMI_HANDLER_SENTINEL_CLASS);
-    private static final boolean NEOECOAE_PRESENT = isClassPresent(NEOECOAE_CLIENT_SENTINEL_CLASS);
+    private static final boolean NEOECOAE_PRESENT = ModList.get().isLoaded(NEOECOAE_MOD_ID);
 
     @Override
     public void onLoad(String mixinPackage) {

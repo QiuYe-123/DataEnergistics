@@ -25,6 +25,14 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 public final class DataRipperReassemblerEmiRecipe extends BasicEmiRecipe {
     private static final ResourceLocation BACKGROUND = AppEng.makeId("textures/guis/data_reassembler.png");
     private static final ResourceLocation PROGRESS_TEXTURE = AppEng.makeId("textures/guis/crystal_assembler.png");
+    private static final int EMI_OFFSET_X = 1;
+    private static final int EMI_OFFSET_Y = 1;
+    private static final int EMI_SLOT_OFFSET_X = 0;
+    private static final int EMI_SLOT_OFFSET_Y = 0;
+    private static final int EMI_KEY_INPUT_OFFSET_X = -1;
+    private static final int EMI_KEY_INPUT_OFFSET_Y = -1;
+    private static final int EMI_KEY_OUTPUT_OFFSET_X = -1;
+    private static final int EMI_KEY_OUTPUT_OFFSET_Y = -1;
 
     public static final EmiRecipeCategory CATEGORY = new EmiRecipeCategory(
             Data_Energistics.id("data_reassembler"),
@@ -51,21 +59,21 @@ public final class DataRipperReassemblerEmiRecipe extends BasicEmiRecipe {
 
     @Override
     public void addWidgets(WidgetHolder widgets) {
-        widgets.addTexture(BACKGROUND, 0, 0,
+        widgets.addTexture(BACKGROUND, EMI_OFFSET_X, EMI_OFFSET_Y,
                 DataReassemblerLayout.RECIPE_WIDTH, DataReassemblerLayout.RECIPE_HEIGHT, 11, 19);
         widgets.addAnimatedTexture(PROGRESS_TEXTURE,
-                DataReassemblerLayout.PROGRESS_X, DataReassemblerLayout.PROGRESS_Y,
+                DataReassemblerLayout.PROGRESS_X + EMI_OFFSET_X, DataReassemblerLayout.PROGRESS_Y + EMI_OFFSET_Y,
                 DataReassemblerLayout.PROGRESS_WIDTH, DataReassemblerLayout.PROGRESS_HEIGHT,
                 176, 0, 2000, false, true, false);
 
         for (int i = 0; i < this.inputs.size(); i++) {
             var pos = DataReassemblerLayout.emiItemInput(i);
-            widgets.addSlot(this.inputs.get(i), pos.x(), pos.y()).drawBack(false);
+            widgets.addSlot(this.inputs.get(i), pos.x() + EMI_SLOT_OFFSET_X, pos.y() + EMI_SLOT_OFFSET_Y).drawBack(false);
         }
 
         for (int i = 0; i < this.outputs.size() && i < DataRipperReassemblerRecipe.ITEM_OUTPUT_SLOTS; i++) {
             var pos = DataReassemblerLayout.emiItemOutput(i);
-            widgets.addSlot(this.outputs.get(i), pos.x(), pos.y())
+            widgets.addSlot(this.outputs.get(i), pos.x() + EMI_SLOT_OFFSET_X, pos.y() + EMI_SLOT_OFFSET_Y)
                     .recipeContext(this)
                     .drawBack(false);
         }
@@ -76,7 +84,8 @@ public final class DataRipperReassemblerEmiRecipe extends BasicEmiRecipe {
         GenericStack keyInput = this.recipe.getKeyInput();
         if (keyInput != null) {
             var pos = DataReassemblerLayout.emiKeyInput();
-            widgets.addDrawable(pos.x(), pos.y(), 18, 18,
+            widgets.addDrawable(pos.x() + EMI_OFFSET_X + EMI_KEY_INPUT_OFFSET_X,
+                            pos.y() + EMI_OFFSET_Y + EMI_KEY_INPUT_OFFSET_Y, 18, 18,
                             (guiGraphics, mouseX, mouseY, delta) -> {
                                 AEKeyRendering.drawInGui(Minecraft.getInstance(), guiGraphics, 1, 1, keyInput.what());
                                 GenericStackDisplayHelper.renderSmallOverlay(
@@ -86,6 +95,22 @@ public final class DataRipperReassemblerEmiRecipe extends BasicEmiRecipe {
                                         GenericStackDisplayHelper.formatCompactAmount(keyInput));
                             })
                     .tooltip((mouseX, mouseY) -> createEmiKeyTooltip(keyInput));
+        }
+
+        GenericStack keyOutput = this.recipe.getKeyOutput();
+        if (keyOutput != null) {
+            var pos = DataReassemblerLayout.emiKeyOutput();
+            widgets.addDrawable(pos.x() + EMI_OFFSET_X + EMI_KEY_OUTPUT_OFFSET_X,
+                            pos.y() + EMI_OFFSET_Y + EMI_KEY_OUTPUT_OFFSET_Y, 18, 18,
+                            (guiGraphics, mouseX, mouseY, delta) -> {
+                                AEKeyRendering.drawInGui(Minecraft.getInstance(), guiGraphics, 1, 1, keyOutput.what());
+                                GenericStackDisplayHelper.renderSmallOverlay(
+                                        guiGraphics,
+                                        1,
+                                        1,
+                                        GenericStackDisplayHelper.formatCompactAmount(keyOutput));
+                            })
+                    .tooltip((mouseX, mouseY) -> createEmiKeyTooltip(keyOutput));
         }
     }
 
@@ -105,7 +130,7 @@ public final class DataRipperReassemblerEmiRecipe extends BasicEmiRecipe {
         for (int i = 0; i < stacks.size() && i < slotCount; i++) {
             GenericStack stack = stacks.get(i);
             var pos = input ? DataReassemblerLayout.emiFluidInput(i) : DataReassemblerLayout.emiFluidOutput(i);
-            widgets.addDrawable(pos.x(), pos.y(), 18, 18,
+            widgets.addDrawable(pos.x() + EMI_SLOT_OFFSET_X, pos.y() + EMI_SLOT_OFFSET_Y, 18, 18,
                             (guiGraphics, mouseX, mouseY, delta) -> {
                                 AEKeyRendering.drawInGui(Minecraft.getInstance(), guiGraphics, 1, 1, stack.what());
                                 GenericStackDisplayHelper.renderSmallOverlay(

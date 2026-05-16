@@ -21,10 +21,10 @@ import com.fish_dan_.data_energistics.ae2.ModAE2Keys;
 import com.fish_dan_.data_energistics.block.AdaptivePatternProviderBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
+import com.fish_dan_.data_energistics.client.ClientAeKeyRenderers;
 import com.fish_dan_.data_energistics.client.screen.AdaptivePatternProviderScreen;
 import com.fish_dan_.data_energistics.client.screen.NativePatternEncodingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.PatternEncodingPreviewScreen;
-import com.fish_dan_.data_energistics.client.screen.WirelessPatternEncodingTermScreen;
 import com.fish_dan_.data_energistics.client.render.DataExtractorRenderer;
 import com.fish_dan_.data_energistics.client.render.DispersingDataRenderer;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
@@ -44,6 +44,8 @@ import com.fish_dan_.data_energistics.client.screen.UniversalMEStorageScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalPatternAccessTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalPatternEncodingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalTerminalScreenHook;
+import com.fish_dan_.data_energistics.integration.AppMekCompat;
+import com.fish_dan_.data_energistics.integration.Ae2WtLibCompat;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.network.ModPayloads;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
@@ -68,6 +70,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.repository.Pack;
+import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
@@ -89,6 +95,7 @@ import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.AddPackFindersEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -101,6 +108,8 @@ public class Data_Energistics {
     public static final String MODID = "data_energistics";
     private static final String ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP =
             "block.data_energistics.adaptive_pattern_provider";
+    private static final ResourceLocation MODPACK_FIXES_PACK =
+            ResourceLocation.fromNamespaceAndPath(MODID, "resourcepacks/modpack_fixes");
     // Directly reference a slf4j logger
     private static final Logger LOGGER = LogUtils.getLogger();
 
@@ -119,10 +128,23 @@ public class Data_Energistics {
         modEventBus.addListener(this::registerAe2KeyTypes);
         modEventBus.addListener(this::registerCapabilities);
         modEventBus.addListener(this::registerPayloadHandlers);
+        modEventBus.addListener(this::registerBuiltinDataPacks);
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(new TimeShiftTransformLogic());
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+        modContainer.registerConfig(ModConfig.Type.COMMON, FlatteningTntConfig.SPEC, "data_energistics-tnt.toml");
         modContainer.registerConfig(ModConfig.Type.COMMON, SolarPanelConfig.SPEC, "data_energistics-solar_panel.toml");
+    }
+
+    private void registerBuiltinDataPacks(AddPackFindersEvent event) {
+        event.addPackFinders(
+                MODPACK_FIXES_PACK,
+                PackType.SERVER_DATA,
+                Component.literal("Data Energistics Modpack Fixes"),
+                PackSource.BUILT_IN,
+                true,
+                Pack.Position.TOP
+        );
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
@@ -354,11 +376,7 @@ public class Data_Energistics {
                 ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalReturnFluidHandler(context)
         );
-        event.registerBlockEntity(
-                mekanism.common.capabilities.Capabilities.CHEMICAL.block(),
-                ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(),
-                (blockEntity, context) -> blockEntity.getExternalReturnChemicalHandler(context)
-        );
+        AppMekCompat.registerChemicalBlockEntityCapabilities(event);
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 AEBlockEntities.CABLE_BUS.get(),
@@ -391,22 +409,7 @@ public class Data_Energistics {
                     return null;
                 }
         );
-        event.registerBlockEntity(
-                mekanism.common.capabilities.Capabilities.CHEMICAL.block(),
-                AEBlockEntities.CABLE_BUS.get(),
-                (CableBusBlockEntity blockEntity, Direction context) -> {
-                    if (context == null) {
-                        return null;
-                    }
-
-                    var part = blockEntity.getPart(context);
-                    if (part instanceof AdaptivePatternProviderPart adaptivePart) {
-                        return adaptivePart.getExternalReturnChemicalHandler();
-                    }
-
-                    return null;
-                }
-        );
+        AppMekCompat.registerChemicalCableBusCapabilities(event);
         event.registerBlockEntity(
                 AECapabilities.CRANKABLE,
                 AEBlockEntities.CONTROLLER.get(),
@@ -459,7 +462,7 @@ public class Data_Energistics {
         @SubscribeEvent
         public static void onClientSetup(FMLClientSetupEvent event) {
             event.enqueueWork(() -> {
-                ModAE2Keys.registerClient();
+                ClientAeKeyRenderers.register();
                 ModStorageCells.registerClientModels();
                 registerMatterConvergingCrossbowProperties();
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenOpening);
@@ -497,6 +500,8 @@ public class Data_Energistics {
             event.registerEntityRenderer(ModEntities.DISPERSING_DATA.get(), DispersingDataRenderer::new);
             event.registerEntityRenderer(ModEntities.MATTER_CONVERGING_BOLT.get(), MatterConvergingBoltRenderer::new);
             event.registerEntityRenderer(ModEntities.TNT_0_PRIMED.get(), TntRenderer::new);
+            event.registerEntityRenderer(ModEntities.TNT_1_PRIMED.get(), TntRenderer::new);
+            event.registerEntityRenderer(ModEntities.TNT_CONFIGURABLE_PRIMED.get(), TntRenderer::new);
         }
 
         private static void registerMatterConvergingCrossbowProperties() {
@@ -532,14 +537,14 @@ public class Data_Energistics {
 
         public static void onScreenInitPost(ScreenEvent.Init.Post event) {
             maybeReplaceNativePatternEncodingScreen(event.getScreen(), true);
-            maybeReplaceWirelessPatternEncodingScreen(event.getScreen(), true);
+            Ae2WtLibCompat.maybeReplaceWirelessPatternEncodingScreen(event.getScreen(), true);
             UniversalTerminalScreenHook.onScreenInitPost(event);
         }
 
         public static void onScreenOpening(ScreenEvent.Opening event) {
             Screen replacement = maybeReplaceNativePatternEncodingScreen(event.getCurrentScreen(), false);
             if (replacement == null) {
-                replacement = maybeReplaceWirelessPatternEncodingScreen(event.getCurrentScreen(), false);
+                replacement = Ae2WtLibCompat.maybeReplaceWirelessPatternEncodingScreen(event.getCurrentScreen(), false);
             }
             if (replacement != null) {
                 event.setNewScreen(replacement);
@@ -580,34 +585,6 @@ public class Data_Energistics {
                 }
             }
 
-            return replacement;
-        }
-
-        private static Screen maybeReplaceWirelessPatternEncodingScreen(Screen currentScreen, boolean applyImmediately) {
-            if (currentScreen instanceof WirelessPatternEncodingTermScreen) {
-                return null;
-            }
-            if (!(currentScreen instanceof de.mari_023.ae2wtlib.wet.WETScreen screen)) {
-                return null;
-            }
-            if (!(screen.getMenu() instanceof PatternEncodingPreviewMenu)) {
-                return null;
-            }
-            if (!(screen.getMenu() instanceof de.mari_023.ae2wtlib.wet.WETMenu wetMenu)) {
-                return null;
-            }
-
-            Screen replacement = new WirelessPatternEncodingTermScreen(
-                    wetMenu,
-                    screen.getMenu().getPlayerInventory(),
-                    screen.getTitle(),
-                    StyleManager.loadStyleDoc("/screens/wtlib/wireless_pattern_encoding_terminal.json"));
-            if (applyImmediately) {
-                Minecraft minecraft = Minecraft.getInstance();
-                if (minecraft.screen == currentScreen) {
-                    minecraft.setScreen(replacement);
-                }
-            }
             return replacement;
         }
     }

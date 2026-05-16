@@ -34,19 +34,23 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
     private final int processTicks;
     @Nullable
     private final GenericStack keyInput;
+    @Nullable
+    private final GenericStack keyOutput;
 
     public DataRipperReassemblerRecipe(List<DataRipperReassemblerIngredient> itemInputs,
                                        List<GenericStack> fluidInputs,
                                        List<ItemStack> itemOutputs,
                                        List<GenericStack> fluidOutputs,
                                        int processTicks,
-                                       @Nullable GenericStack keyInput) {
+                                       @Nullable GenericStack keyInput,
+                                       @Nullable GenericStack keyOutput) {
         this.itemInputs = NonNullList.copyOf(itemInputs);
         this.fluidInputs = List.copyOf(fluidInputs);
         this.itemOutputs = NonNullList.copyOf(itemOutputs);
         this.fluidOutputs = List.copyOf(fluidOutputs);
         this.processTicks = processTicks;
         this.keyInput = keyInput != null && keyInput.amount() > 0 ? keyInput : null;
+        this.keyOutput = keyOutput != null && keyOutput.amount() > 0 ? keyOutput : null;
     }
 
     @Override
@@ -135,6 +139,11 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
     @Nullable
     public GenericStack getKeyInput() {
         return this.keyInput;
+    }
+
+    @Nullable
+    public GenericStack getKeyOutput() {
+        return this.keyOutput;
     }
 
     private boolean matchesKeyInput(@Nullable GenericStack inputKey) {

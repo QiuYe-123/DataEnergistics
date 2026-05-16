@@ -16,11 +16,9 @@ import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.helpers.patternprovider.PatternContainer;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnChemicalHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
-import mekanism.api.chemical.IChemicalHandler;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuHostLocator;
@@ -29,6 +27,7 @@ import appeng.api.inventories.InternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 import com.fish_dan_.data_energistics.integration.Ae2LtCompat;
+import com.fish_dan_.data_energistics.integration.AppMekCompat;
 import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -103,7 +102,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     private final IUpgradeInventory upgrades;
     private final IItemHandler externalReturnItemHandler = new AdaptivePatternProviderReturnItemHandler(this::getAdaptiveLogic);
     private final IFluidHandler externalReturnFluidHandler = new AdaptivePatternProviderReturnFluidHandler(this::getAdaptiveLogic);
-    private final IChemicalHandler externalReturnChemicalHandler = new AdaptivePatternProviderReturnChemicalHandler(this::getAdaptiveLogic);
+    private final Object externalReturnChemicalHandler = AppMekCompat.createReturnChemicalHandler(this::getAdaptiveLogic);
     private int syncedPatternSlotCount = 0;
 
     public AdaptivePatternProviderBlockEntity(BlockPos blockPos, BlockState blockState) {
@@ -144,7 +143,7 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     }
 
     @Nullable
-    public IChemicalHandler getExternalReturnChemicalHandler(@Nullable Direction side) {
+    public Object getExternalReturnChemicalHandler(@Nullable Direction side) {
         if (side != null && !this.getTargets().contains(side)) {
             return null;
         }

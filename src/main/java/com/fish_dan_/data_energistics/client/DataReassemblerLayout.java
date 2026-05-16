@@ -9,21 +9,22 @@ public final class DataReassemblerLayout {
     public static final int PROGRESS_WIDTH = 6;
     public static final int PROGRESS_HEIGHT = 18;
 
-    private static final int JEI_ITEM_INPUT_START_X = 7;
+    private static final int JEI_ITEM_INPUT_START_X = 8;
     private static final int JEI_ITEM_INPUT_START_Y = 3;
     private static final SlotPos[] JEI_ITEM_OUTPUTS = {
-            new SlotPos(113, 2),
-            new SlotPos(113, 20),
-            new SlotPos(113, 38)
+            new SlotPos(114, 3),
+            new SlotPos(114, 21),
+            new SlotPos(114, 39)
     };
-    private static final SlotPos JEI_KEY_INPUT = new SlotPos(62, 20);
+    private static final SlotPos JEI_KEY_INPUT = new SlotPos(63, 21);
+    private static final SlotPos JEI_KEY_OUTPUT = new SlotPos(132, 21);
     private static final SlotPos[] JEI_FLUID_INPUTS = {
-            new SlotPos(62, 2),
-            new SlotPos(62, 38)
+            new SlotPos(63, 3),
+            new SlotPos(63, 39)
     };
     private static final SlotPos[] JEI_FLUID_OUTPUTS = {
-            new SlotPos(132, 39),
-            new SlotPos(132, 3)
+            new SlotPos(132, 3),
+            new SlotPos(132, 39)
     };
 
     private static final int GUIDE_ITEM_INPUT_START_X = 7;
@@ -34,13 +35,14 @@ public final class DataReassemblerLayout {
             new SlotPos(114, 38)
     };
     private static final SlotPos GUIDE_KEY_INPUT = new SlotPos(63, 21);
+    private static final SlotPos GUIDE_KEY_OUTPUT = new SlotPos(132, 21);
     private static final SlotPos[] GUIDE_FLUID_INPUTS = {
             new SlotPos(63, 3),
             new SlotPos(63, 39)
     };
     private static final SlotPos[] GUIDE_FLUID_OUTPUTS = {
-            new SlotPos(132, 39),
-            new SlotPos(132, 3)
+            new SlotPos(132, 3),
+            new SlotPos(132, 39)
     };
 
     private static final int TERMINAL_SPECIAL_INPUT_X_OFFSET = 55;
@@ -64,6 +66,10 @@ public final class DataReassemblerLayout {
         return JEI_KEY_INPUT;
     }
 
+    public static SlotPos jeiKeyOutput() {
+        return JEI_KEY_OUTPUT;
+    }
+
     public static SlotPos jeiFluidInput(int index) {
         return bounded(JEI_FLUID_INPUTS, index);
     }
@@ -82,6 +88,10 @@ public final class DataReassemblerLayout {
 
     public static SlotPos emiKeyInput() {
         return jeiKeyInput();
+    }
+
+    public static SlotPos emiKeyOutput() {
+        return jeiKeyOutput();
     }
 
     public static SlotPos emiFluidInput(int index) {
@@ -104,6 +114,10 @@ public final class DataReassemblerLayout {
 
     public static SlotPos guideKeyInput() {
         return GUIDE_KEY_INPUT;
+    }
+
+    public static SlotPos guideKeyOutput() {
+        return GUIDE_KEY_OUTPUT;
     }
 
     public static SlotPos guideFluidInput(int index) {

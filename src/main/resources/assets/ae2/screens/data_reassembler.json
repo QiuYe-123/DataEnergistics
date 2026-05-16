@@ -25,11 +25,11 @@
     },
     "DATA_RIPPER_REASSEMBLER_FLUID_OUTPUT_A": {
       "left": 143,
-      "top": 58
+      "top": 22
     },
     "DATA_RIPPER_REASSEMBLER_FLUID_OUTPUT_B": {
       "left": 143,
-      "top": 22
+      "top": 58
     },
     "DATA_RIPPER_REASSEMBLER_KEY_INPUT": {
       "left": 74,
@@ -84,7 +84,7 @@
   },
   "images": {
     "progressBar": {
-      "texture": "guis/crystal_assembler.png",
+      "texture": "guis/data_reassembler.png",
       "srcRect": [176, 0, 6, 18]
     }
   },

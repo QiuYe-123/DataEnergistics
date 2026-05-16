@@ -146,6 +146,11 @@
     "item.data_energistics.universal_terminal":  "通用终端",
     "item.data_energistics.universal_terminal.desc":  "已安装的终端：",
     "gui.data_energistics.universal_terminal.switch_terminal":  "切换终端",
+    "gui.data_energistics.set_output_sides":  "输出面",
+    "gui.data_energistics.set_output_sides.open":  "打开输出配置",
+    "gui.data_energistics.set_output_sides.clear":  "清除所有面",
+    "gui.data_energistics.set_output_sides.on":  "已启用",
+    "gui.data_energistics.set_output_sides.off":  "已禁用",
     "gui.data_energistics.universal_terminal.current":  "当前：%s",
     "gui.data_energistics.universal_terminal.next":  "左键：切到下一个 %s",
     "gui.data_energistics.universal_terminal.previous":  "右键：切到上一个 %s",
@@ -176,7 +181,8 @@
     "item.data_energistics.carrier.target_unknown":  "目标生物：未知",
     "item.data_energistics.carrier.progress":  "采集进度：%s / %s",
     "item.data_energistics.carrier.completed":  "样本已完成",
-    "recipe.data_energistics.time_shift":  "世界交互",
+    "recipe.data_energistics.time_shift":  "时移",
+    "recipe.data_energistics.time_shift.category":  "世界交互",
     "recipe.data_energistics.data_reassembler":  "数据重组",
     "recipe.data_energistics.data_reassembler.data_flow":  "数据流：%s",
     "recipe.data_energistics.data_reassembler.duration":  "耗时：%s秒",
@@ -274,5 +280,7 @@
     "tooltip.data_energistics.adaptive_pattern_provider.terminal_hidden_slots":  "已解锁样板槽：%s/%s",
     "message.data_energistics.data_extractor.range.enabled":  "已开启提取仪范围显示",
     "message.data_energistics.data_extractor.range.disabled":  "已关闭提取仪范围显示",
-    "block.data_energistics.tnt_0":  "地平TNT"
+    "block.data_energistics.tnt_0":  "地平TNT",
+    "block.data_energistics.tnt_1":  "石平TNT",
+    "block.data_energistics.tnt_configurable":  "可配置平地TNT"
 }

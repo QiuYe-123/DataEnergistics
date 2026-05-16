@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Locale;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
+import mezz.jei.api.gui.drawable.IDrawableStatic;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.recipe.IFocusGroup;
@@ -25,6 +26,7 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<TimeSh
     private static final int CENTER_Y = 40;
     private static final int SLOT_SIZE = 18;
     private static final int INPUT_X = 16;
+    private static final int ARROW_X = 58;
     private static final int OUTPUT_X = 106;
     private static final int TEXT_X = 35;
     private static final int TEXT_WIDTH = 70;
@@ -34,21 +36,26 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<TimeSh
             RecipeType.create("data_energistics", "time_shift", TimeShiftRecipe.class);
 
     private final IDrawable background;
+    private final IDrawableStatic slotDrawable;
+    private final IDrawableStatic recipeArrow;
 
     public TimeShiftRecipeCategory(IGuiHelper guiHelper) {
         super(
                 RECIPE_TYPE,
-                Component.translatable("recipe.data_energistics.time_shift"),
+                Component.translatable("recipe.data_energistics.time_shift.category"),
                 guiHelper.createDrawableItemLike(ModItems.DATA_CRYSTAL.get()),
                 WIDTH,
                 HEIGHT);
         this.background = guiHelper.createBlankDrawable(WIDTH, HEIGHT);
+        this.slotDrawable = guiHelper.getSlotDrawable();
+        this.recipeArrow = guiHelper.getRecipeArrow();
     }
 
     @Override
     public void draw(TimeShiftRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics,
                      double mouseX, double mouseY) {
         this.background.draw(guiGraphics);
+        drawSlotFrames(guiGraphics, recipe);
 
         Font font = Minecraft.getInstance().font;
         drawCenteredString(
@@ -57,7 +64,7 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<TimeSh
                 Component.translatable("recipe.data_energistics.time_shift"),
                 TEXT_X + TEXT_WIDTH / 2,
                 8);
-        drawCenteredString(guiGraphics, font, Component.literal("->"), 70, CENTER_Y - 4);
+        this.recipeArrow.draw(guiGraphics, ARROW_X, CENTER_Y - 8);
 
         Component conditionText = Component.translatable(
                 "recipe.data_energistics.time_shift.time." + recipe.getTimeCondition().getName());
@@ -84,6 +91,24 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<TimeSh
             int x = OUTPUT_X + i / outputRows * SLOT_SIZE;
             int y = outputStartY + i % outputRows * SLOT_SIZE;
             builder.addOutputSlot(x, y).addItemStack(recipe.getResults().get(i).copy());
+        }
+    }
+
+    private void drawSlotFrames(GuiGraphics guiGraphics, TimeShiftRecipe recipe) {
+        int inputRows = visibleRows(recipe.getItemInputs().size());
+        int inputStartY = centeredSlotY(recipe.getItemInputs().size());
+        for (int i = 0; i < recipe.getItemInputs().size(); i++) {
+            int x = INPUT_X + i / inputRows * SLOT_SIZE;
+            int y = inputStartY + i % inputRows * SLOT_SIZE;
+            this.slotDrawable.draw(guiGraphics, x - 1, y - 1);
+        }
+
+        int outputRows = visibleRows(recipe.getResults().size());
+        int outputStartY = centeredSlotY(recipe.getResults().size());
+        for (int i = 0; i < recipe.getResults().size(); i++) {
+            int x = OUTPUT_X + i / outputRows * SLOT_SIZE;
+            int y = outputStartY + i % outputRows * SLOT_SIZE;
+            this.slotDrawable.draw(guiGraphics, x - 1, y - 1);
         }
     }
 

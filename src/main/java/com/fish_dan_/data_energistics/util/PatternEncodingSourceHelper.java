@@ -13,8 +13,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -47,9 +45,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import org.slf4j.Logger;
 public final class PatternEncodingSourceHelper {
     private static final Logger LOGGER = com.mojang.logging.LogUtils.getLogger();
@@ -74,10 +69,6 @@ public final class PatternEncodingSourceHelper {
     private static final String TAG_LAST = "last";
     private static final String TAG_ENABLED = "enabled";
     private static final String TAG_PENDING_KEY_INPUT = "pending_key_input";
-    private static final Map<UUID, ResourceLocation> SESSION_LAST_ENCODED_PATTERN_SOURCES = new ConcurrentHashMap<>();
-    private static final Map<UUID, GenericStack> SESSION_PENDING_TRANSFER_KEY_INPUTS = new ConcurrentHashMap<>();
-    private static final Map<UUID, List<GenericStack>> SESSION_PENDING_TRANSFER_FLUID_INPUTS = new ConcurrentHashMap<>();
-    private static final Map<UUID, List<GenericStack>> SESSION_PENDING_TRANSFER_FLUID_OUTPUTS = new ConcurrentHashMap<>();
     private static final String WORKSTATION_MAPPINGS_RESOURCE = "data_energistics/pattern_workstation_mappings.json";
     private static final ResourceLocation CRAFTING_TABLE_ID = ResourceLocation.withDefaultNamespace("crafting_table");
     private static final ResourceLocation FURNACE_ID = ResourceLocation.withDefaultNamespace("furnace");
@@ -877,7 +868,7 @@ public final class PatternEncodingSourceHelper {
 
     @Nullable
     public static ResourceLocation readLastEncodedPatternSource(Player player) {
-        return SESSION_LAST_ENCODED_PATTERN_SOURCES.get(player.getUUID());
+        return PatternEncodingSessionState.getLastEncodedPatternSource(player.getUUID());
     }
 
     public static void writeLastEncodedPatternSource(Player player, @Nullable ResourceLocation workstationId) {
@@ -886,16 +877,16 @@ public final class PatternEncodingSourceHelper {
         }
 
         if (workstationId == null) {
-            SESSION_LAST_ENCODED_PATTERN_SOURCES.remove(player.getUUID());
+            PatternEncodingSessionState.clearLastEncodedPatternSource(player.getUUID());
         } else {
-            SESSION_LAST_ENCODED_PATTERN_SOURCES.put(player.getUUID(), workstationId);
+            PatternEncodingSessionState.setLastEncodedPatternSource(player.getUUID(), workstationId);
         }
         clearPersistedLastEncodedPatternSource(player);
     }
 
     @Nullable
     public static GenericStack readPendingTransferKeyInput(Player player) {
-        GenericStack keyInput = SESSION_PENDING_TRANSFER_KEY_INPUTS.get(player.getUUID());
+        GenericStack keyInput = PatternEncodingSessionState.getPendingTransferKeyInput(player.getUUID());
         if (keyInput != null) {
             return new GenericStack(keyInput.what(), keyInput.amount());
         }
@@ -912,18 +903,16 @@ public final class PatternEncodingSourceHelper {
             return;
         }
 
-        LOGGER.info("[DE][PatternKey] store pending key for {} => {}",
-                player.getName().getString(), describeGenericStack(keyInput));
         CompoundTag tag = getPatternSourceData(player, keyInput != null && keyInput.amount() > 0);
         if (keyInput == null || keyInput.amount() <= 0) {
-            SESSION_PENDING_TRANSFER_KEY_INPUTS.remove(player.getUUID());
+            PatternEncodingSessionState.clearPendingTransferKeyInput(player.getUUID());
             if (tag != null) {
                 tag.remove(TAG_PENDING_KEY_INPUT);
                 cleanupPatternSourceData(player, tag);
             }
         } else {
             GenericStack copy = new GenericStack(keyInput.what(), keyInput.amount());
-            SESSION_PENDING_TRANSFER_KEY_INPUTS.put(player.getUUID(), copy);
+            PatternEncodingSessionState.setPendingTransferKeyInput(player.getUUID(), copy);
             if (tag != null) {
                 tag.put(TAG_PENDING_KEY_INPUT, GenericStack.writeTag(player.registryAccess(), copy));
                 cleanupPatternSourceData(player, tag);
@@ -932,7 +921,7 @@ public final class PatternEncodingSourceHelper {
     }
 
     public static List<GenericStack> readPendingTransferFluidInputs(Player player) {
-        return copyGenericStacks(SESSION_PENDING_TRANSFER_FLUID_INPUTS.get(player.getUUID()));
+        return copyGenericStacks(PatternEncodingSessionState.getPendingTransferFluidInputs(player.getUUID()));
     }
 
     public static void writePendingTransferFluidInputs(Player player, @Nullable List<GenericStack> fluidInputs) {
@@ -940,11 +929,16 @@ public final class PatternEncodingSourceHelper {
             return;
         }
 
-        writePendingTransferStacks(player, fluidInputs, SESSION_PENDING_TRANSFER_FLUID_INPUTS);
+        List<GenericStack> copy = copyGenericStacks(fluidInputs);
+        if (copy.isEmpty()) {
+            PatternEncodingSessionState.clearPendingTransferFluidInputs(player.getUUID());
+        } else {
+            PatternEncodingSessionState.setPendingTransferFluidInputs(player.getUUID(), copy);
+        }
     }
 
     public static List<GenericStack> readPendingTransferFluidOutputs(Player player) {
-        return copyGenericStacks(SESSION_PENDING_TRANSFER_FLUID_OUTPUTS.get(player.getUUID()));
+        return copyGenericStacks(PatternEncodingSessionState.getPendingTransferFluidOutputs(player.getUUID()));
     }
 
     public static void writePendingTransferFluidOutputs(Player player, @Nullable List<GenericStack> fluidOutputs) {
@@ -952,16 +946,11 @@ public final class PatternEncodingSourceHelper {
             return;
         }
 
-        writePendingTransferStacks(player, fluidOutputs, SESSION_PENDING_TRANSFER_FLUID_OUTPUTS);
-    }
-
-    private static void writePendingTransferStacks(Player player, @Nullable List<GenericStack> stacks,
-                                                   Map<UUID, List<GenericStack>> store) {
-        List<GenericStack> copy = copyGenericStacks(stacks);
+        List<GenericStack> copy = copyGenericStacks(fluidOutputs);
         if (copy.isEmpty()) {
-            store.remove(player.getUUID());
+            PatternEncodingSessionState.clearPendingTransferFluidOutputs(player.getUUID());
         } else {
-            store.put(player.getUUID(), copy);
+            PatternEncodingSessionState.setPendingTransferFluidOutputs(player.getUUID(), copy);
         }
     }
 
@@ -1010,7 +999,7 @@ public final class PatternEncodingSourceHelper {
         if (!enabled) {
             tag.remove(TAG_PENDING);
             tag.remove(TAG_LAST);
-            SESSION_LAST_ENCODED_PATTERN_SOURCES.remove(player.getUUID());
+            PatternEncodingSessionState.clearLastEncodedPatternSource(player.getUUID());
         }
         cleanupPatternSourceData(player, tag);
     }
@@ -1023,20 +1012,6 @@ public final class PatternEncodingSourceHelper {
 
         tag.remove(TAG_LAST);
         cleanupPatternSourceData(player, tag);
-    }
-
-    @EventBusSubscriber(modid = Data_Energistics.MODID)
-    public static final class SessionEvents {
-        private SessionEvents() {
-        }
-
-        @SubscribeEvent
-        public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
-            SESSION_LAST_ENCODED_PATTERN_SOURCES.remove(event.getEntity().getUUID());
-            SESSION_PENDING_TRANSFER_KEY_INPUTS.remove(event.getEntity().getUUID());
-            SESSION_PENDING_TRANSFER_FLUID_INPUTS.remove(event.getEntity().getUUID());
-            SESSION_PENDING_TRANSFER_FLUID_OUTPUTS.remove(event.getEntity().getUUID());
-        }
     }
 
     public static Component resolveWorkstationDisplayName(ResourceLocation workstationId) {

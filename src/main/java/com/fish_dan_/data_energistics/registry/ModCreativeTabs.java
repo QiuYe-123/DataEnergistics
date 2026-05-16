@@ -47,6 +47,8 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_TELEPORT_ANCHOR);
                         output.accept(ModItems.ADAPTIVE_PATTERN_PROVIDER);
                         output.accept(ModItems.TNT_0);
+                        output.accept(ModItems.TNT_1);
+                        output.accept(ModItems.TNT_CONFIGURABLE);
                         output.accept(ModItems.RESIDUAL_DATA_ORE);
                         output.accept(ModItems.ENDER_COHESION_METEORITE_0);
                         output.accept(ModItems.ENDER_COHESION_METEORITE_1);

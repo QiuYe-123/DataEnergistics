@@ -20,14 +20,13 @@ import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderHost;
-import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnChemicalHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnFluidHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderLogic;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderReturnItemHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptivePatternProviderState;
-import mekanism.api.chemical.IChemicalHandler;
 import com.fish_dan_.data_energistics.ae2.AdaptiveWirelessConnection;
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
+import com.fish_dan_.data_energistics.integration.AppMekCompat;
 import com.fish_dan_.data_energistics.integration.AppliedCreateCompat;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import net.minecraft.core.BlockPos;
@@ -74,7 +73,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     private final IUpgradeInventory upgrades;
     private final IItemHandler externalReturnItemHandler = new AdaptivePatternProviderReturnItemHandler(this::getLogic);
     private final IFluidHandler externalReturnFluidHandler = new AdaptivePatternProviderReturnFluidHandler(this::getLogic);
-    private final IChemicalHandler externalReturnChemicalHandler = new AdaptivePatternProviderReturnChemicalHandler(this::getLogic);
+    private final Object externalReturnChemicalHandler = AppMekCompat.createReturnChemicalHandler(this::getLogic);
 
     public AdaptivePatternProviderPart(IPartItem<?> partItem) {
         super(partItem);
@@ -104,7 +103,7 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
         return this.externalReturnFluidHandler;
     }
 
-    public IChemicalHandler getExternalReturnChemicalHandler() {
+    public Object getExternalReturnChemicalHandler() {
         return this.externalReturnChemicalHandler;
     }
 

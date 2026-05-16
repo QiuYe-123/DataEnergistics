@@ -32,7 +32,7 @@ public final class TimeShiftEmiRecipe extends BasicEmiRecipe {
             EmiStack.of(ModItems.DATA_CRYSTAL.get())) {
         @Override
         public Component getName() {
-            return Component.translatable("recipe.data_energistics.time_shift");
+            return Component.translatable("recipe.data_energistics.time_shift.category");
         }
     };
 

@@ -589,7 +589,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             }
         }
 
-        return canAcceptFluidOutputs(recipe);
+        return canAcceptFluidOutputs(recipe) && canAcceptKeyOutput(recipe);
     }
 
     private boolean consumeRecipeInputs(DataRipperReassemblerRecipe recipe) {
@@ -672,6 +672,11 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             }
             insertFluidOutput(fluidKey, fluidOutput.amount());
         }
+
+        GenericStack keyOutput = recipe.getKeyOutput();
+        if (keyOutput != null && keyOutput.what() != null && keyOutput.amount() > 0) {
+            insertKeyOutput(keyOutput);
+        }
     }
 
     private boolean canAcceptFluidOutputs(DataRipperReassemblerRecipe recipe) {
@@ -710,6 +715,34 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
 
         return true;
+    }
+
+    private boolean canAcceptKeyOutput(DataRipperReassemblerRecipe recipe) {
+        GenericStack keyOutput = recipe.getKeyOutput();
+        if (keyOutput == null || keyOutput.what() == null || keyOutput.amount() <= 0) {
+            return true;
+        }
+
+        if (this.keyOutputStack == null || this.keyOutputStack.what() == null || this.keyOutputStack.amount() <= 0) {
+            return keyOutput.amount() <= KEY_OUTPUT_CAPACITY;
+        }
+
+        if (!this.keyOutputStack.what().equals(keyOutput.what())) {
+            return false;
+        }
+
+        return this.keyOutputStack.amount() + keyOutput.amount() <= KEY_OUTPUT_CAPACITY;
+    }
+
+    private void insertKeyOutput(GenericStack stack) {
+        if (this.keyOutputStack == null || this.keyOutputStack.what() == null || this.keyOutputStack.amount() <= 0) {
+            this.keyOutputStack = clampKeyStack(stack, KEY_OUTPUT_CAPACITY);
+        } else if (this.keyOutputStack.what().equals(stack.what())) {
+            this.keyOutputStack = clampKeyStack(
+                    new GenericStack(stack.what(), this.keyOutputStack.amount() + stack.amount()),
+                    KEY_OUTPUT_CAPACITY);
+        }
+        syncKeyMenuFromStack();
     }
 
     private void insertFluidOutput(AEFluidKey fluidKey, long amountLong) {

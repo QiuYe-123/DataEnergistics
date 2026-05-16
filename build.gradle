@@ -5,6 +5,9 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.141'
 }
 
+def ae2wtlibApiJar = file(".codex_tmp_wtlib/META-INF/jarjar/de.mari_023.ae2wtlib_api-19.4.1.jar")
+def extractedAe2wtlibApiDir = layout.buildDirectory.dir("generated/ae2wtlibApi")
+
 version = mod_version
 group = mod_group_id
 
@@ -122,7 +125,7 @@ dependencies {
     implementation "curse.maven:ae2-lightning-tech-1527395:8036157"
 
     implementation "curse.maven:applied-energistics-2-wireless-terminals-459929:7693114"
-    compileOnly files(".codex_tmp_wtlib/META-INF/jarjar/de.mari_023.ae2wtlib_api-19.4.1.jar")
+    compileOnly files(extractedAe2wtlibApiDir)
 
     implementation "curse.maven:ldlib-626676:8030336"
     implementation "curse.maven:neo-eco-ae-extension-1460639:7884362"
@@ -146,13 +149,6 @@ dependencies {
     implementation "curse.maven:mekanism-268560:7904058"
     implementation "curse.maven:applied-mekanistics-574300:7096962"
 
-    implementation "curse.maven:mmmmmmmmmmmm-225738:7943676"
-    implementation "curse.maven:selene-499980:8065893"
-
-
-    implementation "curse.maven:draconic-evolution-223565:7584459"
-    implementation "curse.maven:codechicken-lib-1-8-242818:7281427"
-    implementation "curse.maven:brandons-core-231382:7130990"
 
     // Example mod dependency using a mod jar from ./libs with a flat dir repository
     // This maps to ./libs/coolmod-${mc_version}-${coolmod_version}.jar
@@ -168,6 +164,17 @@ dependencies {
     // For more info:
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
+}
+
+tasks.register("extractAe2wtlibApiClasses", Sync) {
+    from(zipTree(ae2wtlibApiJar)) {
+        exclude "META-INF/**"
+    }
+    into(extractedAe2wtlibApiDir)
+}
+
+tasks.withType(JavaCompile).configureEach {
+    dependsOn(tasks.named("extractAe2wtlibApiClasses"))
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.

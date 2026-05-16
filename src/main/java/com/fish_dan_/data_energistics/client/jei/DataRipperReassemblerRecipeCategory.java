@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.client.jei;
 
 import appeng.core.AppEng;
 import appeng.api.client.AEKeyRendering;
+import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.GenericStack;
 import appeng.items.misc.WrappedGenericStack;
 import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
@@ -18,6 +19,7 @@ import mezz.jei.api.gui.drawable.IDrawableAnimated;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.ingredients.IIngredientRenderer;
+import mezz.jei.api.neoforge.NeoForgeTypes;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.category.AbstractRecipeCategory;
@@ -29,10 +31,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.neoforged.neoforge.fluids.FluidStack;
 
 public final class DataRipperReassemblerRecipeCategory extends AbstractRecipeCategory<DataRipperReassemblerRecipe> {
     private static final ResourceLocation TEXTURE = AppEng.makeId("textures/guis/data_reassembler.png");
-    private static final ResourceLocation PROGRESS_TEXTURE = AppEng.makeId("textures/guis/crystal_assembler.png");
     public static final RecipeType<DataRipperReassemblerRecipe> RECIPE_TYPE =
             RecipeType.create("data_energistics", "data_reassembler", DataRipperReassemblerRecipe.class);
 
@@ -48,7 +50,7 @@ public final class DataRipperReassemblerRecipeCategory extends AbstractRecipeCat
                 DataReassemblerLayout.RECIPE_HEIGHT);
         this.background = guiHelper.createDrawable(TEXTURE, 11, 19,
                 DataReassemblerLayout.RECIPE_WIDTH, DataReassemblerLayout.RECIPE_HEIGHT);
-        this.progress = guiHelper.drawableBuilder(PROGRESS_TEXTURE, 176, 0, 6, 18)
+        this.progress = guiHelper.drawableBuilder(TEXTURE, 176, 0, 6, 18)
                 .buildAnimated(40, IDrawableAnimated.StartDirection.BOTTOM, false);
     }
 
@@ -86,6 +88,18 @@ public final class DataRipperReassemblerRecipeCategory extends AbstractRecipeCat
                         tooltip.add(GenericStackDisplayHelper.createAmountTooltip(keyInput));
                     });
         }
+
+        GenericStack keyOutput = recipe.getKeyOutput();
+        if (keyOutput != null) {
+            var pos = DataReassemblerLayout.jeiKeyOutput();
+            builder.addOutputSlot(pos.x(), pos.y())
+                    .addItemStack(WrappedGenericStack.wrap(keyOutput))
+                    .setCustomRenderer(VanillaTypes.ITEM_STACK, new NoCountItemRenderer(keyOutput))
+                    .addRichTooltipCallback((slotView, tooltip) -> {
+                        tooltip.add(createKeyTooltip(keyOutput));
+                        tooltip.add(GenericStackDisplayHelper.createAmountTooltip(keyOutput));
+                    });
+        }
     }
 
     private static List<ItemStack> withCount(DataRipperReassemblerIngredient ingredient) {
@@ -105,13 +119,7 @@ public final class DataRipperReassemblerRecipeCategory extends AbstractRecipeCat
         for (int i = 0; i < stacks.size() && i < DataRipperReassemblerRecipe.FLUID_INPUT_SLOTS; i++) {
             GenericStack stack = stacks.get(i);
             var pos = DataReassemblerLayout.jeiFluidInput(i);
-            builder.addInputSlot(pos.x(), pos.y())
-                    .addItemStack(WrappedGenericStack.wrap(stack))
-                    .setCustomRenderer(VanillaTypes.ITEM_STACK, new NoCountItemRenderer(stack))
-                    .addRichTooltipCallback((slotView, tooltip) -> {
-                        tooltip.add(createKeyTooltip(stack));
-                        tooltip.add(GenericStackDisplayHelper.createAmountTooltip(stack));
-                    });
+            addNativeFluidSlot(builder.addInputSlot(pos.x(), pos.y()), stack);
         }
     }
 
@@ -119,14 +127,30 @@ public final class DataRipperReassemblerRecipeCategory extends AbstractRecipeCat
         for (int i = 0; i < stacks.size() && i < DataRipperReassemblerRecipe.FLUID_OUTPUT_SLOTS; i++) {
             GenericStack stack = stacks.get(i);
             var pos = DataReassemblerLayout.jeiFluidOutput(i);
-            builder.addOutputSlot(pos.x(), pos.y())
-                    .addItemStack(WrappedGenericStack.wrap(stack))
+            addNativeFluidSlot(builder.addOutputSlot(pos.x(), pos.y()), stack);
+        }
+    }
+
+    private static void addNativeFluidSlot(mezz.jei.api.gui.builder.IRecipeSlotBuilder slotBuilder, GenericStack stack) {
+        if (!(stack.what() instanceof AEFluidKey fluidKey)) {
+            slotBuilder.addItemStack(WrappedGenericStack.wrap(stack))
                     .setCustomRenderer(VanillaTypes.ITEM_STACK, new NoCountItemRenderer(stack))
                     .addRichTooltipCallback((slotView, tooltip) -> {
                         tooltip.add(createKeyTooltip(stack));
                         tooltip.add(GenericStackDisplayHelper.createAmountTooltip(stack));
                     });
+            return;
         }
+
+        long amount = Math.max(1L, stack.amount());
+        int renderAmount = (int) Math.max(1L, Math.min(Integer.MAX_VALUE, amount));
+        FluidStack fluidStack = fluidKey.toStack(renderAmount);
+
+        slotBuilder
+                .setFluidRenderer(Math.max(1000L, amount), false, 16, 16)
+                .addIngredient(NeoForgeTypes.FLUID_STACK, fluidStack)
+                .addRichTooltipCallback((slotView, tooltip) ->
+                        tooltip.add(GenericStackDisplayHelper.createAmountTooltip(stack)));
     }
 
     private record NoCountItemRenderer(GenericStack keyInput) implements IIngredientRenderer<ItemStack> {

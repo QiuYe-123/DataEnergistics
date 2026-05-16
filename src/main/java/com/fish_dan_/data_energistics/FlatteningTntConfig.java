@@ -1,0 +1,204 @@
+package com.fish_dan_.data_energistics;
+
+import com.mojang.logging.LogUtils;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.fml.event.config.ModConfigEvent;
+import net.neoforged.neoforge.common.ModConfigSpec;
+import org.slf4j.Logger;
+
+@SuppressWarnings("removal")
+@EventBusSubscriber(modid = Data_Energistics.MODID, bus = EventBusSubscriber.Bus.MOD)
+public final class FlatteningTntConfig {
+    private static final Logger LOGGER = LogUtils.getLogger();
+    private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
+    private static final String DEFAULT_CONFIGURABLE_TNT_DISPLAY_NAME = "自定义平地TNT";
+
+    private static final Entry TNT_0_ENTRY;
+    private static final Entry TNT_1_ENTRY;
+    private static final Entry CONFIGURABLE_ENTRY;
+    private static final ModConfigSpec.ConfigValue<String> CONFIGURABLE_TNT_DISPLAY_NAME;
+
+    public static final ModConfigSpec SPEC;
+
+    public static Definition tnt0;
+    public static Definition tnt1;
+    public static Definition configurableTnt;
+    public static String configurableTntDisplayName;
+
+    static {
+        BUILDER.comment("Chunk-flattening TNT settings.",
+                "Chunk radius uses the center chunk as 0. Example: 1 = 3x3 chunks, 2 = 5x5 chunks.")
+                .push("flatteningTnt");
+
+        TNT_0_ENTRY = new Entry(BUILDER, "tnt0", "Settings for tnt_0.", 1, 0, 25, 1, -1, "minecraft:grass_block",
+                0, 0, 0, false, false);
+        TNT_1_ENTRY = new Entry(BUILDER, "tnt1", "Settings for tnt_1.", 1, 0, 25, 1, -1, "minecraft:stone",
+                0, 0, 0, false, false);
+        CONFIGURABLE_ENTRY = new Entry(BUILDER, "tntConfigurable", "Settings for the reserved configurable TNT block.",
+                1, 0, 25, 1, -1, "minecraft:dirt", 0, 0, 0, false, false);
+        CONFIGURABLE_TNT_DISPLAY_NAME = BUILDER.comment("Display name shown for the configurable TNT item.")
+                .define("tntConfigurable.displayName", DEFAULT_CONFIGURABLE_TNT_DISPLAY_NAME);
+
+        BUILDER.pop();
+        SPEC = BUILDER.build();
+
+        tnt0 = TNT_0_ENTRY.resolveDefaults();
+        tnt1 = TNT_1_ENTRY.resolveDefaults();
+        configurableTnt = CONFIGURABLE_ENTRY.resolveDefaults();
+        configurableTntDisplayName = DEFAULT_CONFIGURABLE_TNT_DISPLAY_NAME;
+    }
+
+    private FlatteningTntConfig() {
+    }
+
+    @SubscribeEvent
+    static void onLoad(final ModConfigEvent event) {
+        if (event.getConfig().getSpec() != SPEC) {
+            return;
+        }
+
+        tnt0 = TNT_0_ENTRY.resolve("tnt_0");
+        tnt1 = TNT_1_ENTRY.resolve("tnt_1");
+        configurableTnt = CONFIGURABLE_ENTRY.resolve("tnt_configurable");
+        configurableTntDisplayName = CONFIGURABLE_TNT_DISPLAY_NAME.get();
+    }
+
+    public record Definition(
+            int clearChunkRadius,
+            int clearStartYOffset,
+            int clearHeight,
+            int fillChunkRadius,
+            int fillYOffset,
+            BlockState fillBlockState,
+            BlockPos explosionCenterOffset,
+            boolean preserveFluids,
+            boolean replaceUnbreakableBlocks
+    ) {
+    }
+
+    private static final class Entry {
+        private final ModConfigSpec.IntValue clearChunkRadius;
+        private final ModConfigSpec.IntValue clearStartYOffset;
+        private final ModConfigSpec.IntValue clearHeight;
+        private final ModConfigSpec.IntValue fillChunkRadius;
+        private final ModConfigSpec.IntValue fillYOffset;
+        private final ModConfigSpec.ConfigValue<String> fillBlockId;
+        private final ModConfigSpec.IntValue centerOffsetX;
+        private final ModConfigSpec.IntValue centerOffsetY;
+        private final ModConfigSpec.IntValue centerOffsetZ;
+        private final ModConfigSpec.BooleanValue preserveFluids;
+        private final ModConfigSpec.BooleanValue replaceUnbreakableBlocks;
+        private final int defaultClearChunkRadius;
+        private final int defaultClearStartYOffset;
+        private final int defaultClearHeight;
+        private final int defaultFillChunkRadius;
+        private final int defaultFillYOffset;
+        private final String defaultFillBlockId;
+        private final int defaultCenterOffsetX;
+        private final int defaultCenterOffsetY;
+        private final int defaultCenterOffsetZ;
+        private final boolean defaultPreserveFluids;
+        private final boolean defaultReplaceUnbreakableBlocks;
+
+        private Entry(ModConfigSpec.Builder builder, String key, String comment, int clearChunkRadius,
+                int clearStartYOffset, int clearHeight, int fillChunkRadius, int fillYOffset, String fillBlockId,
+                int centerOffsetX, int centerOffsetY, int centerOffsetZ, boolean preserveFluids,
+                boolean replaceUnbreakableBlocks) {
+            this.defaultClearChunkRadius = clearChunkRadius;
+            this.defaultClearStartYOffset = clearStartYOffset;
+            this.defaultClearHeight = clearHeight;
+            this.defaultFillChunkRadius = fillChunkRadius;
+            this.defaultFillYOffset = fillYOffset;
+            this.defaultFillBlockId = fillBlockId;
+            this.defaultCenterOffsetX = centerOffsetX;
+            this.defaultCenterOffsetY = centerOffsetY;
+            this.defaultCenterOffsetZ = centerOffsetZ;
+            this.defaultPreserveFluids = preserveFluids;
+            this.defaultReplaceUnbreakableBlocks = replaceUnbreakableBlocks;
+            builder.comment(comment).push(key);
+            this.clearChunkRadius = builder.comment("Chunk radius for the cleared area. 1 = 3x3 chunks.")
+                    .defineInRange("clearChunkRadius", clearChunkRadius, 0, 64);
+            this.clearStartYOffset = builder.comment("Vertical offset from the TNT position where clearing starts.")
+                    .defineInRange("clearStartYOffset", clearStartYOffset, -384, 384);
+            this.clearHeight = builder.comment("Number of vertical blocks to clear.")
+                    .defineInRange("clearHeight", clearHeight, 1, 512);
+            this.fillChunkRadius = builder.comment("Chunk radius for the filled floor area. 1 = 3x3 chunks.")
+                    .defineInRange("fillChunkRadius", fillChunkRadius, 0, 64);
+            this.fillYOffset = builder.comment("Vertical offset from the TNT position for the filled floor layer.")
+                    .defineInRange("fillYOffset", fillYOffset, -384, 384);
+            this.fillBlockId = builder.comment("Block id used for the filled floor layer.")
+                    .define("fillBlock", fillBlockId);
+            this.centerOffsetX = builder.comment("X offset applied to the TNT position before calculating clear/fill areas.")
+                    .defineInRange("centerOffsetX", centerOffsetX, -512, 512);
+            this.centerOffsetY = builder.comment("Y offset applied to the TNT position before calculating clear/fill areas.")
+                    .defineInRange("centerOffsetY", centerOffsetY, -512, 512);
+            this.centerOffsetZ = builder.comment("Z offset applied to the TNT position before calculating clear/fill areas.")
+                    .defineInRange("centerOffsetZ", centerOffsetZ, -512, 512);
+            this.preserveFluids = builder.comment("If true, water/lava blocks are not removed by the clearing step.")
+                    .define("preserveFluids", preserveFluids);
+            this.replaceUnbreakableBlocks = builder
+                    .comment("If true, blocks with negative destroy time can still be removed/replaced.")
+                    .define("replaceUnbreakableBlocks", replaceUnbreakableBlocks);
+            builder.pop();
+        }
+
+        private Definition resolve(String id) {
+            return new Definition(
+                    this.clearChunkRadius.get(),
+                    this.clearStartYOffset.get(),
+                    this.clearHeight.get(),
+                    this.fillChunkRadius.get(),
+                    this.fillYOffset.get(),
+                    resolveBlockState(id, this.fillBlockId.get(), this.defaultFillBlockId),
+                    new BlockPos(this.centerOffsetX.get(), this.centerOffsetY.get(), this.centerOffsetZ.get()),
+                    this.preserveFluids.get(),
+                    this.replaceUnbreakableBlocks.get());
+        }
+
+        private Definition resolveDefaults() {
+            return new Definition(
+                    this.defaultClearChunkRadius,
+                    this.defaultClearStartYOffset,
+                    this.defaultClearHeight,
+                    this.defaultFillChunkRadius,
+                    this.defaultFillYOffset,
+                    resolveBlockState("default", this.defaultFillBlockId, this.defaultFillBlockId),
+                    new BlockPos(this.defaultCenterOffsetX, this.defaultCenterOffsetY, this.defaultCenterOffsetZ),
+                    this.defaultPreserveFluids,
+                    this.defaultReplaceUnbreakableBlocks);
+        }
+
+        private static BlockState resolveBlockState(String tntId, String configuredId, String fallbackId) {
+            BlockState fallback = getBlockStateOrFallback(fallbackId, Blocks.DIRT.defaultBlockState());
+            ResourceLocation location = ResourceLocation.tryParse(configuredId);
+            if (location == null) {
+                LOGGER.warn("Invalid fill block '{}' for {}. Falling back to '{}'.", configuredId, tntId, fallbackId);
+                return fallback;
+            }
+
+            var block = BuiltInRegistries.BLOCK.get(location);
+            if (block == Blocks.AIR) {
+                LOGGER.warn("Unknown fill block '{}' for {}. Falling back to '{}'.", configuredId, tntId, fallbackId);
+                return fallback;
+            }
+
+            return block.defaultBlockState();
+        }
+
+        private static BlockState getBlockStateOrFallback(String blockId, BlockState fallback) {
+            ResourceLocation location = ResourceLocation.tryParse(blockId);
+            if (location == null) {
+                return fallback;
+            }
+
+            var block = BuiltInRegistries.BLOCK.get(location);
+            return block == Blocks.AIR ? fallback : block.defaultBlockState();
+        }
+    }
+}

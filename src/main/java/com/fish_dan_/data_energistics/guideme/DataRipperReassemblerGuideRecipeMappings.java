@@ -57,7 +57,7 @@ public final class DataRipperReassemblerGuideRecipeMappings implements RecipeTyp
 
     private static final class RecipeBody extends AbstractTexturedMachineGuideRecipeBody {
         private static final ResourceLocation TEXTURE = AppEng.makeId("textures/guis/data_reassembler.png");
-        private static final ResourceLocation PROGRESS_TEXTURE = AppEng.makeId("textures/guis/crystal_assembler.png");
+        private static final ResourceLocation PROGRESS_TEXTURE = AppEng.makeId("textures/guis/data_reassembler.png");
 
         private final DataRipperReassemblerRecipe recipe;
 
@@ -77,6 +77,7 @@ public final class DataRipperReassemblerGuideRecipeMappings implements RecipeTyp
             renderFluidInputs(context);
             renderFluidOutputs(context);
             renderKeyInput(context);
+            renderKeyOutput(context);
         }
 
         @Override
@@ -128,10 +129,24 @@ public final class DataRipperReassemblerGuideRecipeMappings implements RecipeTyp
 
             if (this.recipe.getKeyInput() != null) {
                 var pos = DataReassemblerLayout.guideKeyInput();
-                return getGenericTooltipIfHovered(
+                Optional<GuideTooltip> tooltip = getGenericTooltipIfHovered(
                         x,
                         y,
                         this.recipe.getKeyInput(),
+                        pos.x(),
+                        pos.y(),
+                        List.of());
+                if (tooltip.isPresent()) {
+                    return tooltip;
+                }
+            }
+
+            if (this.recipe.getKeyOutput() != null) {
+                var pos = DataReassemblerLayout.guideKeyOutput();
+                return getGenericTooltipIfHovered(
+                        x,
+                        y,
+                        this.recipe.getKeyOutput(),
                         pos.x(),
                         pos.y(),
                         List.of());
@@ -177,6 +192,14 @@ public final class DataRipperReassemblerGuideRecipeMappings implements RecipeTyp
                 var pos = DataReassemblerLayout.guideKeyInput();
                 renderGenericStack(context, this.recipe.getKeyInput(), pos.x(), pos.y());
                 renderGenericStackAmount(context, this.recipe.getKeyInput(), pos.x(), pos.y(), formatCompactAmount(this.recipe.getKeyInput()));
+            }
+        }
+
+        private void renderKeyOutput(RenderContext context) {
+            if (this.recipe.getKeyOutput() != null) {
+                var pos = DataReassemblerLayout.guideKeyOutput();
+                renderGenericStack(context, this.recipe.getKeyOutput(), pos.x(), pos.y());
+                renderGenericStackAmount(context, this.recipe.getKeyOutput(), pos.x(), pos.y(), formatCompactAmount(this.recipe.getKeyOutput()));
             }
         }
 

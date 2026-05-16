@@ -14,6 +14,8 @@ import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.block.DataCrystalBuddingBlock;
 import com.fish_dan_.data_energistics.block.ResidualDataOreBlock;
 import com.fish_dan_.data_energistics.block.Tnt0Block;
+import com.fish_dan_.data_energistics.block.Tnt1Block;
+import com.fish_dan_.data_energistics.block.TntConfigurableBlock;
 import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -76,6 +78,16 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> TNT_0 = BLOCKS.registerBlock(
             "tnt_0",
             Tnt0Block::new,
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.TNT));
+
+    public static final DeferredBlock<Block> TNT_1 = BLOCKS.registerBlock(
+            "tnt_1",
+            Tnt1Block::new,
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.TNT));
+
+    public static final DeferredBlock<Block> TNT_CONFIGURABLE = BLOCKS.registerBlock(
+            "tnt_configurable",
+            TntConfigurableBlock::new,
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.TNT));
 
     public static final DeferredBlock<Block> RESIDUAL_DATA_ORE = BLOCKS.registerBlock(

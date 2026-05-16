@@ -33,6 +33,11 @@ public final class DataRipperReassemblerRecipeSerializer implements RecipeSerial
                     ? DataResult.error(() -> "Data rippper reassembler recipe key_input amount must be greater than 0")
                     : DataResult.success(stack),
             DataResult::success);
+    private static final Codec<GenericStack> KEY_OUTPUT_CODEC = GenericStack.CODEC.flatXmap(
+            stack -> stack.amount() <= 0
+                    ? DataResult.error(() -> "Data rippper reassembler recipe key_output amount must be greater than 0")
+                    : DataResult.success(stack),
+            DataResult::success);
     private static final Codec<GenericStack> FLUID_STACK_CODEC = GenericStack.CODEC.flatXmap(
             stack -> stack.amount() <= 0 || !(stack.what() instanceof AEFluidKey)
                     ? DataResult.error(() -> "Data rippper reassembler fluid stack must be a positive fluid stack")
@@ -64,27 +69,14 @@ public final class DataRipperReassemblerRecipeSerializer implements RecipeSerial
             FLUID_OUTPUTS_CODEC.optionalFieldOf("fluid_outputs", List.of()).forGetter(DataRipperReassemblerRecipe::getFluidOutputs),
             TICKS_CODEC.optionalFieldOf("process_ticks", DataRipperReassemblerRecipe.PROCESS_TICKS)
                     .forGetter(DataRipperReassemblerRecipe::getProcessTicks),
-            KEY_INPUT_CODEC.optionalFieldOf("key_input").forGetter(recipe -> Optional.ofNullable(recipe.getKeyInput()))
-    ).apply(instance, (itemInputs, fluidInputs, itemOutputs, fluidOutputs, processTicks, keyInput) ->
+            KEY_INPUT_CODEC.optionalFieldOf("key_input").forGetter(recipe -> Optional.ofNullable(recipe.getKeyInput())),
+            KEY_OUTPUT_CODEC.optionalFieldOf("key_output").forGetter(recipe -> Optional.ofNullable(recipe.getKeyOutput()))
+    ).apply(instance, (itemInputs, fluidInputs, itemOutputs, fluidOutputs, processTicks, keyInput, keyOutput) ->
             new DataRipperReassemblerRecipe(itemInputs, fluidInputs, itemOutputs, fluidOutputs, processTicks,
-                    keyInput.orElse(null))));
+                    keyInput.orElse(null), keyOutput.orElse(null))));
 
     private static final StreamCodec<RegistryFriendlyByteBuf, DataRipperReassemblerRecipe> STREAM_CODEC =
-            StreamCodec.composite(
-                    DataRipperReassemblerIngredient.STREAM_CODEC.apply(ByteBufCodecs.list()),
-                    recipe -> List.copyOf(recipe.getItemInputs()),
-                    GENERIC_STACK_LIST_STREAM_CODEC,
-                    DataRipperReassemblerRecipe::getFluidInputs,
-                    ItemStack.STREAM_CODEC.apply(ByteBufCodecs.list()),
-                    recipe -> List.copyOf(recipe.getItemOutputs()),
-                    GENERIC_STACK_LIST_STREAM_CODEC,
-                    DataRipperReassemblerRecipe::getFluidOutputs,
-                    ByteBufCodecs.VAR_INT,
-                    DataRipperReassemblerRecipe::getProcessTicks,
-                    OPTIONAL_KEY_INPUT_STREAM_CODEC,
-                    DataRipperReassemblerRecipe::getKeyInput,
-                    DataRipperReassemblerRecipe::new
-            );
+            StreamCodec.of(DataRipperReassemblerRecipeSerializer::writeRecipe, DataRipperReassemblerRecipeSerializer::readRecipe);
 
     private static GenericStack readOptionalKeyInput(RegistryFriendlyByteBuf buffer) {
         return GenericStack.readBuffer(buffer);
@@ -92,6 +84,36 @@ public final class DataRipperReassemblerRecipeSerializer implements RecipeSerial
 
     private static void writeOptionalKeyInput(RegistryFriendlyByteBuf buffer, GenericStack keyInput) {
         GenericStack.writeBuffer(keyInput, buffer);
+    }
+
+    private static DataRipperReassemblerRecipe readRecipe(RegistryFriendlyByteBuf buffer) {
+        List<DataRipperReassemblerIngredient> itemInputs =
+                DataRipperReassemblerIngredient.STREAM_CODEC.apply(ByteBufCodecs.list()).decode(buffer);
+        List<GenericStack> fluidInputs = GENERIC_STACK_LIST_STREAM_CODEC.decode(buffer);
+        List<ItemStack> itemOutputs = ItemStack.STREAM_CODEC.apply(ByteBufCodecs.list()).decode(buffer);
+        List<GenericStack> fluidOutputs = GENERIC_STACK_LIST_STREAM_CODEC.decode(buffer);
+        int processTicks = ByteBufCodecs.VAR_INT.decode(buffer);
+        GenericStack keyInput = OPTIONAL_KEY_INPUT_STREAM_CODEC.decode(buffer);
+        GenericStack keyOutput = OPTIONAL_KEY_INPUT_STREAM_CODEC.decode(buffer);
+        return new DataRipperReassemblerRecipe(
+                itemInputs,
+                fluidInputs,
+                itemOutputs,
+                fluidOutputs,
+                processTicks,
+                keyInput,
+                keyOutput);
+    }
+
+    private static void writeRecipe(RegistryFriendlyByteBuf buffer, DataRipperReassemblerRecipe recipe) {
+        DataRipperReassemblerIngredient.STREAM_CODEC.apply(ByteBufCodecs.list())
+                .encode(buffer, List.copyOf(recipe.getItemInputs()));
+        GENERIC_STACK_LIST_STREAM_CODEC.encode(buffer, recipe.getFluidInputs());
+        ItemStack.STREAM_CODEC.apply(ByteBufCodecs.list()).encode(buffer, List.copyOf(recipe.getItemOutputs()));
+        GENERIC_STACK_LIST_STREAM_CODEC.encode(buffer, recipe.getFluidOutputs());
+        ByteBufCodecs.VAR_INT.encode(buffer, recipe.getProcessTicks());
+        OPTIONAL_KEY_INPUT_STREAM_CODEC.encode(buffer, recipe.getKeyInput());
+        OPTIONAL_KEY_INPUT_STREAM_CODEC.encode(buffer, recipe.getKeyOutput());
     }
 
     private static List<GenericStack> readGenericStackList(RegistryFriendlyByteBuf buffer) {

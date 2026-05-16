@@ -2,7 +2,9 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.FlatteningTntConfig;
 import com.fish_dan_.data_energistics.item.BiologyDataCarrierItem;
+import com.fish_dan_.data_energistics.item.ConfigurableTntBlockItem;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.item.DataFlowPortableCellItem;
 import com.fish_dan_.data_energistics.item.DataFlowStorageCellItem;
@@ -54,6 +56,11 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> DATA_TELEPORT_ANCHOR = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_TELEPORT_ANCHOR);
     public static final DeferredItem<BlockItem> ADAPTIVE_PATTERN_PROVIDER = ITEMS.registerSimpleBlockItem(ModBlocks.ADAPTIVE_PATTERN_PROVIDER);
     public static final DeferredItem<BlockItem> TNT_0 = ITEMS.registerSimpleBlockItem(ModBlocks.TNT_0);
+    public static final DeferredItem<BlockItem> TNT_1 = ITEMS.registerSimpleBlockItem(ModBlocks.TNT_1);
+    public static final DeferredItem<BlockItem> TNT_CONFIGURABLE = ITEMS.register(
+            "tnt_configurable",
+            () -> new ConfigurableTntBlockItem(ModBlocks.TNT_CONFIGURABLE.get(), new Item.Properties(),
+                    () -> FlatteningTntConfig.configurableTntDisplayName));
     public static final DeferredItem<BlockItem> RESIDUAL_DATA_ORE = ITEMS.registerSimpleBlockItem(ModBlocks.RESIDUAL_DATA_ORE);
     public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_0 = ITEMS.registerSimpleBlockItem(ModBlocks.ENDER_COHESION_METEORITE_0);
     public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_1 = ITEMS.registerSimpleBlockItem(ModBlocks.ENDER_COHESION_METEORITE_1);

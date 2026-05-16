@@ -23,7 +23,7 @@ public class DataCaptureBallCondenserCategory extends AbstractRecipeCategory<Dat
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/condenser.png");
     private static final int REQUIRED_POWER = 256 * 1024 * 8;
     public static final RecipeType<DataCaptureBallCondenserRecipe> RECIPE_TYPE =
-            RecipeType.create("ae2", "condenser", DataCaptureBallCondenserRecipe.class);
+            RecipeType.create("data_energistics", "condenser_data_capture_ball", DataCaptureBallCondenserRecipe.class);
 
     private final IDrawableAnimated progress;
     private final IDrawable background;
