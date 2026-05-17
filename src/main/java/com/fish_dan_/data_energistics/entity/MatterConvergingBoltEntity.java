@@ -4,6 +4,7 @@ import appeng.core.definitions.AEItems;
 import appeng.items.misc.PaintBallItem;
 import com.fish_dan_.data_energistics.mixin.LivingEntityAccessor;
 import com.fish_dan_.data_energistics.registry.ModEntities;
+import com.fish_dan_.data_energistics.registry.ModItems;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.DustParticleOptions;
@@ -60,7 +61,6 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
             SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> DATA_HOMING =
             SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.BOOLEAN);
-    private static final String TAG_DATA_AMMO = "DataAmmo";
     private static final String TAG_DATA_DUST_DAMAGE_RATIO = "DataDustDamageRatio";
 
     private double traveledDistance;
@@ -247,8 +247,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     }
 
     private boolean isDataDustAmmo() {
-        CompoundTag tag = this.getItem().getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        return tag.getBoolean(TAG_DATA_AMMO);
+        return this.getItem().is(ModItems.TIME_CORE.get());
     }
 
     public int getColor() {

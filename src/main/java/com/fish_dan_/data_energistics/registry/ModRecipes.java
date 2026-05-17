@@ -3,7 +3,6 @@ package com.fish_dan_.data_energistics.registry;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipe;
 import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipeSerializer;
-import com.fish_dan_.data_energistics.recipe.DataCaptureBallToCrossbowRecipe;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipeSerializer;
 import com.fish_dan_.data_energistics.recipe.TimeShiftRecipe;
@@ -58,12 +57,6 @@ public final class ModRecipes {
             RECIPE_SERIALIZERS.register(
                     "universal_terminal_combine",
                     () -> new SimpleCraftingRecipeSerializer<>(UniversalTerminalCombineRecipe::new)
-            );
-    public static final DeferredHolder<RecipeSerializer<?>, SimpleCraftingRecipeSerializer<DataCaptureBallToCrossbowRecipe>>
-            DATA_CAPTURE_BALL_TO_CROSSBOW_SERIALIZER =
-            RECIPE_SERIALIZERS.register(
-                    "data_capture_ball_to_crossbow",
-                    () -> new SimpleCraftingRecipeSerializer<>(DataCaptureBallToCrossbowRecipe::new)
             );
 
     private ModRecipes() {
