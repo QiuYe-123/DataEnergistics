@@ -11,9 +11,9 @@ import com.fish_dan_.data_energistics.item.DataFlowStorageCellItem;
 import com.fish_dan_.data_energistics.item.DataRipperPartItem;
 import com.fish_dan_.data_energistics.item.DataStorageComponentItem;
 import com.fish_dan_.data_energistics.item.MatterConvergingCrossbowItem;
-import com.fish_dan_.data_energistics.item.ResidualDataItem;
 import com.fish_dan_.data_energistics.item.UniversalTerminalPartItem;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
+import com.fish_dan_.data_energistics.part.MeSolarPanelPart;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import appeng.api.stacks.GenericStack;
 import appeng.api.upgrades.Upgrades;
@@ -55,8 +55,6 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> DATA_MIMETIC_FIELD = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_MIMETIC_FIELD);
     public static final DeferredItem<BlockItem> DATA_TELEPORT_ANCHOR = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_TELEPORT_ANCHOR);
     public static final DeferredItem<BlockItem> ADAPTIVE_PATTERN_PROVIDER = ITEMS.registerSimpleBlockItem(ModBlocks.ADAPTIVE_PATTERN_PROVIDER);
-    public static final DeferredItem<BlockItem> TNT_0 = ITEMS.registerSimpleBlockItem(ModBlocks.TNT_0);
-    public static final DeferredItem<BlockItem> TNT_1 = ITEMS.registerSimpleBlockItem(ModBlocks.TNT_1);
     public static final DeferredItem<BlockItem> TNT_CONFIGURABLE = ITEMS.register(
             "tnt_configurable",
             () -> new ConfigurableTntBlockItem(ModBlocks.TNT_CONFIGURABLE.get(), new Item.Properties(),
@@ -66,7 +64,11 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_1 = ITEMS.registerSimpleBlockItem(ModBlocks.ENDER_COHESION_METEORITE_1);
     public static final DeferredItem<BlockItem> ENDER_COHESION_METEORITE_2 = ITEMS.registerSimpleBlockItem(ModBlocks.ENDER_COHESION_METEORITE_2);
     public static final DeferredItem<BlockItem> DATA_CRYSTAL_BLOCK = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_CRYSTAL_BLOCK);
-    public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_DATA_CRYSTAL);
+    public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_0 = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_DATA_CRYSTAL_0);
+    public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_1 = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_DATA_CRYSTAL_1);
+    public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_2 = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_DATA_CRYSTAL_2);
+    public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_3 = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_DATA_CRYSTAL_3);
+    public static final DeferredItem<BlockItem> BUDDING_DATA_CRYSTAL_4 = ITEMS.registerSimpleBlockItem(ModBlocks.BUDDING_DATA_CRYSTAL_4);
     public static final DeferredItem<BlockItem> SMALL_DATA_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(ModBlocks.SMALL_DATA_CRYSTAL_BUD);
     public static final DeferredItem<BlockItem> MEDIUM_DATA_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(ModBlocks.MEDIUM_DATA_CRYSTAL_BUD);
     public static final DeferredItem<BlockItem> LARGE_DATA_CRYSTAL_BUD = ITEMS.registerSimpleBlockItem(ModBlocks.LARGE_DATA_CRYSTAL_BUD);
@@ -74,6 +76,10 @@ public final class ModItems {
     public static final DeferredItem<PartItem<AdaptivePatternProviderPart>> ADAPTIVE_PATTERN_PROVIDER_PART = ITEMS.register(
             "adaptive_pattern_provider_part",
             () -> new PartItem<>(new Item.Properties(), AdaptivePatternProviderPart.class, AdaptivePatternProviderPart::new)
+    );
+    public static final DeferredItem<PartItem<MeSolarPanelPart>> ME_SOLAR_PANEL_PART = ITEMS.register(
+            "me_solar_panel_part",
+            () -> new PartItem<>(new Item.Properties(), MeSolarPanelPart.class, MeSolarPanelPart::new)
     );
     public static final DeferredItem<PartItem<UniversalTerminalPart>> UNIVERSAL_TERMINAL = ITEMS.register(
             "universal_terminal",
@@ -85,7 +91,7 @@ public final class ModItems {
             () -> Upgrades.createUpgradeCardItem(new Item.Properties())
     );
     public static final DeferredItem<Item> SOLIDIFIED_OBSIDIAN = ITEMS.registerSimpleItem("solidified_obsidian");
-    public static final DeferredItem<Item> DEACTIVATED_REDSTONE_DUST = ITEMS.registerSimpleItem("deactivated_redstone_dust");
+    public static final DeferredItem<Item> DATA_DUST = ITEMS.registerSimpleItem("data_dust");
     public static final DeferredItem<Item> OBSIDIAN_DUST = ITEMS.registerSimpleItem("obsidian_dust");
     public static final DeferredItem<Item> DATA_CARRIER = ITEMS.register("data_carrier",
             () -> new BiologyDataCarrierItem(new Item.Properties(), false));
@@ -98,20 +104,25 @@ public final class ModItems {
     public static final DeferredItem<Item> DATA_INSCRIBER_TEMPLATE = ITEMS.registerSimpleItem("data_inscriber_template");
     public static final DeferredItem<Item> DATA_CIRCUIT_BOARD = ITEMS.registerSimpleItem("data_circuit_board");
     public static final DeferredItem<Item> DATA_PROCESSOR = ITEMS.registerSimpleItem("data_processor");
-    public static final DeferredItem<Item> SHUYAO_MEMORY_ALLOY = ITEMS.registerSimpleItem("shuyao_memory_alloy");
-    public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_1K = ITEMS.registerSimpleItem("data_storage_component_1k");
-    public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_4K = ITEMS.registerSimpleItem("data_storage_component_4k");
-    public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_16K = ITEMS.registerSimpleItem("data_storage_component_16k");
-    public static final DeferredItem<Item> DATA_STORAGE_COMPONENT_64K = ITEMS.registerSimpleItem("data_storage_component_64k");
+    public static final DeferredItem<Item> DIGISIDIAN_MEMORIZE_INGOT = ITEMS.registerSimpleItem("digisidian_memorize_ingot");
+    public static final DeferredItem<DataStorageComponentItem> DATA_STORAGE_COMPONENT_1K = ITEMS.register(
+            "data_storage_component_1k",
+            () -> new DataStorageComponentItem(new Item.Properties(), 1));
+    public static final DeferredItem<DataStorageComponentItem> DATA_STORAGE_COMPONENT_4K = ITEMS.register(
+            "data_storage_component_4k",
+            () -> new DataStorageComponentItem(new Item.Properties(), 4));
+    public static final DeferredItem<DataStorageComponentItem> DATA_STORAGE_COMPONENT_16K = ITEMS.register(
+            "data_storage_component_16k",
+            () -> new DataStorageComponentItem(new Item.Properties(), 16));
+    public static final DeferredItem<DataStorageComponentItem> DATA_STORAGE_COMPONENT_64K = ITEMS.register(
+            "data_storage_component_64k",
+            () -> new DataStorageComponentItem(new Item.Properties(), 64));
     public static final DeferredItem<DataStorageComponentItem> DATA_STORAGE_COMPONENT_256K = ITEMS.register(
             "data_storage_component_256k",
             () -> new DataStorageComponentItem(new Item.Properties(), 256));
-    public static final DeferredItem<Item> RESIDUAL_DATA = ITEMS.register(
-            "residual_data",
-            () -> new ResidualDataItem(new Item.Properties()));
     public static final DeferredItem<Item> DATA_CAPTURE_BALL = ITEMS.register(
             "data_capture_ball",
-            () -> new DataCaptureBallItem(new Item.Properties()));
+            () -> new DataCaptureBallItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<MatterConvergingCrossbowItem> MATTER_CONVERGING_CROSSBOW = ITEMS.register(
             "matter_converging_crossbow",
             () -> new MatterConvergingCrossbowItem(new Item.Properties()));

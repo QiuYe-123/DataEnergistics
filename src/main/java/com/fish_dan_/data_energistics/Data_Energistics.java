@@ -35,8 +35,10 @@ import com.fish_dan_.data_energistics.client.screen.DataMimeticFieldScreen;
 import com.fish_dan_.data_energistics.client.screen.DataRipperReassemblerScreen;
 import com.fish_dan_.data_energistics.client.screen.DataSolarPanelScreen;
 import com.fish_dan_.data_energistics.client.screen.DataTeleportAnchorScreen;
+import com.fish_dan_.data_energistics.client.screen.Ae2TerminalKeyOverlay;
 import com.fish_dan_.data_energistics.client.ModItemColors;
 import com.fish_dan_.data_energistics.client.ModKeyMappings;
+import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.item.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.client.screen.DataRipperScreen;
 import com.fish_dan_.data_energistics.client.screen.UniversalCraftingTermScreen;
@@ -61,6 +63,7 @@ import com.fish_dan_.data_energistics.registry.ModStructures;
 import com.fish_dan_.data_energistics.registry.ModStorageCells;
 import com.fish_dan_.data_energistics.registry.UniversalTerminalAdapters;
 import com.fish_dan_.data_energistics.recipe.TimeShiftTransformLogic;
+import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipeLogic;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -87,6 +90,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
@@ -131,6 +135,7 @@ public class Data_Energistics {
         modEventBus.addListener(this::registerBuiltinDataPacks);
         NeoForge.EVENT_BUS.register(this);
         NeoForge.EVENT_BUS.register(new TimeShiftTransformLogic());
+        NeoForge.EVENT_BUS.register(new DataCaptureBallRightClickRecipeLogic());
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
         modContainer.registerConfig(ModConfig.Type.COMMON, FlatteningTntConfig.SPEC, "data_energistics-tnt.toml");
         modContainer.registerConfig(ModConfig.Type.COMMON, SolarPanelConfig.SPEC, "data_energistics-solar_panel.toml");
@@ -163,12 +168,26 @@ public class Data_Energistics {
             AEBaseBlockEntity.registerBlockEntityItem(ModBlockEntities.ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY.get(), ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get().asItem());
             Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_RIPPER.get(), 8, "item.data_energistics.data_ripper");
             Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_RIPPER.get(), 4, "item.data_energistics.data_ripper");
+            Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_1K.get(), 3,
+                    "item.data_energistics.portable_data_flow_cell_1k");
+            Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_4K.get(), 3,
+                    "item.data_energistics.portable_data_flow_cell_4k");
+            Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_16K.get(), 3,
+                    "item.data_energistics.portable_data_flow_cell_16k");
+            Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_64K.get(), 3,
+                    "item.data_energistics.portable_data_flow_cell_64k");
+            Upgrades.add(AEItems.ENERGY_CARD, ModItems.PORTABLE_DATA_FLOW_CELL_256K.get(), 3,
+                    "item.data_energistics.portable_data_flow_cell_256k");
+            Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CAPTURE_BALL.get(), 3,
+                    "item.data_energistics.data_capture_ball");
             Upgrades.add(AEItems.ENERGY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 6, "block.data_energistics.data_extractor");
             Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 6, "block.data_energistics.data_extractor");
             Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_EXTRACTOR.get(), 5, "block.data_energistics.data_extractor");
             Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_RIPPER_REASSEMBLER.get(), 4, "block.data_energistics.data_reassembler");
             Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_SOLAR_PANEL.get(), 3, "block.data_energistics.me_solar_panel");
             Upgrades.add(AEItems.ENERGY_CARD, ModBlocks.DATA_SOLAR_PANEL.get(), 3, "block.data_energistics.me_solar_panel");
+            Upgrades.add(AEItems.SPEED_CARD, ModItems.ME_SOLAR_PANEL_PART.get(), 3, "item.data_energistics.me_solar_panel_part");
+            Upgrades.add(AEItems.ENERGY_CARD, ModItems.ME_SOLAR_PANEL_PART.get(), 3, "item.data_energistics.me_solar_panel_part");
             Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DATA_MIMETIC_FIELD.get(), 3, "block.data_energistics.data_mimetic_field");
             Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_MIMETIC_FIELD.get(), 4, "block.data_energistics.data_mimetic_field");
             Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 3, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
@@ -199,6 +218,9 @@ public class Data_Energistics {
             );
             appeng.api.parts.PartModels.registerModels(
                     PartModelsHelper.createModels(ModItems.ADAPTIVE_PATTERN_PROVIDER_PART.get().getPartClass())
+            );
+            appeng.api.parts.PartModels.registerModels(
+                    PartModelsHelper.createModels(ModItems.ME_SOLAR_PANEL_PART.get().getPartClass())
             );
             appeng.api.parts.PartModels.registerModels(
                     PartModelsHelper.createModels(ModItems.UNIVERSAL_TERMINAL.get().getPartClass())
@@ -465,10 +487,16 @@ public class Data_Energistics {
                 ClientAeKeyRenderers.register();
                 ModStorageCells.registerClientModels();
                 registerMatterConvergingCrossbowProperties();
+                registerDataCaptureBallProperties();
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenOpening);
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenInitPost);
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenRenderPost);
             });
+        }
+
+        @SubscribeEvent
+        public static void onLoadComplete(FMLLoadCompleteEvent event) {
+            event.enqueueWork(ClientAeKeyRenderers::reregister);
         }
 
         @SubscribeEvent
@@ -499,8 +527,6 @@ public class Data_Energistics {
             event.registerBlockEntityRenderer(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), DataDistributionTowerRenderer::new);
             event.registerEntityRenderer(ModEntities.DISPERSING_DATA.get(), DispersingDataRenderer::new);
             event.registerEntityRenderer(ModEntities.MATTER_CONVERGING_BOLT.get(), MatterConvergingBoltRenderer::new);
-            event.registerEntityRenderer(ModEntities.TNT_0_PRIMED.get(), TntRenderer::new);
-            event.registerEntityRenderer(ModEntities.TNT_1_PRIMED.get(), TntRenderer::new);
             event.registerEntityRenderer(ModEntities.TNT_CONFIGURABLE_PRIMED.get(), TntRenderer::new);
         }
 
@@ -535,6 +561,11 @@ public class Data_Energistics {
                     });
         }
 
+        private static void registerDataCaptureBallProperties() {
+            ItemProperties.register(ModItems.DATA_CAPTURE_BALL.get(), Data_Energistics.id("fill_level"),
+                    (stack, level, entity, seed) -> DataCaptureBallItem.getFillModelValue(stack));
+        }
+
         public static void onScreenInitPost(ScreenEvent.Init.Post event) {
             maybeReplaceNativePatternEncodingScreen(event.getScreen(), true);
             Ae2WtLibCompat.maybeReplaceWirelessPatternEncodingScreen(event.getScreen(), true);
@@ -553,6 +584,7 @@ public class Data_Energistics {
 
         public static void onScreenRenderPost(ScreenEvent.Render.Post event) {
             UniversalTerminalScreenHook.onScreenRenderPost(event);
+            Ae2TerminalKeyOverlay.onScreenRenderPost(event);
         }
 
         private static Screen maybeReplaceNativePatternEncodingScreen(Screen currentScreen, boolean applyImmediately) {

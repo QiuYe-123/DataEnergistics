@@ -20,6 +20,8 @@ public final class DataFlowBusStrategies {
         registered = true;
         StackImportStrategy.register(DataFlowKeyType.TYPE, (level, pos, side) -> NoopImportStrategy.INSTANCE);
         StackExportStrategy.register(DataFlowKeyType.TYPE, (level, pos, side) -> NoopExportStrategy.INSTANCE);
+        StackImportStrategy.register(DataKeyType.TYPE, (level, pos, side) -> NoopImportStrategy.INSTANCE);
+        StackExportStrategy.register(DataKeyType.TYPE, (level, pos, side) -> NoopExportStrategy.INSTANCE);
     }
 
     private enum NoopImportStrategy implements StackImportStrategy {

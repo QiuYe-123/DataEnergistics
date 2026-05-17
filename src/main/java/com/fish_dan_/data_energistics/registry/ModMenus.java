@@ -6,9 +6,9 @@ import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEnti
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.menu.AdaptivePatternProviderMenu;
+import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.menu.DataExtractorMenu;
 import com.fish_dan_.data_energistics.menu.DataMimeticFieldMenu;
@@ -66,7 +66,7 @@ public final class ModMenus {
 
     public static final DeferredHolder<MenuType<?>, MenuType<DataSolarPanelMenu>> DATA_SOLAR_PANEL =
             MENUS.register("me_solar_panel", () -> MenuTypeBuilder
-                    .create(DataSolarPanelMenu::new, DataSolarPanelBlockEntity.class)
+                    .create(DataSolarPanelMenu::new, DataSolarPanelMenuHost.class)
                     .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "me_solar_panel")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<DataTeleportAnchorMenu>> DATA_TELEPORT_ANCHOR =

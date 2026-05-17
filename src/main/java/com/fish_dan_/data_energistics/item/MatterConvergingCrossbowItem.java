@@ -8,6 +8,7 @@ import appeng.api.implementations.items.IAEItemPowerStorage;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
+import appeng.api.stacks.GenericStack;
 import appeng.api.storage.StorageCells;
 import appeng.api.storage.cells.IBasicCellItem;
 import appeng.api.storage.cells.ISaveProvider;
@@ -21,9 +22,12 @@ import appeng.core.localization.Tooltips;
 import appeng.items.misc.PaintBallItem;
 import appeng.me.helpers.PlayerSource;
 import appeng.util.ConfigInventory;
+import com.fish_dan_.data_energistics.ae2.DataKey;
 import com.fish_dan_.data_energistics.entity.MatterConvergingBoltEntity;
+import com.fish_dan_.data_energistics.registry.ModItems;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.Holder;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -59,10 +63,10 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     private static final double MAX_POWER = 200_000.0D;
     private static final double CHARGE_RATE = 200_000.0D;
     private static final double ENERGY_PER_SHOT = 200.0D;
-    private static final double RESIDUAL_DATA_ENERGY_PER_SHOT = 200_000.0D;
-    private static final double RESIDUAL_DATA_ENERGY_PER_PERCENT = 25_000.0D;
-    private static final int RESIDUAL_DATA_BASE_PERCENT = 1;
-    private static final int RESIDUAL_DATA_MAX_PERCENT = 5;
+    private static final double DATA_DUST_ENERGY_PER_SHOT = 200_000.0D;
+    private static final double DATA_DUST_ENERGY_PER_PERCENT = 25_000.0D;
+    private static final int DATA_DUST_BASE_PERCENT = 1;
+    private static final int DATA_DUST_MAX_PERCENT = 5;
     private static final double HOMING_ENERGY_MULTIPLIER = 5.0D;
     private static final float PROJECTILE_SPEED = 3.15F;
     private static final float SPEED_CARD_PROJECTILE_SPEED_BONUS = 1.0F;
@@ -71,7 +75,11 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     private static final int TOTAL_TYPES = 1;
     private static final int CHARGE_DURATION_TICKS = 20;
     private static final int MAX_UPGRADES = 4;
-    private static final String TAG_RESIDUAL_DAMAGE_RATIO = "ResidualDamageRatio";
+    private static final long MAX_STORED_DATA = 512L;
+    private static final long DATA_PER_SHOT = 1L;
+    private static final String TAG_STORED_DATA = "StoredData";
+    private static final String TAG_DATA_AMMO = "DataAmmo";
+    private static final String TAG_DATA_DUST_DAMAGE_RATIO = "DataDustDamageRatio";
 
     private boolean startSoundPlayed = false;
     private boolean midLoadSoundPlayed = false;
@@ -199,6 +207,8 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
             TooltipFlag tooltipFlag) {
         lines.add(Tooltips.energyStorageComponent(this.getAECurrentPower(stack), this.getAEMaxPower(stack)));
         this.addCellInformationToTooltip(stack, lines);
+        lines.add(Component.translatable("key.data_energistics.data").copy()
+                .append(": " + this.getStoredDataAmount(stack) + "/" + MAX_STORED_DATA));
         lines.add(Component.translatable("item.data_energistics.matter_converging_crossbow.projectile",
                 this.getDisplayedAmmoName(stack)));
     }
@@ -297,10 +307,14 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     private List<ItemStack> extractAmmoForLoading(ItemStack weaponStack, Player player) {
         ItemStack ammo = this.extractAmmo(weaponStack, player);
         if (ammo.isEmpty()) {
-            return List.of();
+            if (this.getStoredDataAmount(weaponStack) < DATA_PER_SHOT) {
+                return List.of();
+            }
+            this.extractStoredData(weaponStack, DATA_PER_SHOT);
+            ammo = this.createDataAmmoStack(weaponStack);
         }
-        if (this.isResidualDataAmmo(ammo)) {
-            this.applyResidualShotData(weaponStack, ammo);
+        if (this.isDataDustAmmo(ammo)) {
+            this.applyDataDustShotData(weaponStack, ammo);
             return List.of(ammo);
         }
 
@@ -322,11 +336,13 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
 
     private boolean hasAmmo(ItemStack weaponStack) {
         StorageCell inventory = StorageCells.getCellInventory(weaponStack, (ISaveProvider) null);
-        if (inventory == null) {
-            return false;
+        if (inventory != null) {
+            var firstEntry = inventory.getAvailableStacks().getFirstEntry(AEItemKey.class);
+            if (firstEntry != null && firstEntry.getLongValue() > 0) {
+                return true;
+            }
         }
-        var firstEntry = inventory.getAvailableStacks().getFirstEntry(AEItemKey.class);
-        return firstEntry != null && firstEntry.getLongValue() > 0;
+        return this.getStoredDataAmount(weaponStack) >= DATA_PER_SHOT;
     }
 
     private boolean tryStoreAmmoFromPlayer(ItemStack weaponStack, Player player) {
@@ -339,6 +355,21 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         for (int i = 0; i < playerInventory.getContainerSize(); i++) {
             ItemStack candidate = playerInventory.getItem(i);
             if (candidate.isEmpty()) {
+                continue;
+            }
+
+            GenericStack genericStack = GenericStack.fromItemStack(candidate);
+            if (genericStack != null && genericStack.what() == DataKey.of()) {
+                long accepted = this.insertStoredData(weaponStack, genericStack.amount());
+                if (accepted > 0L) {
+                    long remaining = genericStack.amount() - accepted;
+                    if (remaining > 0L) {
+                        playerInventory.setItem(i, GenericStack.wrapInItemStack(DataKey.of(), remaining));
+                    } else {
+                        playerInventory.setItem(i, ItemStack.EMPTY);
+                    }
+                    return true;
+                }
                 continue;
             }
 
@@ -359,16 +390,18 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
 
     private Component getDisplayedAmmoName(ItemStack weaponStack) {
         StorageCell inventory = StorageCells.getCellInventory(weaponStack, (ISaveProvider) null);
-        if (inventory == null) {
-            return Component.translatable("item.data_energistics.matter_converging_crossbow.projectile.none");
+        if (inventory != null) {
+            var firstEntry = inventory.getAvailableStacks().getFirstEntry(AEItemKey.class);
+            if (firstEntry != null && firstEntry.getKey() instanceof AEItemKey itemKey && firstEntry.getLongValue() > 0) {
+                return itemKey.toStack(1).getHoverName();
+            }
         }
 
-        var firstEntry = inventory.getAvailableStacks().getFirstEntry(AEItemKey.class);
-        if (firstEntry == null || !(firstEntry.getKey() instanceof AEItemKey itemKey) || firstEntry.getLongValue() <= 0) {
-            return Component.translatable("item.data_energistics.matter_converging_crossbow.projectile.none");
+        if (this.getStoredDataAmount(weaponStack) > 0L) {
+            return Component.translatable("key.data_energistics.data");
         }
 
-        return itemKey.toStack(1).getHoverName();
+        return Component.translatable("item.data_energistics.matter_converging_crossbow.projectile.none");
     }
 
     @Override
@@ -452,7 +485,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         return item != AEItems.MATTER_BALL.asItem()
                 && item != AEItems.SINGULARITY.asItem()
                 && !(item instanceof PaintBallItem)
-                && !(item instanceof ResidualDataItem);
+                && item != ModItems.DATA_DUST.get();
     }
 
     @Override
@@ -475,7 +508,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         if (this.getAECurrentPower(stack) > maxPower) {
             this.setAECurrentPower(stack, maxPower);
         }
-        this.refreshChargedResidualShotData(stack);
+        this.refreshChargedDataDustShotData(stack);
     }
 
     private static int getEnergyCapacityMultiplier(ItemStack stack) {
@@ -483,8 +516,8 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     }
 
     private double getEnergyPerShot(ItemStack stack, ItemStack ammoStack) {
-        if (this.isResidualDataAmmo(ammoStack)) {
-            return this.getResidualEnergyPerShot(stack);
+        if (this.isDataDustAmmo(ammoStack)) {
+            return this.getDataDustEnergyPerShot(stack);
         }
         return this.hasRedstoneCard(stack) ? ENERGY_PER_SHOT * HOMING_ENERGY_MULTIPLIER : ENERGY_PER_SHOT;
     }
@@ -499,7 +532,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
 
     private float getProjectileSpeed(ItemStack stack, ItemStack ammoStack) {
         int speedCards = Math.max(0, this.getUpgrades(stack).getInstalledUpgrades(AEItems.SPEED_CARD));
-        if (this.isResidualDataAmmo(ammoStack)) {
+        if (this.isDataDustAmmo(ammoStack)) {
             return PROJECTILE_SPEED * 1.5F + speedCards * SPEED_CARD_PROJECTILE_SPEED_BONUS;
         }
         return PROJECTILE_SPEED + speedCards * SPEED_CARD_PROJECTILE_SPEED_BONUS;
@@ -507,51 +540,53 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
 
     private ItemStack peekAmmo(ItemStack weaponStack) {
         StorageCell inventory = StorageCells.getCellInventory(weaponStack, (ISaveProvider) null);
-        if (inventory == null) {
-            return ItemStack.EMPTY;
+        if (inventory != null) {
+            var firstEntry = inventory.getAvailableStacks().getFirstEntry(AEItemKey.class);
+            if (firstEntry != null && firstEntry.getKey() instanceof AEItemKey itemKey && firstEntry.getLongValue() > 0) {
+                return itemKey.toStack(1);
+            }
         }
 
-        var firstEntry = inventory.getAvailableStacks().getFirstEntry(AEItemKey.class);
-        if (firstEntry == null || !(firstEntry.getKey() instanceof AEItemKey itemKey) || firstEntry.getLongValue() <= 0) {
-            return ItemStack.EMPTY;
+        if (this.getStoredDataAmount(weaponStack) >= DATA_PER_SHOT) {
+            return this.createDataAmmoStack(weaponStack);
         }
 
-        return itemKey.toStack(1);
+        return ItemStack.EMPTY;
     }
 
-    private boolean isResidualDataAmmo(ItemStack ammoStack) {
-        return !ammoStack.isEmpty() && ammoStack.getItem() instanceof ResidualDataItem;
+    private boolean isDataDustAmmo(ItemStack ammoStack) {
+        return !ammoStack.isEmpty() && this.isDataAmmo(ammoStack);
     }
 
-    private double getResidualEnergyPerShot(ItemStack stack) {
-        return RESIDUAL_DATA_ENERGY_PER_SHOT + this.getResidualExtraEnergyForShot(stack);
+    private double getDataDustEnergyPerShot(ItemStack stack) {
+        return DATA_DUST_ENERGY_PER_SHOT + this.getDataDustExtraEnergyForShot(stack);
     }
 
-    private int getResidualDamagePercentForShot(ItemStack stack) {
-        double extraPower = this.getResidualExtraEnergyForShot(stack);
-        int extraPercent = (int) Math.floor(extraPower / RESIDUAL_DATA_ENERGY_PER_PERCENT);
-        return Math.min(RESIDUAL_DATA_MAX_PERCENT, RESIDUAL_DATA_BASE_PERCENT + extraPercent);
+    private int getDataDustDamagePercentForShot(ItemStack stack) {
+        double extraPower = this.getDataDustExtraEnergyForShot(stack);
+        int extraPercent = (int) Math.floor(extraPower / DATA_DUST_ENERGY_PER_PERCENT);
+        return Math.min(DATA_DUST_MAX_PERCENT, DATA_DUST_BASE_PERCENT + extraPercent);
     }
 
-    private void applyResidualShotData(ItemStack weaponStack, ItemStack ammoStack) {
-        float ratio = this.getResidualDamagePercentForChargedShot(weaponStack) / 100.0F;
-        CustomData.update(DataComponents.CUSTOM_DATA, ammoStack, tag -> tag.putFloat(TAG_RESIDUAL_DAMAGE_RATIO, ratio));
+    private void applyDataDustShotData(ItemStack weaponStack, ItemStack ammoStack) {
+        float ratio = this.getDataDustDamagePercentForChargedShot(weaponStack) / 100.0F;
+        CustomData.update(DataComponents.CUSTOM_DATA, ammoStack, tag -> tag.putFloat(TAG_DATA_DUST_DAMAGE_RATIO, ratio));
     }
 
-    private int getResidualDamagePercentForChargedShot(ItemStack stack) {
-        return this.getResidualDamagePercentForShot(stack);
+    private int getDataDustDamagePercentForChargedShot(ItemStack stack) {
+        return this.getDataDustDamagePercentForShot(stack);
     }
 
-    private double getResidualExtraEnergyFromCards(ItemStack stack) {
+    private double getDataDustExtraEnergyFromCards(ItemStack stack) {
         return Math.max(0.0D, this.getAEMaxPower(stack) - MAX_POWER);
     }
 
-    private double getResidualExtraEnergyForShot(ItemStack stack) {
-        double maxExtraEnergy = (RESIDUAL_DATA_MAX_PERCENT - RESIDUAL_DATA_BASE_PERCENT) * RESIDUAL_DATA_ENERGY_PER_PERCENT;
-        return Math.min(this.getResidualExtraEnergyFromCards(stack), maxExtraEnergy);
+    private double getDataDustExtraEnergyForShot(ItemStack stack) {
+        double maxExtraEnergy = (DATA_DUST_MAX_PERCENT - DATA_DUST_BASE_PERCENT) * DATA_DUST_ENERGY_PER_PERCENT;
+        return Math.min(this.getDataDustExtraEnergyFromCards(stack), maxExtraEnergy);
     }
 
-    private void refreshChargedResidualShotData(ItemStack stack) {
+    private void refreshChargedDataDustShotData(ItemStack stack) {
         ChargedProjectiles charged = stack.getOrDefault(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.EMPTY);
         if (charged.isEmpty()) {
             return;
@@ -561,8 +596,8 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         boolean changed = false;
         for (ItemStack projectile : charged.getItems()) {
             ItemStack updatedProjectile = projectile.copy();
-            if (this.isResidualDataAmmo(updatedProjectile)) {
-                this.applyResidualShotData(stack, updatedProjectile);
+            if (this.isDataDustAmmo(updatedProjectile)) {
+                this.applyDataDustShotData(stack, updatedProjectile);
                 changed = true;
             }
             updatedProjectiles.add(updatedProjectile);
@@ -571,6 +606,54 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         if (changed) {
             stack.set(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.of(updatedProjectiles));
         }
+    }
+
+    private ItemStack createDataAmmoStack(ItemStack weaponStack) {
+        ItemStack ammoStack = GenericStack.wrapInItemStack(DataKey.of(), DATA_PER_SHOT);
+        CustomData.update(DataComponents.CUSTOM_DATA, ammoStack, tag -> tag.putBoolean(TAG_DATA_AMMO, true));
+        this.applyDataDustShotData(weaponStack, ammoStack);
+        return ammoStack;
+    }
+
+    private boolean isDataAmmo(ItemStack ammoStack) {
+        CompoundTag tag = ammoStack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        return tag.getBoolean(TAG_DATA_AMMO);
+    }
+
+    private long getStoredDataAmount(ItemStack weaponStack) {
+        CompoundTag tag = weaponStack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        return Math.max(0L, tag.getLong(TAG_STORED_DATA));
+    }
+
+    public long insertStoredData(ItemStack weaponStack, long amount) {
+        if (amount <= 0L) {
+            return 0L;
+        }
+        long current = this.getStoredDataAmount(weaponStack);
+        long accepted = Math.min(amount, MAX_STORED_DATA - current);
+        if (accepted <= 0L) {
+            return 0L;
+        }
+        long updated = current + accepted;
+        CustomData.update(DataComponents.CUSTOM_DATA, weaponStack, tag -> tag.putLong(TAG_STORED_DATA, updated));
+        return accepted;
+    }
+
+    private long extractStoredData(ItemStack weaponStack, long amount) {
+        if (amount <= 0L) {
+            return 0L;
+        }
+        long current = this.getStoredDataAmount(weaponStack);
+        long extracted = Math.min(amount, current);
+        long updated = current - extracted;
+        CustomData.update(DataComponents.CUSTOM_DATA, weaponStack, tag -> {
+            if (updated > 0L) {
+                tag.putLong(TAG_STORED_DATA, updated);
+            } else {
+                tag.remove(TAG_STORED_DATA);
+            }
+        });
+        return extracted;
     }
 
     @Override

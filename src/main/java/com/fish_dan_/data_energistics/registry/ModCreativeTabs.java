@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
@@ -46,25 +47,28 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_MIMETIC_FIELD);
                         output.accept(ModItems.DATA_TELEPORT_ANCHOR);
                         output.accept(ModItems.ADAPTIVE_PATTERN_PROVIDER);
-                        output.accept(ModItems.TNT_0);
-                        output.accept(ModItems.TNT_1);
                         output.accept(ModItems.TNT_CONFIGURABLE);
                         output.accept(ModItems.RESIDUAL_DATA_ORE);
                         output.accept(ModItems.ENDER_COHESION_METEORITE_0);
                         output.accept(ModItems.ENDER_COHESION_METEORITE_1);
                         output.accept(ModItems.ENDER_COHESION_METEORITE_2);
                         output.accept(ModItems.DATA_CRYSTAL_BLOCK);
-                        output.accept(ModItems.BUDDING_DATA_CRYSTAL);
+                        output.accept(ModItems.BUDDING_DATA_CRYSTAL_0);
+                        output.accept(ModItems.BUDDING_DATA_CRYSTAL_1);
+                        output.accept(ModItems.BUDDING_DATA_CRYSTAL_2);
+                        output.accept(ModItems.BUDDING_DATA_CRYSTAL_3);
+                        output.accept(ModItems.BUDDING_DATA_CRYSTAL_4);
                         output.accept(ModItems.SMALL_DATA_CRYSTAL_BUD);
                         output.accept(ModItems.MEDIUM_DATA_CRYSTAL_BUD);
                         output.accept(ModItems.LARGE_DATA_CRYSTAL_BUD);
                         output.accept(ModItems.DATA_CRYSTAL_CLUSTER);
                         output.accept(ModItems.ADAPTIVE_PATTERN_PROVIDER_PART);
+                        output.accept(ModItems.ME_SOLAR_PANEL_PART);
                         output.accept(ModItems.UNIVERSAL_TERMINAL);
                         output.accept(ModItems.DATA_CRYSTAL);
                         output.accept(ModItems.REDSTONE_TUNING_CARD);
                         output.accept(ModItems.SOLIDIFIED_OBSIDIAN);
-                        output.accept(ModItems.DEACTIVATED_REDSTONE_DUST);
+                        output.accept(ModItems.DATA_DUST);
                         output.accept(ModItems.OBSIDIAN_DUST);
                         output.accept(ModItems.DATA_CARRIER);
                         output.accept(ModItems.BIOLOGY_DATA_CARRIER);
@@ -74,9 +78,8 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.DATA_INSCRIBER_TEMPLATE);
                         output.accept(ModItems.DATA_CIRCUIT_BOARD);
                         output.accept(ModItems.DATA_PROCESSOR);
-                        output.accept(ModItems.SHUYAO_MEMORY_ALLOY);
-                        output.accept(ModItems.RESIDUAL_DATA);
-                        output.accept(ModItems.DATA_CAPTURE_BALL);
+                        output.accept(ModItems.DIGISIDIAN_MEMORIZE_INGOT);
+                        output.accept(DataCaptureBallItem.createChargedStack());
                         output.accept(ModItems.MATTER_CONVERGING_CROSSBOW);
                         output.accept(ModItems.DATA_RIPPER);
                     })

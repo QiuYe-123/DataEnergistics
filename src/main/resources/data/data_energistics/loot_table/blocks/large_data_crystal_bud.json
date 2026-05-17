@@ -47,7 +47,7 @@
                   }
                 }
               ],
-              "name": "data_energistics:deactivated_redstone_dust"
+              "name": "data_energistics:data_dust"
             },
             {
               "type": "minecraft:empty"

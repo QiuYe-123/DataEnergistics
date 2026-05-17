@@ -15,6 +15,7 @@ import appeng.core.definitions.AEItems;
 import appeng.util.inv.AppEngInternalInventory;
 import com.fish_dan_.data_energistics.SolarPanelConfig;
 import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
+import com.fish_dan_.data_energistics.menu.DataSolarPanelMenuHost;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import net.minecraft.core.HolderLookup;
@@ -26,7 +27,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.List;
 
-public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity implements IUpgradeableObject {
+public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity implements IUpgradeableObject, DataSolarPanelMenuHost {
     public static final double ENERGY_CAPACITY = 160_000.0D;
     public static final int UPGRADE_SLOTS = 3;
     public static final int MAX_SPEED_CARDS = 3;

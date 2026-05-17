@@ -13,7 +13,7 @@ import net.minecraft.network.chat.Component;
 import java.util.List;
 
 public class CondenserOutputModeButton extends IconButton {
-    private static final int DATA_CAPTURE_BALL_REQUIRED_POWER = 256 * 1024 * 8;
+    private static final int DATA_CAPTURE_BALL_REQUIRED_POWER = 131072;
 
     private final CondenserMenuAccessor menu;
     private CondenserOutputMode mode = CondenserOutputMode.TRASH;

@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.worldgen.meteorite;
 
-import appeng.block.AEBaseBlock;
 import appeng.block.misc.MysteriousCubeBlock;
 import appeng.core.AEConfig;
 import appeng.core.definitions.AEBlocks;
@@ -13,11 +12,11 @@ import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutCopy;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutMode;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutSand;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutSnow;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-import net.minecraft.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.tags.BlockTags;
@@ -38,9 +37,8 @@ public final class MeteoritePlacer {
     private static final float EXPOSED_METEORITE_CHANCE = 0.12F;
     private static final float SHATTERED_METEORITE_CHANCE = 0.05F;
     private static final float END_STONE_METEORITE_CHANCE = 0.06F;
-    private static final float BUDDING_DATA_CRYSTAL_CHANCE = 0.48F;
-    private static final float DATA_CRYSTAL_BLOCK_CHANCE = 0.10F;
-    private static final float CORE_CRYSTAL_BLOCK_MIX_CHANCE = 0.12F;
+    private static final float CHARGED_DATA_CRYSTAL_CHANCE = 0.27F;
+    private static final float CERTUS_MOTHER_ROCK_CHANCE = 0.55F;
     private static final int CORE_RADIUS = 1;
     private static final int METEORITE_BODY_RADIUS = 20;
     private static final int METEORITE_FALLOUT_RADIUS = 80;
@@ -49,13 +47,12 @@ public final class MeteoritePlacer {
     private final BlockState exposedMeteorite;
     private final BlockState shatteredMeteorite;
     private final BlockState endStone;
-    private final BlockState buddingDataCrystal;
-    private final BlockState dataCrystalBlock;
-    private final BlockState certusQuartzBlock;
-    private final List<BlockState> quartzBlocks;
-    private final List<BlockState> quartzBuds;
-    private final List<BlockState> dataCrystalGrowths;
+    private final BlockState deactivatedDataCrystalMotherRock;
+    private final BlockState chargedDataCrystalMotherRock;
+    private final List<BlockState> certusMotherRocks;
+    private final List<BlockState> quartzGrowthStages;
     private final Map<Long, CoreColumnData> coreColumns = new HashMap<>();
+    private final Map<Long, BlockState> chargedCoreMotherRocks = new HashMap<>();
     private final MeteoriteBlockPutter putter = new MeteoriteBlockPutter();
     private final LevelAccessor level;
     private final RandomSource random;
@@ -94,37 +91,34 @@ public final class MeteoritePlacer {
         this.squaredMeteoriteSize = this.meteoriteSize * this.meteoriteSize;
         double realCrater = this.meteoriteSize * 2.0F + 5.0F;
         this.crater = realCrater * realCrater;
-        this.quartzBlocks = this.getQuartzBudList();
-        this.quartzBuds = Stream.of(AEBlocks.SMALL_QUARTZ_BUD, AEBlocks.MEDIUM_QUARTZ_BUD, AEBlocks.LARGE_QUARTZ_BUD)
-                .map(def -> ((CertusQuartzClusterBlock) def.block()).defaultBlockState())
-                .toList();
         this.skyStone = ((AEDecorativeBlock) AEBlocks.SKY_STONE_BLOCK.block()).defaultBlockState();
         this.crackedMeteorite = ModBlocks.ENDER_COHESION_METEORITE_0.get().defaultBlockState();
         this.exposedMeteorite = ModBlocks.ENDER_COHESION_METEORITE_1.get().defaultBlockState();
         this.shatteredMeteorite = ModBlocks.ENDER_COHESION_METEORITE_2.get().defaultBlockState();
         this.endStone = Blocks.END_STONE.defaultBlockState();
-        this.buddingDataCrystal = ModBlocks.BUDDING_DATA_CRYSTAL.get().defaultBlockState();
-        this.dataCrystalBlock = ModBlocks.DATA_CRYSTAL_BLOCK.get().defaultBlockState();
-        this.certusQuartzBlock = AEBlocks.QUARTZ_BLOCK.block().defaultBlockState();
-        this.dataCrystalGrowths = Stream.of(
-                        ModBlocks.SMALL_DATA_CRYSTAL_BUD,
-                        ModBlocks.MEDIUM_DATA_CRYSTAL_BUD,
-                        ModBlocks.LARGE_DATA_CRYSTAL_BUD,
-                        ModBlocks.DATA_CRYSTAL_CLUSTER)
-                .map(def -> def.get().defaultBlockState())
-                .toList();
+        this.deactivatedDataCrystalMotherRock = ModBlocks.BUDDING_DATA_CRYSTAL_0.get().defaultBlockState();
+        this.chargedDataCrystalMotherRock = ModBlocks.BUDDING_DATA_CRYSTAL_4.get().defaultBlockState();
+        this.certusMotherRocks = this.getCertusMotherRocks();
+        this.quartzGrowthStages = this.getQuartzGrowthStages();
+        this.seedChargedCoreMotherRocks();
         this.type = this.getFallout(level, boundingBox.getCenter(), settings.getFallout());
     }
 
-    private List<BlockState> getQuartzBudList() {
-        return AEConfig.instance().isSpawnFlawlessOnlyEnabled()
-                ? Stream.of(AEBlocks.FLAWLESS_BUDDING_QUARTZ)
-                        .map(def -> ((BuddingCertusQuartzBlock) def.block()).defaultBlockState())
-                        .toList()
-                : Stream.of(AEBlocks.QUARTZ_BLOCK, AEBlocks.DAMAGED_BUDDING_QUARTZ, AEBlocks.CHIPPED_BUDDING_QUARTZ,
-                                AEBlocks.FLAWED_BUDDING_QUARTZ, AEBlocks.FLAWLESS_BUDDING_QUARTZ)
-                        .map(def -> ((AEBaseBlock) def.block()).defaultBlockState())
-                        .toList();
+    private List<BlockState> getCertusMotherRocks() {
+        return Stream.of(
+                        AEBlocks.DAMAGED_BUDDING_QUARTZ,
+                        AEBlocks.CHIPPED_BUDDING_QUARTZ,
+                        AEBlocks.FLAWED_BUDDING_QUARTZ,
+                        AEBlocks.FLAWLESS_BUDDING_QUARTZ)
+                .map(def -> ((BuddingCertusQuartzBlock) def.block()).defaultBlockState())
+                .toList();
+    }
+
+    private List<BlockState> getQuartzGrowthStages() {
+        return Stream.of(AEBlocks.SMALL_QUARTZ_BUD, AEBlocks.MEDIUM_QUARTZ_BUD, AEBlocks.LARGE_QUARTZ_BUD, AEBlocks.QUARTZ_CLUSTER)
+                .map(def -> ((CertusQuartzClusterBlock) def.block()).defaultBlockState()
+                        .setValue(AmethystClusterBlock.FACING, Direction.UP))
+                .toList();
     }
 
     public void place() {
@@ -249,10 +243,11 @@ public final class MeteoritePlacer {
                             CoreColumnData coreColumn = this.getOrCreateCoreColumn(i, k);
                             if (dy == 0) {
                                 if (!pos.equals(this.pos)) {
-                                    this.placeCoreGrowth(pos, coreColumn.growth());
+                                    BlockState middleLayer = coreColumn.middleLayer();
+                                    this.putter.put(this.level, pos, middleLayer != null ? middleLayer : Blocks.AIR.defaultBlockState());
                                 }
                             } else {
-                                this.putter.put(this.level, pos, coreColumn.motherRock());
+                                this.putter.put(this.level, pos, this.getCoreMotherRock(pos, coreColumn));
                             }
                         } else if (Math.abs(dx) > 1 || Math.abs(dy) > 1 || Math.abs(dz) > 1) {
                             this.putter.put(this.level, pos, this.pickOuterMeteoriteBlock(dy));
@@ -269,46 +264,43 @@ public final class MeteoritePlacer {
     }
 
     private CoreColumnData createCoreColumnData() {
-        float coreRoll = this.random.nextFloat();
-        if (coreRoll < BUDDING_DATA_CRYSTAL_CHANCE) {
-            BlockState motherRock = this.random.nextFloat() < CORE_CRYSTAL_BLOCK_MIX_CHANCE
-                    ? this.dataCrystalBlock
-                    : this.buddingDataCrystal;
-            return new CoreColumnData(motherRock, this.randomDataCrystalGrowth());
+        if (this.random.nextFloat() < CERTUS_MOTHER_ROCK_CHANCE) {
+            return new CoreColumnData(this.randomCertusMotherRock(), this.randomQuartzGrowthStage());
         }
-        if (coreRoll < BUDDING_DATA_CRYSTAL_CHANCE + DATA_CRYSTAL_BLOCK_CHANCE) {
-            return new CoreColumnData(this.dataCrystalBlock, this.randomDataCrystalGrowth());
-        }
-
-        int certusIndex = this.random.nextInt(this.quartzBlocks.size());
-        BlockState motherRock = this.quartzBlocks.get(certusIndex);
-        if (this.random.nextFloat() < CORE_CRYSTAL_BLOCK_MIX_CHANCE) {
-            motherRock = this.certusQuartzBlock;
-        }
-        return new CoreColumnData(motherRock, this.randomQuartzGrowth());
+        return new CoreColumnData(this.deactivatedDataCrystalMotherRock, null);
     }
 
-    private BlockState randomDataCrystalGrowth() {
-        return Util.getRandom(this.dataCrystalGrowths, this.random).setValue(AmethystClusterBlock.FACING, Direction.UP);
-    }
-
-    private BlockState randomQuartzGrowth() {
-        return Util.getRandom(this.quartzBuds, this.random).setValue(AmethystClusterBlock.FACING, Direction.UP);
-    }
-
-    private void placeCoreGrowth(BlockPos growthPos, BlockState growthState) {
-        if (!this.boundingBox.isInside(growthPos)) {
+    private void seedChargedCoreMotherRocks() {
+        if (this.random.nextFloat() >= CHARGED_DATA_CRYSTAL_CHANCE) {
             return;
         }
 
-        BlockState targetState = this.level.getBlockState(growthPos);
-        if (!targetState.isAir() && targetState.getFluidState().getType() != Fluids.WATER && !targetState.canBeReplaced()) {
-            return;
+        List<BlockPos> candidates = new ArrayList<>();
+        for (int dx = -CORE_RADIUS; dx <= CORE_RADIUS; dx++) {
+            for (int dz = -CORE_RADIUS; dz <= CORE_RADIUS; dz++) {
+                candidates.add(this.pos.offset(dx, -1, dz));
+                candidates.add(this.pos.offset(dx, 1, dz));
+            }
         }
 
-        BlockState placedState = growthState
-                .setValue(AmethystClusterBlock.WATERLOGGED, targetState.getFluidState().getType() == Fluids.WATER);
-        this.putter.put(this.level, growthPos, placedState);
+        int chargedCount = 1 + this.random.nextInt(2);
+        for (int i = 0; i < chargedCount && !candidates.isEmpty(); i++) {
+            int selectedIndex = this.random.nextInt(candidates.size());
+            BlockPos selectedPos = candidates.remove(selectedIndex);
+            this.chargedCoreMotherRocks.put(selectedPos.asLong(), this.chargedDataCrystalMotherRock);
+        }
+    }
+
+    private BlockState getCoreMotherRock(BlockPos pos, CoreColumnData coreColumn) {
+        return this.chargedCoreMotherRocks.getOrDefault(pos.asLong(), coreColumn.motherRock());
+    }
+
+    private BlockState randomCertusMotherRock() {
+        return this.certusMotherRocks.get(this.random.nextInt(this.certusMotherRocks.size()));
+    }
+
+    private BlockState randomQuartzGrowthStage() {
+        return this.quartzGrowthStages.get(this.random.nextInt(this.quartzGrowthStages.size()));
     }
 
     private BlockState pickOuterMeteoriteBlock(int dy) {
@@ -366,6 +358,9 @@ public final class MeteoritePlacer {
                     blockPos.setY(j);
                     blockPosUp.setY(j + 1);
                     blockPosDown.setY(j - 1);
+                    if (Math.abs(i - this.x) <= CORE_RADIUS && Math.abs(j - this.y) <= CORE_RADIUS && Math.abs(k - this.z) <= CORE_RADIUS) {
+                        continue;
+                    }
                     BlockState state = this.level.getBlockState(blockPos);
                     Block blk = this.level.getBlockState(blockPos).getBlock();
                     if (!this.pureCrater || blk != this.craterType.getFiller()) {
@@ -467,6 +462,6 @@ public final class MeteoritePlacer {
         };
     }
 
-    private record CoreColumnData(BlockState motherRock, BlockState growth) {
+    private record CoreColumnData(BlockState motherRock, BlockState middleLayer) {
     }
 }

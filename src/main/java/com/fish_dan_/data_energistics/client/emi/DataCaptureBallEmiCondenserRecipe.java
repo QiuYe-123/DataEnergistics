@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.client.emi;
 
 import appeng.core.AppEng;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
+import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import dev.emi.emi.api.recipe.BasicEmiRecipe;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
@@ -14,12 +15,15 @@ import net.minecraft.resources.ResourceLocation;
 
 final class DataCaptureBallEmiCondenserRecipe extends BasicEmiRecipe {
     static final EmiRecipeCategory CATEGORY = resolveCategory();
-    private static final int REQUIRED_POWER = 256 * 1024 * 8;
+    private static final int REQUIRED_POWER = 131072;
 
     DataCaptureBallEmiCondenserRecipe() {
         super(CATEGORY, ResourceLocation.fromNamespaceAndPath("data_energistics", "condenser/data_capture_ball"), 96, 48);
-        this.outputs.add(EmiStack.of(ModItems.DATA_CAPTURE_BALL.get()));
-        this.catalysts.add(EmiIngredient.of(List.of(EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_256K.get()))));
+        this.outputs.add(EmiStack.of(DataCaptureBallItem.createChargedStack()));
+        this.catalysts.add(EmiIngredient.of(List.of(
+                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_16K.get()),
+                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_64K.get()),
+                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_256K.get()))));
     }
 
     @Override
@@ -38,8 +42,11 @@ final class DataCaptureBallEmiCondenserRecipe extends BasicEmiRecipe {
                 Component.translatable("button.data_energistics.condenser_output.data_capture_ball"),
                 Component.translatable("button.data_energistics.condenser_output.data_capture_ball.detail"),
                 Component.translatable("button.data_energistics.condenser_output.power", REQUIRED_POWER)), 80, 28, 16, 16);
-        widgets.addSlot(EmiStack.of(ModItems.DATA_CAPTURE_BALL.get()), 56, 26).drawBack(false);
-        widgets.addSlot(EmiIngredient.of(List.of(EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_256K.get()))), 52, 0).drawBack(false);
+        widgets.addSlot(EmiStack.of(DataCaptureBallItem.createChargedStack()), 56, 26).drawBack(false);
+        widgets.addSlot(EmiIngredient.of(List.of(
+                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_16K.get()),
+                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_64K.get()),
+                EmiStack.of(ModItems.DATA_STORAGE_COMPONENT_256K.get()))), 52, 0).drawBack(false);
     }
 
     private static EmiRecipeCategory resolveCategory() {
@@ -56,6 +63,6 @@ final class DataCaptureBallEmiCondenserRecipe extends BasicEmiRecipe {
 
         return new EmiRecipeCategory(
                 ResourceLocation.fromNamespaceAndPath("data_energistics", "condenser_data_capture_ball"),
-                EmiStack.of(ModItems.DATA_CAPTURE_BALL.get()));
+                EmiStack.of(DataCaptureBallItem.createChargedStack()));
     }
 }

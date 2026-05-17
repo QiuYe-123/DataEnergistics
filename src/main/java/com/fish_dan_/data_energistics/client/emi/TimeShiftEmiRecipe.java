@@ -17,18 +17,18 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
 public final class TimeShiftEmiRecipe extends BasicEmiRecipe {
-    private static final int WIDTH = 140;
-    private static final int HEIGHT = 80;
-    private static final int CENTER_Y = 40;
+    private static final int WIDTH = 148;
+    private static final int HEIGHT = 72;
+    private static final int CENTER_Y = 36;
     private static final int SLOT_SIZE = 18;
-    private static final int INPUT_X = 16;
-    private static final int ARROW_X = 58;
-    private static final int TEXT_X = 35;
-    private static final int TEXT_WIDTH = 70;
-    private static final int OUTPUT_X = 106;
+    private static final int INPUT_X = 18;
+    private static final int ARROW_X = 62;
+    private static final int TEXT_X = 40;
+    private static final int TEXT_WIDTH = 68;
+    private static final int OUTPUT_X = 112;
 
     public static final EmiRecipeCategory CATEGORY = new EmiRecipeCategory(
-            Data_Energistics.id("time_shift"),
+            Data_Energistics.id("world_interaction"),
             EmiStack.of(ModItems.DATA_CRYSTAL.get())) {
         @Override
         public Component getName() {
@@ -73,7 +73,7 @@ public final class TimeShiftEmiRecipe extends BasicEmiRecipe {
         widgets.addText(
                         Component.translatable("recipe.data_energistics.time_shift"),
                         TEXT_X + TEXT_WIDTH / 2,
-                        8,
+                        6,
                         0x7E7E7E,
                         false)
                 .horizontalAlign(TextWidget.Alignment.CENTER);
@@ -84,7 +84,7 @@ public final class TimeShiftEmiRecipe extends BasicEmiRecipe {
                 "recipe.data_energistics.time_shift.duration",
                 formatMinutes(this.recipe),
                 conditionText);
-        widgets.addText(timeText, TEXT_X + TEXT_WIDTH / 2, CENTER_Y + 16, 0x7E7E7E, false)
+        widgets.addText(timeText, TEXT_X + TEXT_WIDTH / 2, CENTER_Y + 14, 0x7E7E7E, false)
                 .horizontalAlign(TextWidget.Alignment.CENTER);
     }
 

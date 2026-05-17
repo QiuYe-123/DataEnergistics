@@ -4,7 +4,6 @@ import appeng.core.definitions.AEItems;
 import appeng.items.misc.PaintBallItem;
 import com.fish_dan_.data_energistics.mixin.LivingEntityAccessor;
 import com.fish_dan_.data_energistics.registry.ModEntities;
-import com.fish_dan_.data_energistics.item.ResidualDataItem;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.DustParticleOptions;
@@ -43,8 +42,8 @@ import java.util.Set;
 public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     private static final float MATTER_BALL_DAMAGE = 10.0F;
     private static final float SINGULARITY_DAMAGE = 25.0F;
-    private static final float DEFAULT_RESIDUAL_DATA_DAMAGE_RATIO = 0.01F;
-    private static final float RESIDUAL_DATA_BASE_DAMAGE = 10.0F;
+    private static final float DEFAULT_DATA_DUST_DAMAGE_RATIO = 0.01F;
+    private static final float DATA_DUST_BASE_DAMAGE = 10.0F;
     private static final float SINGULARITY_EXPLOSION_RADIUS = 1.5F;
     private static final float CRIT_DAMAGE_BONUS = 1.5F;
     private static final double MAX_TRAVEL_DISTANCE = 256.0D;
@@ -61,7 +60,8 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
             SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> DATA_HOMING =
             SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.BOOLEAN);
-    private static final String TAG_RESIDUAL_DAMAGE_RATIO = "ResidualDamageRatio";
+    private static final String TAG_DATA_AMMO = "DataAmmo";
+    private static final String TAG_DATA_DUST_DAMAGE_RATIO = "DataDustDamageRatio";
 
     private double traveledDistance;
     private ItemStack weaponStack = ItemStack.EMPTY;
@@ -183,11 +183,11 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
         Entity owner = this.getOwner();
         Entity target = result.getEntity();
         LivingEntity livingTarget = this.resolveLivingTarget(target);
-        if (this.isResidualDataAmmo() && livingTarget != null) {
+        if (this.isDataDustAmmo() && livingTarget != null) {
             DamageSource damageSource = owner instanceof LivingEntity livingOwner
                     ? this.damageSources().mobProjectile(this, livingOwner)
                     : this.damageSources().thrown(this, owner);
-            float baseDamage = this.getResidualBaseDamage();
+            float baseDamage = this.getDataDustBaseDamage();
             this.resetTargetInvulnerability(target);
             if (livingTarget != target) {
                 this.resetTargetInvulnerability(livingTarget);
@@ -196,7 +196,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
                 livingTarget.hurt(damageSource, baseDamage);
                 this.resetTargetInvulnerability(livingTarget);
             }
-            this.applyResidualDataDamage(livingTarget, owner);
+            this.applyDataDustDamage(livingTarget, owner);
             this.discardWithEffects();
             return;
         }
@@ -246,8 +246,9 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
         return this.getItem().is(AEItems.SINGULARITY.asItem());
     }
 
-    private boolean isResidualDataAmmo() {
-        return this.getItem().getItem() instanceof ResidualDataItem;
+    private boolean isDataDustAmmo() {
+        CompoundTag tag = this.getItem().getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        return tag.getBoolean(TAG_DATA_AMMO);
     }
 
     public int getColor() {
@@ -374,8 +375,8 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
                 .orElse(null);
     }
 
-    private void applyResidualDataDamage(LivingEntity target, @Nullable Entity owner) {
-        float damage = target.getMaxHealth() * this.getResidualDamageRatio();
+    private void applyDataDustDamage(LivingEntity target, @Nullable Entity owner) {
+        float damage = target.getMaxHealth() * this.getDataDustDamageRatio();
         if (damage <= 0.0F) {
             return;
         }
@@ -396,13 +397,13 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
         }
     }
 
-    private float getResidualDamageRatio() {
+    private float getDataDustDamageRatio() {
         CompoundTag tag = this.getItem().getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        return Mth.clamp(tag.getFloat(TAG_RESIDUAL_DAMAGE_RATIO), DEFAULT_RESIDUAL_DATA_DAMAGE_RATIO, 0.05F);
+        return Mth.clamp(tag.getFloat(TAG_DATA_DUST_DAMAGE_RATIO), DEFAULT_DATA_DUST_DAMAGE_RATIO, 0.05F);
     }
 
-    private float getResidualBaseDamage() {
-        float damage = RESIDUAL_DATA_BASE_DAMAGE * (float) this.getDeltaMovement().length();
+    private float getDataDustBaseDamage() {
+        float damage = DATA_DUST_BASE_DAMAGE * (float) this.getDeltaMovement().length();
         if (this.critical) {
             damage *= CRIT_DAMAGE_BONUS;
         }

@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.mixin;
 import appeng.blockentity.misc.CondenserBlockEntity;
 import appeng.util.inv.AppEngInternalInventory;
 import com.fish_dan_.data_energistics.accessor.CondenserBlockEntityAccessor;
+import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
@@ -20,7 +21,7 @@ public abstract class CondenserBlockEntityMixin implements CondenserBlockEntityA
     @Unique
     private static final String DATA_ENERGISTICS_DATA_CAPTURE_BALL_MODE = "dataEnergisticsDataCaptureBallMode";
     @Unique
-    private static final double DATA_ENERGISTICS_DATA_CAPTURE_BALL_REQUIRED_POWER = 256 * 1024 * 8;
+    private static final double DATA_ENERGISTICS_DATA_CAPTURE_BALL_REQUIRED_POWER = 131_072.0D;
 
     @Shadow
     @Final
@@ -35,12 +36,12 @@ public abstract class CondenserBlockEntityMixin implements CondenserBlockEntityA
             return;
         }
 
-        if (!this.storageSlot.getStackInSlot(0).is(ModItems.DATA_STORAGE_COMPONENT_256K.get())) {
+        if (!this.dataEnergistics$isValidDataCaptureBallStorageComponent(this.storageSlot.getStackInSlot(0))) {
             cir.setReturnValue(ItemStack.EMPTY);
             return;
         }
 
-        cir.setReturnValue(new ItemStack(ModItems.DATA_CAPTURE_BALL.get()));
+        cir.setReturnValue(DataCaptureBallItem.createChargedStack());
     }
 
     @Inject(method = "getRequiredPower", at = @At("HEAD"), cancellable = true)
@@ -56,11 +57,18 @@ public abstract class CondenserBlockEntityMixin implements CondenserBlockEntityA
             return;
         }
 
-        if (this.storageSlot.getStackInSlot(0).is(ModItems.DATA_STORAGE_COMPONENT_256K.get())) {
+        if (this.dataEnergistics$isValidDataCaptureBallStorageComponent(this.storageSlot.getStackInSlot(0))) {
             cir.setReturnValue(DATA_ENERGISTICS_DATA_CAPTURE_BALL_REQUIRED_POWER);
         } else {
             cir.setReturnValue(0.0D);
         }
+    }
+
+    @Unique
+    private boolean dataEnergistics$isValidDataCaptureBallStorageComponent(ItemStack stack) {
+        return stack.is(ModItems.DATA_STORAGE_COMPONENT_16K.get())
+                || stack.is(ModItems.DATA_STORAGE_COMPONENT_64K.get())
+                || stack.is(ModItems.DATA_STORAGE_COMPONENT_256K.get());
     }
 
     @Inject(method = "saveAdditional", at = @At("TAIL"))

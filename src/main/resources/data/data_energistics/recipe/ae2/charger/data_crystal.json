@@ -1,7 +1,7 @@
 {
   "type": "ae2:charger",
   "ingredient": {
-    "tag": "c:dusts/deactivated_redstone"
+    "tag": "c:dusts/data_dust"
   },
   "result": {
     "count": 1,

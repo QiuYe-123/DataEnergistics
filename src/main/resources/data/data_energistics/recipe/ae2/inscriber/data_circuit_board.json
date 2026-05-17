@@ -3,13 +3,13 @@
   "mode": "press",
   "ingredients": {
     "top": {
-      "tag": "c:gems/lapis"
+      "tag": "c:dusts/certus_quartz"
     },
     "middle": {
       "item": "data_energistics:data_inscriber_template"
     },
     "bottom": {
-      "item": "data_energistics:solidified_obsidian"
+      "tag": "c:gems/data_crystal"
     }
   },
   "result": {

@@ -42,6 +42,10 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.getRecipeManager().getAllRecipesFor(ModRecipes.TIME_SHIFT_TYPE.get()).stream()
                 .map(TimeShiftEmiRecipe::new)
                 .forEach(registry::addRecipe);
+        registry.addWorkstation(TimeShiftEmiRecipe.CATEGORY, EmiStack.of(ModItems.DATA_CAPTURE_BALL.get()));
+        registry.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get()).stream()
+                .map(DataCaptureBallRightClickEmiRecipe::new)
+                .forEach(registry::addRecipe);
         registry.addCategory(DataRipperReassemblerEmiRecipe.CATEGORY);
         registry.addWorkstation(DataRipperReassemblerEmiRecipe.CATEGORY, EmiStack.of(ModBlocks.DATA_RIPPER_REASSEMBLER.get()));
         registry.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get()).stream()
@@ -55,8 +59,7 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 EmiPort.getEnchantmentRegistry().get(Enchantments.POWER.location()),
                 1,
                 Data_Energistics.id("emi/anvil/matter_converging_crossbow_power")));
-        registry.addRecipe(buildResidualDataInfoRecipe());
-        registry.addRecipe(buildDeactivatedRedstoneDustInfoRecipe());
+        registry.addRecipe(buildDataDustInfoRecipe());
     }
 
     private static List<EmiCraftingRecipe> buildUniversalTerminalRecipes() {
@@ -88,22 +91,15 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         return terminalName.replace(':', '_').replace('/', '_');
     }
 
-    private static EmiInfoRecipe buildResidualDataInfoRecipe() {
+    private static EmiInfoRecipe buildDataDustInfoRecipe() {
         return new EmiInfoRecipe(
-                List.of(EmiStack.of(ModItems.RESIDUAL_DATA.get())),
-                List.of(Component.translatable("jei.data_energistics.residual_data.line1")),
-                Data_Energistics.id("info/residual_data"));
-    }
-
-    private static EmiInfoRecipe buildDeactivatedRedstoneDustInfoRecipe() {
-        return new EmiInfoRecipe(
-                List.of(EmiStack.of(ModItems.DEACTIVATED_REDSTONE_DUST.get())),
+                List.of(EmiStack.of(ModItems.DATA_DUST.get())),
                 List.of(
-                        Component.translatable("jei.data_energistics.deactivated_redstone_dust.line1"),
-                        Component.translatable("jei.data_energistics.deactivated_redstone_dust.line2"),
-                        Component.translatable("jei.data_energistics.deactivated_redstone_dust.line3"),
-                        Component.translatable("jei.data_energistics.deactivated_redstone_dust.line4"),
-                        Component.translatable("jei.data_energistics.deactivated_redstone_dust.line5")),
-                Data_Energistics.id("info/deactivated_redstone_dust"));
+                        Component.translatable("jei.data_energistics.data_dust.line1"),
+                        Component.translatable("jei.data_energistics.data_dust.line2"),
+                        Component.translatable("jei.data_energistics.data_dust.line3"),
+                        Component.translatable("jei.data_energistics.data_dust.line4"),
+                        Component.translatable("jei.data_energistics.data_dust.line5")),
+                Data_Energistics.id("info/data_dust"));
     }
 }

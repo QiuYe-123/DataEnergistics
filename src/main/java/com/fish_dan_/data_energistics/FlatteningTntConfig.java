@@ -19,15 +19,11 @@ public final class FlatteningTntConfig {
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
     private static final String DEFAULT_CONFIGURABLE_TNT_DISPLAY_NAME = "自定义平地TNT";
 
-    private static final Entry TNT_0_ENTRY;
-    private static final Entry TNT_1_ENTRY;
     private static final Entry CONFIGURABLE_ENTRY;
     private static final ModConfigSpec.ConfigValue<String> CONFIGURABLE_TNT_DISPLAY_NAME;
 
     public static final ModConfigSpec SPEC;
 
-    public static Definition tnt0;
-    public static Definition tnt1;
     public static Definition configurableTnt;
     public static String configurableTntDisplayName;
 
@@ -36,10 +32,6 @@ public final class FlatteningTntConfig {
                 "Chunk radius uses the center chunk as 0. Example: 1 = 3x3 chunks, 2 = 5x5 chunks.")
                 .push("flatteningTnt");
 
-        TNT_0_ENTRY = new Entry(BUILDER, "tnt0", "Settings for tnt_0.", 1, 0, 25, 1, -1, "minecraft:grass_block",
-                0, 0, 0, false, false);
-        TNT_1_ENTRY = new Entry(BUILDER, "tnt1", "Settings for tnt_1.", 1, 0, 25, 1, -1, "minecraft:stone",
-                0, 0, 0, false, false);
         CONFIGURABLE_ENTRY = new Entry(BUILDER, "tntConfigurable", "Settings for the reserved configurable TNT block.",
                 1, 0, 25, 1, -1, "minecraft:dirt", 0, 0, 0, false, false);
         CONFIGURABLE_TNT_DISPLAY_NAME = BUILDER.comment("Display name shown for the configurable TNT item.")
@@ -48,8 +40,6 @@ public final class FlatteningTntConfig {
         BUILDER.pop();
         SPEC = BUILDER.build();
 
-        tnt0 = TNT_0_ENTRY.resolveDefaults();
-        tnt1 = TNT_1_ENTRY.resolveDefaults();
         configurableTnt = CONFIGURABLE_ENTRY.resolveDefaults();
         configurableTntDisplayName = DEFAULT_CONFIGURABLE_TNT_DISPLAY_NAME;
     }
@@ -63,8 +53,6 @@ public final class FlatteningTntConfig {
             return;
         }
 
-        tnt0 = TNT_0_ENTRY.resolve("tnt_0");
-        tnt1 = TNT_1_ENTRY.resolve("tnt_1");
         configurableTnt = CONFIGURABLE_ENTRY.resolve("tnt_configurable");
         configurableTntDisplayName = CONFIGURABLE_TNT_DISPLAY_NAME.get();
     }

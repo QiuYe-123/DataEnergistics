@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.client.jei;
 
 import appeng.core.AppEng;
-import appeng.api.client.AEKeyRendering;
 import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.GenericStack;
 import appeng.items.misc.WrappedGenericStack;
+import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
 import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerIngredient;
@@ -157,7 +157,7 @@ public final class DataRipperReassemblerRecipeCategory extends AbstractRecipeCat
 
         @Override
         public void render(GuiGraphics guiGraphics, ItemStack ingredient) {
-            AEKeyRendering.drawInGui(Minecraft.getInstance(), guiGraphics, 0, 0, keyInput.what());
+            CustomKeyGuiRenderer.draw(Minecraft.getInstance(), guiGraphics, 0, 0, keyInput.what());
             GenericStackDisplayHelper.renderSmallOverlay(
                     guiGraphics,
                     0,

@@ -9,5 +9,6 @@ public final class ModAE2Keys {
 
     public static void register(RegisterEvent event) {
         event.register(AEKeyType.REGISTRY_KEY, DataFlowKeyType.TYPE.getId(), () -> DataFlowKeyType.TYPE);
+        event.register(AEKeyType.REGISTRY_KEY, DataKeyType.TYPE.getId(), () -> DataKeyType.TYPE);
     }
 }

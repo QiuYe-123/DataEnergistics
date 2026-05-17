@@ -3,11 +3,10 @@ package com.fish_dan_.data_energistics.menu;
 import appeng.api.util.IConfigManager;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.implementations.UpgradeableMenu;
-import com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import net.minecraft.world.entity.player.Inventory;
 
-public class DataSolarPanelMenu extends UpgradeableMenu<DataSolarPanelBlockEntity> {
+public class DataSolarPanelMenu extends UpgradeableMenu<DataSolarPanelMenuHost> {
     private static final String ACTION_SET_REDSTONE_CONTROL = "set_redstone_control";
 
     @GuiSync(790)
@@ -27,7 +26,7 @@ public class DataSolarPanelMenu extends UpgradeableMenu<DataSolarPanelBlockEntit
     @GuiSync(797)
     public boolean redstoneControlled;
 
-    public DataSolarPanelMenu(int id, Inventory playerInventory, DataSolarPanelBlockEntity host) {
+    public DataSolarPanelMenu(int id, Inventory playerInventory, DataSolarPanelMenuHost host) {
         super(ModMenus.DATA_SOLAR_PANEL.get(), id, playerInventory, host);
         registerClientAction(ACTION_SET_REDSTONE_CONTROL, Boolean.class, this::setRedstoneControlled);
     }
@@ -45,8 +44,8 @@ public class DataSolarPanelMenu extends UpgradeableMenu<DataSolarPanelBlockEntit
             this.currentPower = (int) Math.round(host.getAECurrentPower());
             this.maxPower = (int) Math.round(host.getAEMaxPower());
             this.generatedPower = (int) Math.round(host.getGeneratedPowerPerTick());
-            this.speedCardCount = DataSolarPanelBlockEntity.getSpeedCardCount(host.getUpgrades());
-            this.energyCardCount = DataSolarPanelBlockEntity.getEnergyCardCount(host.getUpgrades());
+            this.speedCardCount = com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity.getSpeedCardCount(host.getUpgrades());
+            this.energyCardCount = com.fish_dan_.data_energistics.blockentity.DataSolarPanelBlockEntity.getEnergyCardCount(host.getUpgrades());
             this.redstoneControlled = host.isRedstoneControlled();
         }
         super.broadcastChanges();

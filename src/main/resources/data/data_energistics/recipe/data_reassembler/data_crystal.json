@@ -3,7 +3,7 @@
   "item_inputs": [
     {
       "ingredient": {
-        "item": "data_energistics:deactivated_redstone_dust"
+        "item": "data_energistics:data_dust"
       },
       "count": 16
     },

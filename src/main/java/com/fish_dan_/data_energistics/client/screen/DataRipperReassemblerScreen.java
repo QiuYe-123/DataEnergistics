@@ -2,10 +2,10 @@ package com.fish_dan_.data_energistics.client.screen;
 
 import appeng.api.config.Settings;
 import appeng.api.config.YesNo;
-import appeng.api.client.AEKeyRendering;
 import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
 import appeng.client.gui.implementations.UpgradeableScreen;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.ProgressBar;
@@ -165,7 +165,7 @@ public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperRea
     }
 
     private void renderGenericSlot(GuiGraphics guiGraphics, Slot slot, GenericStack genericStack) {
-        AEKeyRendering.drawInGui(Minecraft.getInstance(), guiGraphics, slot.x, slot.y, genericStack.what());
+        CustomKeyGuiRenderer.draw(Minecraft.getInstance(), guiGraphics, slot.x, slot.y, genericStack.what());
         GenericStackDisplayHelper.renderSmallOverlay(
                 guiGraphics,
                 slot.x,

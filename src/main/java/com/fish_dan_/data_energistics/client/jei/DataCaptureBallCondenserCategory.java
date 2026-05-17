@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.client.jei;
 import appeng.client.gui.Icon;
 import appeng.core.definitions.AEBlocks;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
+import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.builder.ITooltipBuilder;
@@ -21,7 +22,7 @@ import org.jetbrains.annotations.Nullable;
 
 public class DataCaptureBallCondenserCategory extends AbstractRecipeCategory<DataCaptureBallCondenserRecipe> {
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/condenser.png");
-    private static final int REQUIRED_POWER = 256 * 1024 * 8;
+    private static final int REQUIRED_POWER = 131072;
     public static final RecipeType<DataCaptureBallCondenserRecipe> RECIPE_TYPE =
             RecipeType.create("data_energistics", "condenser_data_capture_ball", DataCaptureBallCondenserRecipe.class);
 
@@ -59,9 +60,12 @@ public class DataCaptureBallCondenserCategory extends AbstractRecipeCategory<Dat
 
     @Override
     public void setRecipe(IRecipeLayoutBuilder builder, DataCaptureBallCondenserRecipe recipe, IFocusGroup focuses) {
-        builder.addOutputSlot(57, 27).addItemStack(ModItems.DATA_CAPTURE_BALL.toStack());
+        builder.addOutputSlot(57, 27).addItemStack(DataCaptureBallItem.createChargedStack());
         builder.addSlot(RecipeIngredientRole.CATALYST, 53, 1)
-                .addItemStack(ModItems.DATA_STORAGE_COMPONENT_256K.toStack());
+                .addItemStacks(java.util.List.of(
+                        ModItems.DATA_STORAGE_COMPONENT_16K.toStack(),
+                        ModItems.DATA_STORAGE_COMPONENT_64K.toStack(),
+                        ModItems.DATA_STORAGE_COMPONENT_256K.toStack()));
     }
 
     @Override

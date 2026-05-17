@@ -48,6 +48,7 @@
     "AdvancedAePatternProviderScreenMixin",
     "AdvancedAeSmallPatternProviderScreenMixin",
     "WidgetContainerAccessor",
+    "client.Ae2CustomKeyGuiMixin",
     "Ae2ltWirelessConnectorRendererMixin",
     "NeoECOAEClientMixin"
   ],

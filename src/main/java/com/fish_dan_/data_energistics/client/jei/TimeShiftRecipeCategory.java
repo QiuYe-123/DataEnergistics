@@ -1,7 +1,10 @@
 package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.recipe.TimeShiftIngredient;
+import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipe;
+import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
 import com.fish_dan_.data_energistics.recipe.TimeShiftRecipe;
+import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import java.util.Arrays;
 import java.util.List;
@@ -20,22 +23,34 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
-public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<TimeShiftRecipe> {
-    private static final int WIDTH = 140;
-    private static final int HEIGHT = 80;
-    private static final int CENTER_Y = 40;
+public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<WorldInteractionJeiRecipe> {
+    private static final int WIDTH = 148;
+    private static final int HEIGHT = 72;
+    private static final int CENTER_Y = 36;
     private static final int SLOT_SIZE = 18;
-    private static final int INPUT_X = 16;
-    private static final int ARROW_X = 58;
-    private static final int OUTPUT_X = 106;
-    private static final int TEXT_X = 35;
-    private static final int TEXT_WIDTH = 70;
+    private static final int INPUT_X = 18;
+    private static final int ARROW_X = 62;
+    private static final int OUTPUT_X = 112;
+    private static final int TEXT_X = 40;
+    private static final int TEXT_WIDTH = 68;
     private static final int TEXT_COLOR = 0x7E7E7E;
+    private static final int RIGHT_CLICK_WIDTH = 148;
+    private static final int RIGHT_CLICK_HEIGHT = 72;
+    private static final int RIGHT_CLICK_ITEM_X = 8;
+    private static final int RIGHT_CLICK_ITEM_Y = 26;
+    private static final int RIGHT_CLICK_BLOCK_X = 61;
+    private static final int RIGHT_CLICK_BLOCK_Y = 26;
+    private static final int RIGHT_CLICK_ARROW_LEFT_X = 30;
+    private static final int RIGHT_CLICK_ARROW_RIGHT_X = 88;
+    private static final int RIGHT_CLICK_ARROW_Y = 27;
+    private static final int RIGHT_CLICK_OUTPUT_X = 122;
+    private static final int RIGHT_CLICK_OUTPUT_Y = 26;
 
-    public static final RecipeType<TimeShiftRecipe> RECIPE_TYPE =
-            RecipeType.create("data_energistics", "time_shift", TimeShiftRecipe.class);
+    public static final RecipeType<WorldInteractionJeiRecipe> RECIPE_TYPE =
+            RecipeType.create("data_energistics", "world_interaction", WorldInteractionJeiRecipe.class);
 
     private final IDrawable background;
+    private final IDrawable rightClickBackground;
     private final IDrawableStatic slotDrawable;
     private final IDrawableStatic recipeArrow;
 
@@ -44,16 +59,34 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<TimeSh
                 RECIPE_TYPE,
                 Component.translatable("recipe.data_energistics.time_shift.category"),
                 guiHelper.createDrawableItemLike(ModItems.DATA_CRYSTAL.get()),
-                WIDTH,
+                RIGHT_CLICK_WIDTH,
                 HEIGHT);
         this.background = guiHelper.createBlankDrawable(WIDTH, HEIGHT);
+        this.rightClickBackground = guiHelper.createBlankDrawable(RIGHT_CLICK_WIDTH, RIGHT_CLICK_HEIGHT);
         this.slotDrawable = guiHelper.getSlotDrawable();
         this.recipeArrow = guiHelper.getRecipeArrow();
     }
 
     @Override
-    public void draw(TimeShiftRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics,
+    public void draw(WorldInteractionJeiRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics,
                      double mouseX, double mouseY) {
+        switch (recipe) {
+            case WorldInteractionJeiRecipe.TimeShiftView timeShiftView -> drawTimeShift(timeShiftView.holder().value(), guiGraphics);
+            case WorldInteractionJeiRecipe.RightClickView rightClickView -> drawRightClick(rightClickView.holder().value(), guiGraphics);
+        }
+    }
+
+    @Override
+    public void setRecipe(IRecipeLayoutBuilder builder, WorldInteractionJeiRecipe recipe, IFocusGroup focuses) {
+        switch (recipe) {
+            case WorldInteractionJeiRecipe.TimeShiftView timeShiftView ->
+                    setTimeShiftRecipe(builder, timeShiftView.holder().value());
+            case WorldInteractionJeiRecipe.RightClickView rightClickView ->
+                    setRightClickRecipe(builder, rightClickView.holder().value());
+        }
+    }
+
+    private void drawTimeShift(TimeShiftRecipe recipe, GuiGraphics guiGraphics) {
         this.background.draw(guiGraphics);
         drawSlotFrames(guiGraphics, recipe);
 
@@ -63,7 +96,7 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<TimeSh
                 font,
                 Component.translatable("recipe.data_energistics.time_shift"),
                 TEXT_X + TEXT_WIDTH / 2,
-                8);
+                6);
         this.recipeArrow.draw(guiGraphics, ARROW_X, CENTER_Y - 8);
 
         Component conditionText = Component.translatable(
@@ -72,11 +105,10 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<TimeSh
                 "recipe.data_energistics.time_shift.duration",
                 formatMinutes(recipe),
                 conditionText);
-        drawCenteredString(guiGraphics, font, timeText, TEXT_X + TEXT_WIDTH / 2, CENTER_Y + 16);
+        drawCenteredString(guiGraphics, font, timeText, TEXT_X + TEXT_WIDTH / 2, CENTER_Y + 14);
     }
 
-    @Override
-    public void setRecipe(IRecipeLayoutBuilder builder, TimeShiftRecipe recipe, IFocusGroup focuses) {
+    private void setTimeShiftRecipe(IRecipeLayoutBuilder builder, TimeShiftRecipe recipe) {
         int inputRows = visibleRows(recipe.getItemInputs().size());
         int inputStartY = centeredSlotY(recipe.getItemInputs().size());
         for (int i = 0; i < recipe.getItemInputs().size(); i++) {
@@ -92,6 +124,31 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<TimeSh
             int y = outputStartY + i % outputRows * SLOT_SIZE;
             builder.addOutputSlot(x, y).addItemStack(recipe.getResults().get(i).copy());
         }
+    }
+
+    private void drawRightClick(DataCaptureBallRightClickRecipe recipe, GuiGraphics guiGraphics) {
+        this.rightClickBackground.draw(guiGraphics);
+        this.slotDrawable.draw(guiGraphics, RIGHT_CLICK_ITEM_X - 1, RIGHT_CLICK_ITEM_Y - 1);
+        this.slotDrawable.draw(guiGraphics, RIGHT_CLICK_OUTPUT_X - 1, RIGHT_CLICK_OUTPUT_Y - 1);
+        this.recipeArrow.draw(guiGraphics, RIGHT_CLICK_ARROW_LEFT_X, RIGHT_CLICK_ARROW_Y);
+        this.recipeArrow.draw(guiGraphics, RIGHT_CLICK_ARROW_RIGHT_X, RIGHT_CLICK_ARROW_Y);
+
+        Font font = Minecraft.getInstance().font;
+        drawCenteredString(guiGraphics, font,
+                Component.translatable("recipe.data_energistics.data_capture_ball_right_click.apply"),
+                RIGHT_CLICK_BLOCK_X + 8,
+                8);
+    }
+
+    private void setRightClickRecipe(IRecipeLayoutBuilder builder, DataCaptureBallRightClickRecipe recipe) {
+        builder.addInputSlot(RIGHT_CLICK_ITEM_X, RIGHT_CLICK_ITEM_Y)
+                .addItemStack(DataCaptureBallItem.createConfiguredStack(recipe.getEnergyCost(), recipe.getDataCost()))
+                .addRichTooltipCallback((slotView, tooltip) ->
+                        tooltip.add(Component.translatable(
+                                "recipe.data_energistics.data_capture_ball_right_click.preset",
+                                recipe.getDataCost(), formatEnergy(recipe.getEnergyCost()))));
+        builder.addInputSlot(RIGHT_CLICK_BLOCK_X, RIGHT_CLICK_BLOCK_Y).addItemStack(new ItemStack(recipe.getInputBlock()));
+        builder.addOutputSlot(RIGHT_CLICK_OUTPUT_X, RIGHT_CLICK_OUTPUT_Y).addItemStack(new ItemStack(recipe.getResultBlock()));
     }
 
     private void drawSlotFrames(GuiGraphics guiGraphics, TimeShiftRecipe recipe) {
@@ -123,6 +180,14 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<TimeSh
         }
 
         return String.format(Locale.ROOT, "%.2f", minutes);
+    }
+
+    private static String formatEnergy(double energy) {
+        if (energy == Math.rint(energy)) {
+            return Long.toString((long) energy);
+        }
+
+        return Double.toString(energy);
     }
 
     private static int centeredSlotY(int slotCount) {

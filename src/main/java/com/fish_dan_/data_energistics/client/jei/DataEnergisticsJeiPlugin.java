@@ -59,6 +59,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
     @Override
     public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
         registration.addRecipeCatalyst(AEBlocks.CONDENSER, DataCaptureBallCondenserCategory.RECIPE_TYPE);
+        registration.addRecipeCatalyst(ModItems.DATA_CAPTURE_BALL.get(), TimeShiftRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(ModBlocks.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerRecipeCategory.RECIPE_TYPE);
     }
 
@@ -84,8 +85,11 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         if (level != null) {
             registration.addRecipes(
                     TimeShiftRecipeCategory.RECIPE_TYPE,
-                    level.getRecipeManager().getAllRecipesFor(ModRecipes.TIME_SHIFT_TYPE.get()).stream()
-                            .map(RecipeHolder::value)
+                    java.util.stream.Stream.<WorldInteractionJeiRecipe>concat(
+                                    level.getRecipeManager().getAllRecipesFor(ModRecipes.TIME_SHIFT_TYPE.get()).stream()
+                                            .map(WorldInteractionJeiRecipe.TimeShiftView::new),
+                                    level.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get()).stream()
+                                            .map(WorldInteractionJeiRecipe.RightClickView::new))
                             .toList());
             registration.addRecipes(
                     DataRipperReassemblerRecipeCategory.RECIPE_TYPE,
@@ -95,15 +99,12 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         }
         registerMatterConvergingCrossbowAnvilRecipes(registration);
         registration.addIngredientInfo(
-                ModItems.RESIDUAL_DATA.get(),
-                Component.translatable("jei.data_energistics.residual_data.line1"));
-        registration.addIngredientInfo(
-                ModItems.DEACTIVATED_REDSTONE_DUST.get(),
-                Component.translatable("jei.data_energistics.deactivated_redstone_dust.line1"),
-                Component.translatable("jei.data_energistics.deactivated_redstone_dust.line2"),
-                Component.translatable("jei.data_energistics.deactivated_redstone_dust.line3"),
-                Component.translatable("jei.data_energistics.deactivated_redstone_dust.line4"),
-                Component.translatable("jei.data_energistics.deactivated_redstone_dust.line5"));
+                ModItems.DATA_DUST.get(),
+                Component.translatable("jei.data_energistics.data_dust.line1"),
+                Component.translatable("jei.data_energistics.data_dust.line2"),
+                Component.translatable("jei.data_energistics.data_dust.line3"),
+                Component.translatable("jei.data_energistics.data_dust.line4"),
+                Component.translatable("jei.data_energistics.data_dust.line5"));
     }
 
     private static void registerMatterConvergingCrossbowAnvilRecipes(IRecipeRegistration registration) {

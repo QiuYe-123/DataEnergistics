@@ -1,6 +1,9 @@
 package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipe;
+import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipeSerializer;
+import com.fish_dan_.data_energistics.recipe.DataCaptureBallToCrossbowRecipe;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipeSerializer;
 import com.fish_dan_.data_energistics.recipe.TimeShiftRecipe;
@@ -34,15 +37,33 @@ public final class ModRecipes {
                     return Data_Energistics.MODID + ":data_reassembler";
                 }
             });
+    public static final DeferredHolder<RecipeType<?>, RecipeType<DataCaptureBallRightClickRecipe>>
+            DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE =
+            RECIPE_TYPES.register("data_capture_ball_right_click", () -> new RecipeType<>() {
+                @Override
+                public String toString() {
+                    return Data_Energistics.MODID + ":data_capture_ball_right_click";
+                }
+            });
 
     public static final DeferredHolder<RecipeSerializer<?>, TimeShiftRecipeSerializer> TIME_SHIFT_SERIALIZER =
             RECIPE_SERIALIZERS.register("time_shift", TimeShiftRecipeSerializer::new);
     public static final DeferredHolder<RecipeSerializer<?>, DataRipperReassemblerRecipeSerializer> DATA_RIPPER_REASSEMBLER_SERIALIZER =
             RECIPE_SERIALIZERS.register("data_reassembler", DataRipperReassemblerRecipeSerializer::new);
+    public static final DeferredHolder<RecipeSerializer<?>, DataCaptureBallRightClickRecipeSerializer>
+            DATA_CAPTURE_BALL_RIGHT_CLICK_SERIALIZER =
+            RECIPE_SERIALIZERS.register("data_capture_ball_right_click",
+                    DataCaptureBallRightClickRecipeSerializer::new);
     public static final DeferredHolder<RecipeSerializer<?>, SimpleCraftingRecipeSerializer<UniversalTerminalCombineRecipe>> UNIVERSAL_TERMINAL_COMBINE_SERIALIZER =
             RECIPE_SERIALIZERS.register(
                     "universal_terminal_combine",
                     () -> new SimpleCraftingRecipeSerializer<>(UniversalTerminalCombineRecipe::new)
+            );
+    public static final DeferredHolder<RecipeSerializer<?>, SimpleCraftingRecipeSerializer<DataCaptureBallToCrossbowRecipe>>
+            DATA_CAPTURE_BALL_TO_CROSSBOW_SERIALIZER =
+            RECIPE_SERIALIZERS.register(
+                    "data_capture_ball_to_crossbow",
+                    () -> new SimpleCraftingRecipeSerializer<>(DataCaptureBallToCrossbowRecipe::new)
             );
 
     private ModRecipes() {

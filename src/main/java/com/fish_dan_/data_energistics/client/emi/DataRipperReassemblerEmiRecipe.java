@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.client.emi;
 
 import appeng.core.AppEng;
-import appeng.api.client.AEKeyRendering;
 import appeng.api.stacks.GenericStack;
-import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.client.DataReassemblerLayout;
+import com.fish_dan_.data_energistics.client.CustomKeyGuiRenderer;
+import com.fish_dan_.data_energistics.client.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerIngredient;
 import com.fish_dan_.data_energistics.recipe.DataRipperReassemblerRecipe;
@@ -87,7 +87,7 @@ public final class DataRipperReassemblerEmiRecipe extends BasicEmiRecipe {
             widgets.addDrawable(pos.x() + EMI_OFFSET_X + EMI_KEY_INPUT_OFFSET_X,
                             pos.y() + EMI_OFFSET_Y + EMI_KEY_INPUT_OFFSET_Y, 18, 18,
                             (guiGraphics, mouseX, mouseY, delta) -> {
-                                AEKeyRendering.drawInGui(Minecraft.getInstance(), guiGraphics, 1, 1, keyInput.what());
+                                CustomKeyGuiRenderer.draw(Minecraft.getInstance(), guiGraphics, 1, 1, keyInput.what());
                                 GenericStackDisplayHelper.renderSmallOverlay(
                                         guiGraphics,
                                         1,
@@ -103,7 +103,7 @@ public final class DataRipperReassemblerEmiRecipe extends BasicEmiRecipe {
             widgets.addDrawable(pos.x() + EMI_OFFSET_X + EMI_KEY_OUTPUT_OFFSET_X,
                             pos.y() + EMI_OFFSET_Y + EMI_KEY_OUTPUT_OFFSET_Y, 18, 18,
                             (guiGraphics, mouseX, mouseY, delta) -> {
-                                AEKeyRendering.drawInGui(Minecraft.getInstance(), guiGraphics, 1, 1, keyOutput.what());
+                                CustomKeyGuiRenderer.draw(Minecraft.getInstance(), guiGraphics, 1, 1, keyOutput.what());
                                 GenericStackDisplayHelper.renderSmallOverlay(
                                         guiGraphics,
                                         1,
@@ -132,7 +132,7 @@ public final class DataRipperReassemblerEmiRecipe extends BasicEmiRecipe {
             var pos = input ? DataReassemblerLayout.emiFluidInput(i) : DataReassemblerLayout.emiFluidOutput(i);
             widgets.addDrawable(pos.x() + EMI_SLOT_OFFSET_X, pos.y() + EMI_SLOT_OFFSET_Y, 18, 18,
                             (guiGraphics, mouseX, mouseY, delta) -> {
-                                AEKeyRendering.drawInGui(Minecraft.getInstance(), guiGraphics, 1, 1, stack.what());
+                                CustomKeyGuiRenderer.draw(Minecraft.getInstance(), guiGraphics, 1, 1, stack.what());
                                 GenericStackDisplayHelper.renderSmallOverlay(
                                         guiGraphics,
                                         1,

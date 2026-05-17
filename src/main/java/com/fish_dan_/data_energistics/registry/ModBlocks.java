@@ -13,8 +13,6 @@ import com.fish_dan_.data_energistics.block.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.block.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.block.DataCrystalBuddingBlock;
 import com.fish_dan_.data_energistics.block.ResidualDataOreBlock;
-import com.fish_dan_.data_energistics.block.Tnt0Block;
-import com.fish_dan_.data_energistics.block.Tnt1Block;
 import com.fish_dan_.data_energistics.block.TntConfigurableBlock;
 import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
@@ -75,16 +73,6 @@ public final class ModBlocks {
             properties -> new AdaptivePatternProviderBlock(properties),
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK));
 
-    public static final DeferredBlock<Block> TNT_0 = BLOCKS.registerBlock(
-            "tnt_0",
-            Tnt0Block::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.TNT));
-
-    public static final DeferredBlock<Block> TNT_1 = BLOCKS.registerBlock(
-            "tnt_1",
-            Tnt1Block::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.TNT));
-
     public static final DeferredBlock<Block> TNT_CONFIGURABLE = BLOCKS.registerBlock(
             "tnt_configurable",
             TntConfigurableBlock::new,
@@ -120,8 +108,32 @@ public final class ModBlocks {
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.REDSTONE_BLOCK)
                     .requiresCorrectToolForDrops());
 
-    public static final DeferredBlock<Block> BUDDING_DATA_CRYSTAL = BLOCKS.registerBlock(
-            "budding_data_crystal",
+    public static final DeferredBlock<Block> BUDDING_DATA_CRYSTAL_0 = BLOCKS.registerBlock(
+            "budding_data_crystal_0",
+            Block::new,
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.BUDDING_AMETHYST)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> BUDDING_DATA_CRYSTAL_1 = BLOCKS.registerBlock(
+            "budding_data_crystal_1",
+            DataCrystalBuddingBlock::new,
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.BUDDING_AMETHYST)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> BUDDING_DATA_CRYSTAL_2 = BLOCKS.registerBlock(
+            "budding_data_crystal_2",
+            DataCrystalBuddingBlock::new,
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.BUDDING_AMETHYST)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> BUDDING_DATA_CRYSTAL_3 = BLOCKS.registerBlock(
+            "budding_data_crystal_3",
+            DataCrystalBuddingBlock::new,
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.BUDDING_AMETHYST)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> BUDDING_DATA_CRYSTAL_4 = BLOCKS.registerBlock(
+            "budding_data_crystal_4",
             DataCrystalBuddingBlock::new,
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.BUDDING_AMETHYST)
                     .requiresCorrectToolForDrops());
