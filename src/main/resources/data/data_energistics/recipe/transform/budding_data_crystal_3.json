@@ -1,5 +1,5 @@
 {
-  "type": "data_energistics:data_capture_ball_right_click",
+  "type": "data_energistics:right_click",
   "ingredients": [
     {
       "item": {

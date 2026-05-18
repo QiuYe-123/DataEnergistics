@@ -19,6 +19,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public class EnderCohesionMeteoriteBlock extends Block {
     private static final int TELEPORT_HALF_RANGE = 3;
+    private static final float FORTUNE_BONUS_PER_LEVEL = 0.03F;
     private final float dispersingDataChance;
     private final float enderDustChance;
     private final float skyDustChance;
@@ -42,18 +43,18 @@ public class EnderCohesionMeteoriteBlock extends Block {
         int silkTouchLevel = EnchantmentHelper.getItemEnchantmentLevel(
                 level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH),
                 tool);
+        int fortuneLevel = EnchantmentHelper.getItemEnchantmentLevel(
+                level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.FORTUNE),
+                tool);
         if (silkTouchLevel <= 0) {
-            int fortuneLevel = EnchantmentHelper.getItemEnchantmentLevel(
-                    level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.FORTUNE),
-                    tool);
             this.spawnDispersingData(serverLevel, pos, serverLevel.getRandom(), fortuneLevel);
         }
 
         RandomSource random = serverLevel.getRandom();
-        if (random.nextFloat() < this.enderDustChance) {
+        if (random.nextFloat() < this.getFortuneAdjustedChance(this.enderDustChance, fortuneLevel)) {
             popResource(serverLevel, pos, new ItemStack(AEItems.ENDER_DUST.asItem()));
         }
-        if (random.nextFloat() < this.skyDustChance) {
+        if (random.nextFloat() < this.getFortuneAdjustedChance(this.skyDustChance, fortuneLevel)) {
             popResource(serverLevel, pos, new ItemStack(AEItems.SKY_DUST.asItem()));
         }
         if (this.teleportChance > 0.0F && random.nextFloat() < this.teleportChance && player instanceof ServerPlayer serverPlayer) {
@@ -62,7 +63,7 @@ public class EnderCohesionMeteoriteBlock extends Block {
     }
 
     private void spawnDispersingData(ServerLevel level, BlockPos pos, RandomSource random, int fortuneLevel) {
-        float dispersingDataChance = this.dispersingDataChance + fortuneLevel * 0.03F;
+        float dispersingDataChance = this.getFortuneAdjustedChance(this.dispersingDataChance, fortuneLevel);
         if (dispersingDataChance <= 0.0F || random.nextFloat() >= dispersingDataChance) {
             return;
         }
@@ -86,6 +87,10 @@ public class EnderCohesionMeteoriteBlock extends Block {
             );
             level.addFreshEntity(entity);
         }
+    }
+
+    private float getFortuneAdjustedChance(float baseChance, int fortuneLevel) {
+        return Math.min(1.0F, baseChance + fortuneLevel * FORTUNE_BONUS_PER_LEVEL);
     }
 
     private static void teleportRandomly(ServerLevel level, ServerPlayer player, RandomSource random) {

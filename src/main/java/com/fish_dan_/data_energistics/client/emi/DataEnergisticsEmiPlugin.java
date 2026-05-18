@@ -59,7 +59,6 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 EmiPort.getEnchantmentRegistry().get(Enchantments.POWER.location()),
                 1,
                 Data_Energistics.id("emi/anvil/matter_converging_crossbow_power")));
-        registry.addRecipe(buildDataDustInfoRecipe());
     }
 
     private static List<EmiCraftingRecipe> buildUniversalTerminalRecipes() {
@@ -91,15 +90,4 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         return terminalName.replace(':', '_').replace('/', '_');
     }
 
-    private static EmiInfoRecipe buildDataDustInfoRecipe() {
-        return new EmiInfoRecipe(
-                List.of(EmiStack.of(ModItems.DATA_DUST.get())),
-                List.of(
-                        Component.translatable("jei.data_energistics.data_dust.line1"),
-                        Component.translatable("jei.data_energistics.data_dust.line2"),
-                        Component.translatable("jei.data_energistics.data_dust.line3"),
-                        Component.translatable("jei.data_energistics.data_dust.line4"),
-                        Component.translatable("jei.data_energistics.data_dust.line5")),
-                Data_Energistics.id("info/data_dust"));
-    }
 }

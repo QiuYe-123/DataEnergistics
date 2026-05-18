@@ -38,10 +38,10 @@ public final class ModRecipes {
             });
     public static final DeferredHolder<RecipeType<?>, RecipeType<DataCaptureBallRightClickRecipe>>
             DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE =
-            RECIPE_TYPES.register("data_capture_ball_right_click", () -> new RecipeType<>() {
+            RECIPE_TYPES.register("right_click", () -> new RecipeType<>() {
                 @Override
                 public String toString() {
-                    return Data_Energistics.MODID + ":data_capture_ball_right_click";
+                    return Data_Energistics.MODID + ":right_click";
                 }
             });
 
@@ -51,6 +51,10 @@ public final class ModRecipes {
             RECIPE_SERIALIZERS.register("data_reassembler", DataRipperReassemblerRecipeSerializer::new);
     public static final DeferredHolder<RecipeSerializer<?>, DataCaptureBallRightClickRecipeSerializer>
             DATA_CAPTURE_BALL_RIGHT_CLICK_SERIALIZER =
+            RECIPE_SERIALIZERS.register("right_click",
+                    DataCaptureBallRightClickRecipeSerializer::new);
+    public static final DeferredHolder<RecipeSerializer<?>, DataCaptureBallRightClickRecipeSerializer>
+            DATA_CAPTURE_BALL_RIGHT_CLICK_LEGACY_SERIALIZER =
             RECIPE_SERIALIZERS.register("data_capture_ball_right_click",
                     DataCaptureBallRightClickRecipeSerializer::new);
     public static final DeferredHolder<RecipeSerializer<?>, SimpleCraftingRecipeSerializer<UniversalTerminalCombineRecipe>> UNIVERSAL_TERMINAL_COMBINE_SERIALIZER =

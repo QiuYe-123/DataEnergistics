@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.blockentity.DataCrystalBuddingBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataFlowGeneratorBlockEntity;
@@ -45,17 +44,6 @@ public final class ModBlockEntities {
             BLOCK_ENTITY_TYPES.register(
                     "data_framework",
                     () -> BlockEntityType.Builder.of(DataFrameworkBlockEntity::new, ModBlocks.DATA_FRAMEWORK.get()).build(null));
-
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataCrystalBuddingBlockEntity>> DATA_CRYSTAL_BUDDING_BLOCK_ENTITY =
-            BLOCK_ENTITY_TYPES.register(
-                    "budding_data_crystal",
-                    () -> BlockEntityType.Builder.of(
-                            DataCrystalBuddingBlockEntity::new,
-                            ModBlocks.BUDDING_DATA_CRYSTAL_1.get(),
-                            ModBlocks.BUDDING_DATA_CRYSTAL_2.get(),
-                            ModBlocks.BUDDING_DATA_CRYSTAL_3.get(),
-                            ModBlocks.BUDDING_DATA_CRYSTAL_4.get())
-                            .build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataDistributionTowerBlockEntity>> DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY =
             BLOCK_ENTITY_TYPES.register(

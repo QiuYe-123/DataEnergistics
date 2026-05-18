@@ -3,7 +3,7 @@ navigation:
   parent: data_energistics:items-blocks-machines/data_energistics.md
   title: 模板/电路板
   icon: data_energistics:data_inscriber_template
-  position: 3
+  position: 1
 item_ids:
 - data_energistics:data_inscriber_template
 - data_energistics:data_circuit_board

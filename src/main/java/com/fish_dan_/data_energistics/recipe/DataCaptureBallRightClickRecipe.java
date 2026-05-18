@@ -16,6 +16,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
@@ -132,6 +133,9 @@ public final class DataCaptureBallRightClickRecipe implements Recipe<DataCapture
 
     @Override
     public ItemStack getResultItem(HolderLookup.Provider registries) {
+        if (this.resultBlock.asItem() instanceof BlockItem blockItem) {
+            return new ItemStack(blockItem);
+        }
         return ItemStack.EMPTY;
     }
 

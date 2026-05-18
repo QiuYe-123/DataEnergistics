@@ -22,6 +22,7 @@ import com.fish_dan_.data_energistics.block.AdaptivePatternProviderBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.client.ClientAeKeyRenderers;
+import com.fish_dan_.data_energistics.client.ModFluidClientExtensions;
 import com.fish_dan_.data_energistics.client.screen.AdaptivePatternProviderScreen;
 import com.fish_dan_.data_energistics.client.screen.NativePatternEncodingTermScreen;
 import com.fish_dan_.data_energistics.client.screen.PatternEncodingPreviewScreen;
@@ -56,6 +57,7 @@ import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModCreativeTabs;
 import com.fish_dan_.data_energistics.registry.ModEntities;
+import com.fish_dan_.data_energistics.registry.ModFluids;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import com.fish_dan_.data_energistics.registry.ModRecipes;
@@ -98,6 +100,7 @@ import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
+import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddPackFindersEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
@@ -118,6 +121,7 @@ public class Data_Energistics {
     private static final Logger LOGGER = LogUtils.getLogger();
 
     public Data_Energistics(IEventBus modEventBus, ModContainer modContainer) {
+        ModFluids.register(modEventBus);
         ModBlocks.register(modEventBus);
         ModItems.register(modEventBus);
         ModEntities.register(modEventBus);
@@ -479,6 +483,11 @@ public class Data_Energistics {
         @SubscribeEvent
         public static void onRegisterItemColors(RegisterColorHandlersEvent.Item event) {
             ModItemColors.register(event);
+        }
+
+        @SubscribeEvent
+        public static void onRegisterClientExtensions(RegisterClientExtensionsEvent event) {
+            ModFluidClientExtensions.register(event);
         }
 
         @SubscribeEvent

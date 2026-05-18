@@ -203,8 +203,6 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
             TooltipFlag tooltipFlag) {
         lines.add(Tooltips.energyStorageComponent(this.getAECurrentPower(stack), this.getAEMaxPower(stack)));
         this.addCellInformationToTooltip(stack, lines);
-        lines.add(Component.translatable("key.data_energistics.data").copy()
-                .append(": " + this.getStoredDataAmount(stack) + "/" + MAX_STORED_DATA));
         lines.add(Component.translatable("item.data_energistics.matter_converging_crossbow.projectile",
                 this.getDisplayedAmmoName(stack)));
     }

@@ -101,6 +101,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
 
         if (!this.isRemoved()) {
             Vec3 currentPosition = this.position();
+            this.spawnLaunchParticles(previousPosition, currentPosition);
             this.spawnTrailParticles(previousPosition);
             this.traveledDistance += previousPosition.distanceTo(currentPosition);
             if (this.traveledDistance >= MAX_TRAVEL_DISTANCE) {
@@ -311,6 +312,18 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
         serverLevel.sendParticles(ParticleTypes.DRAGON_BREATH,
                 trailOrigin.x, trailOrigin.y, trailOrigin.z,
                 2, 0.03D, 0.03D, 0.03D, 0.0D);
+    }
+
+    private void spawnLaunchParticles(Vec3 previousPosition, Vec3 currentPosition) {
+        if (!(this.level() instanceof ServerLevel serverLevel) || !this.isDataDustAmmo() || this.tickCount != 1) {
+            return;
+        }
+
+        Vec3 delta = currentPosition.subtract(previousPosition);
+        Vec3 origin = delta.lengthSqr() > 1.0E-6D ? previousPosition.add(delta.normalize().scale(0.35D)) : currentPosition;
+        serverLevel.sendParticles(ParticleTypes.SONIC_BOOM,
+                origin.x, origin.y, origin.z,
+                1, 0.0D, 0.0D, 0.0D, 0.0D);
     }
 
     private int resolveColor(ItemStack stack) {

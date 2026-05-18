@@ -98,13 +98,6 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                             .toList());
         }
         registerMatterConvergingCrossbowAnvilRecipes(registration);
-        registration.addIngredientInfo(
-                ModItems.DATA_DUST.get(),
-                Component.translatable("jei.data_energistics.data_dust.line1"),
-                Component.translatable("jei.data_energistics.data_dust.line2"),
-                Component.translatable("jei.data_energistics.data_dust.line3"),
-                Component.translatable("jei.data_energistics.data_dust.line4"),
-                Component.translatable("jei.data_energistics.data_dust.line5"));
     }
 
     private static void registerMatterConvergingCrossbowAnvilRecipes(IRecipeRegistration registration) {

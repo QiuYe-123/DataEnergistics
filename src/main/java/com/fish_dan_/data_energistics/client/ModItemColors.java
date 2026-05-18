@@ -2,10 +2,12 @@ package com.fish_dan_.data_energistics.client;
 
 import appeng.items.storage.BasicStorageCell;
 import com.fish_dan_.data_energistics.registry.ModItems;
+import com.fish_dan_.data_energistics.registry.ModFluids;
 import appeng.items.tools.powered.AbstractPortableCell;
 import net.minecraft.client.color.item.ItemColor;
 import net.minecraft.util.FastColor;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.client.model.DynamicFluidContainerModel;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 
 public final class ModItemColors {
@@ -26,6 +28,10 @@ public final class ModItemColors {
                 ModItems.DATA_FLOW_CELL_16K.get(),
                 ModItems.DATA_FLOW_CELL_64K.get(),
                 ModItems.DATA_FLOW_CELL_256K.get());
+
+        event.register(new DynamicFluidContainerModel.Colors(),
+                ModFluids.ENDER_BUCKET.get(),
+                ModFluids.DRAGON_BREATH_BUCKET.get());
     }
 
     private static ItemColor makeOpaque(ItemColor color) {
