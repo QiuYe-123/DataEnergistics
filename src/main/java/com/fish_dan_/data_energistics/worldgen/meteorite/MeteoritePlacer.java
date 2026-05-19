@@ -7,6 +7,7 @@ import appeng.decorative.AEDecorativeBlock;
 import appeng.decorative.solid.BuddingCertusQuartzBlock;
 import appeng.decorative.solid.CertusQuartzClusterBlock;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
+import com.fish_dan_.data_energistics.registry.ModFluids;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.Fallout;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutCopy;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutMode;
@@ -133,6 +134,8 @@ public final class MeteoritePlacer {
 
         if (this.craterLake) {
             this.placeCraterLake();
+        } else if (this.placeCrater && this.craterType == CraterType.NORMAL) {
+            this.placeImpactCorrosionLiquid();
         }
     }
 
@@ -426,6 +429,41 @@ public final class MeteoritePlacer {
                     } else if ((double) (maxY + (maxY - currentY) * 2 + 2) > h + distanceFrom * 0.02) {
                         this.pillarDownSlopeBlocks(currentChunk, blockPos);
                     }
+                }
+            }
+        }
+    }
+
+    private void placeImpactCorrosionLiquid() {
+        BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
+        BlockState corrosionLiquid = ModFluids.DATA_CORROSION_LIQUID_BLOCK.get().defaultBlockState();
+
+        for (int currentX = this.boundingBox.minX(); currentX <= this.boundingBox.maxX(); ++currentX) {
+            blockPos.setX(currentX);
+
+            for (int currentZ = this.boundingBox.minZ(); currentZ <= this.boundingBox.maxZ(); ++currentZ) {
+                blockPos.setZ(currentZ);
+                ChunkAccess currentChunk = this.level.getChunk(blockPos);
+                int lowestAirY = Integer.MAX_VALUE;
+
+                for (int currentY = this.y - 5; currentY <= this.y - 1; ++currentY) {
+                    blockPos.setY(currentY);
+                    double dx = currentX - this.x;
+                    double dz = currentZ - this.z;
+                    double h = this.y - this.meteoriteSize + 1.0F + this.type.adjustCrater();
+                    double distanceFrom = dx * dx + dz * dz;
+                    if ((double) currentY > h + distanceFrom * 0.02) {
+                        BlockState currentBlock = currentChunk.getBlockState(blockPos);
+                        if (currentBlock.getBlock() == Blocks.AIR) {
+                            lowestAirY = Math.min(lowestAirY, currentY);
+                        }
+                    }
+                }
+
+                if (lowestAirY != Integer.MAX_VALUE) {
+                    blockPos.setY(lowestAirY);
+                    this.putter.put(this.level, blockPos, corrosionLiquid);
+                    this.level.scheduleTick(blockPos, ModFluids.DATA_CORROSION_LIQUID.get(), 0);
                 }
             }
         }
