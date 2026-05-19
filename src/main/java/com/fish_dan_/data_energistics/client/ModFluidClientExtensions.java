@@ -10,10 +10,10 @@ public final class ModFluidClientExtensions {
             ResourceLocation.fromNamespaceAndPath("data_energistics", "block/fluid/ender_still");
     private static final ResourceLocation ENDER_FLOW =
             ResourceLocation.fromNamespaceAndPath("data_energistics", "block/fluid/ender_flow");
-    private static final ResourceLocation DRAGON_BREATH_STILL =
-            ResourceLocation.fromNamespaceAndPath("data_energistics", "block/fluid/dragon_breath_still");
-    private static final ResourceLocation DRAGON_BREATH_FLOW =
-            ResourceLocation.fromNamespaceAndPath("data_energistics", "block/fluid/dragon_breath_flow");
+    private static final ResourceLocation DATA_CORROSION_LIQUID_STILL =
+            ResourceLocation.fromNamespaceAndPath("data_energistics", "block/fluid/data_corrosion_liquid_still");
+    private static final ResourceLocation DATA_CORROSION_LIQUID_FLOW =
+            ResourceLocation.fromNamespaceAndPath("data_energistics", "block/fluid/data_corrosion_liquid_flow");
     private static final ResourceLocation WATER_OVERLAY = ResourceLocation.withDefaultNamespace("block/water_overlay");
 
     private ModFluidClientExtensions() {
@@ -21,8 +21,9 @@ public final class ModFluidClientExtensions {
 
     public static void register(RegisterClientExtensionsEvent event) {
         event.registerFluidType(new TintedFluidTypeExtensions(0xFFFFFFFF, ENDER_STILL, ENDER_FLOW), ModFluids.ENDER_TYPE);
-        event.registerFluidType(new TintedFluidTypeExtensions(0xFFFFFFFF, DRAGON_BREATH_STILL, DRAGON_BREATH_FLOW),
-                ModFluids.DRAGON_BREATH_TYPE);
+        event.registerFluidType(
+                new TintedFluidTypeExtensions(0xFFFFFFFF, DATA_CORROSION_LIQUID_STILL, DATA_CORROSION_LIQUID_FLOW),
+                ModFluids.DATA_CORROSION_LIQUID_TYPE);
     }
 
     private record TintedFluidTypeExtensions(int tintColor, ResourceLocation stillTexture,

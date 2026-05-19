@@ -3,7 +3,7 @@ navigation:
   parent: data_energistics:items-blocks-machines/data_energistics.md
   title: 自适应样板供应器
   icon: data_energistics:adaptive_pattern_provider
-  position: 5
+  position: 7
 item_ids:
 - data_energistics:adaptive_pattern_provider
 - data_energistics:adaptive_pattern_provider_part

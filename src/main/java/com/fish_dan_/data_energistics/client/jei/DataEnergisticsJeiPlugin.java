@@ -11,6 +11,7 @@ import appeng.core.definitions.AEBlocks;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.RecipeTypes;
+import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
 import mezz.jei.api.recipe.transfer.IRecipeTransferHandlerHelper;
 import mezz.jei.api.recipe.transfer.IUniversalRecipeTransferHandler;
@@ -97,6 +98,12 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                             .map(RecipeHolder::value)
                             .toList());
         }
+        registration.addIngredientInfo(
+                new ItemStack(ModItems.DATA_CAPTURE_BALL.get()),
+                VanillaTypes.ITEM_STACK,
+                Component.translatable("jei.data_energistics.data_capture_ball.line1"),
+                Component.translatable("jei.data_energistics.data_capture_ball.line2"),
+                Component.translatable("jei.data_energistics.data_capture_ball.line3"));
         registerMatterConvergingCrossbowAnvilRecipes(registration);
     }
 

@@ -31,7 +31,7 @@ public final class ModItemColors {
 
         event.register(new DynamicFluidContainerModel.Colors(),
                 ModFluids.ENDER_BUCKET.get(),
-                ModFluids.DRAGON_BREATH_BUCKET.get());
+                ModFluids.DATA_CORROSION_LIQUID_BUCKET.get());
     }
 
     private static ItemColor makeOpaque(ItemColor color) {

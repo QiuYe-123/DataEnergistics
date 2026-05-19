@@ -3,7 +3,7 @@ navigation:
   parent: data_energistics:items-blocks-machines/data_energistics.md
   title: 数据撕裂器
   icon: data_energistics:data_ripper
-  position: 9
+  position: 11
 item_ids:
 - data_energistics:data_ripper
 - data_energistics:time_core

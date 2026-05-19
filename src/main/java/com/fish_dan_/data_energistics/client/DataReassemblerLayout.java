@@ -28,11 +28,11 @@ public final class DataReassemblerLayout {
     };
 
     private static final int GUIDE_ITEM_INPUT_START_X = 7;
-    private static final int GUIDE_ITEM_INPUT_START_Y = 3;
+    private static final int GUIDE_ITEM_INPUT_START_Y = 2;
     private static final SlotPos[] GUIDE_ITEM_OUTPUTS = {
-            new SlotPos(114, 2),
-            new SlotPos(114, 20),
-            new SlotPos(114, 38)
+            new SlotPos(113, 2),
+            new SlotPos(113, 20),
+            new SlotPos(113, 38)
     };
     private static final SlotPos GUIDE_KEY_INPUT = new SlotPos(63, 21);
     private static final SlotPos GUIDE_KEY_OUTPUT = new SlotPos(132, 21);

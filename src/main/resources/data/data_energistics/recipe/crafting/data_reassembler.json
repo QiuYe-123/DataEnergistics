@@ -1,0 +1,35 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABJ",
+    "EDC",
+    "FFF"
+  ],
+  "key": {
+    "A": {
+      "tag": "c:ingots/iron"
+    },
+    "B": {
+      "item": "data_energistics:data_framework"
+    },
+    "C": {
+      "item": "ae2:quartz_glass"
+    },
+    "D": {
+      "item": "ae2:terminal"
+    },
+    "E": {
+      "item": "ae2:energy_cell"
+    },
+    "F": {
+      "tag": "c:ingots/obsidian"
+    },
+    "J": {
+      "item": "data_energistics:data_capture_ball"
+    }
+  },
+  "result": {
+    "id": "data_energistics:data_reassembler",
+    "count": 1
+  }
+}

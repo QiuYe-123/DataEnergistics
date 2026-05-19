@@ -1,0 +1,48 @@
+{
+  "type": "data_energistics:data_reassembler",
+  "item_inputs": [
+    {
+      "ingredient": {
+        "tag": "ae2:pattern_provider"
+      },
+      "count": 1
+    },
+    {
+      "ingredient": {
+        "tag": "ae2:interface"
+      },
+      "count": 1
+    },
+    {
+      "ingredient": {
+        "item": "ae2:capacity_card"
+      },
+      "count": 4
+    },
+    {
+      "ingredient": {
+        "item": "data_energistics:data_processor"
+      },
+      "count": 4
+    },
+    {
+      "ingredient": {
+        "item": "data_energistics:data_framework"
+      },
+      "count": 2
+    }
+  ],
+  "fluid_inputs": [
+    {
+      "#": 250,
+      "#t": "ae2:f",
+      "id": "data_energistics:ender"
+    }
+  ],
+  "item_outputs": [
+    {
+      "id": "data_energistics:adaptive_pattern_provider",
+      "count": 2
+    }
+  ]
+}

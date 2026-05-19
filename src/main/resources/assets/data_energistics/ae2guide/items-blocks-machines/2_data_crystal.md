@@ -16,6 +16,7 @@ item_ids:
 - data_energistics:data_crystal_cluster
 - data_energistics:data_crystal
 - data_energistics:data_dust
+- data_energistics:data_crystal_block
 ---
 
 # 数据水晶家族

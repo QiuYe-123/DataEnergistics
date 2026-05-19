@@ -1,8 +1,8 @@
 {
   "type": "minecraft:crafting_shaped",
   "pattern": [
-    "ABA",
-    " X ",
+    "   ",
+    "XBX",
     "ACA"
   ],
   "key": {
@@ -16,7 +16,7 @@
       "item": "data_energistics:data_framework"
     },
     "X": {
-      "item": "ae2:fluix_block"
+      "tag": "c:gems/fluix"
     }
   },
   "result": {

@@ -53,6 +53,13 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 .forEach(registry::addRecipe);
 
         buildUniversalTerminalRecipes().forEach(registry::addRecipe);
+        registry.addRecipe(new EmiInfoRecipe(
+                List.of(EmiStack.of(ModItems.DATA_CAPTURE_BALL.get())),
+                List.of(
+                        Component.translatable("jei.data_energistics.data_capture_ball.line1"),
+                        Component.translatable("jei.data_energistics.data_capture_ball.line2"),
+                        Component.translatable("jei.data_energistics.data_capture_ball.line3")),
+                null));
         registry.addRecipe(new DataCaptureBallEmiCondenserRecipe());
         registry.addRecipe(new EmiAnvilEnchantRecipe(
                 ModItems.MATTER_CONVERGING_CROSSBOW.get(),

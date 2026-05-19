@@ -36,11 +36,12 @@ public final class ModFluids {
     private static final long ENDER_TELEPORT_COOLDOWN_TICKS = 20L;
     private static final int ENDER_TELEPORT_HALF_RANGE = 4;
     private static final int ENDER_TELEPORT_ATTEMPTS = 16;
-    private static final String DRAGON_BREATH_DAMAGE_TAG = "data_energistics.dragon_breath_fluid_damage_time";
-    private static final long DRAGON_BREATH_DAMAGE_COOLDOWN_TICKS = 20L;
+    private static final String DATA_CORROSION_LIQUID_DAMAGE_TAG = "data_energistics.data_corrosion_liquid_fluid_damage_time";
+    private static final long DATA_CORROSION_LIQUID_DAMAGE_COOLDOWN_TICKS = 20L;
     private static final float VANILLA_DRAGON_BREATH_DAMAGE = 6.0F;
-    private static final float DRAGON_BREATH_DAMAGE_MULTIPLIER = 2.0F;
-    private static final float DRAGON_BREATH_FLUID_DAMAGE = VANILLA_DRAGON_BREATH_DAMAGE * DRAGON_BREATH_DAMAGE_MULTIPLIER;
+    private static final float DATA_CORROSION_LIQUID_DAMAGE_MULTIPLIER = 2.0F;
+    private static final float DATA_CORROSION_LIQUID_FLUID_DAMAGE =
+            VANILLA_DRAGON_BREATH_DAMAGE * DATA_CORROSION_LIQUID_DAMAGE_MULTIPLIER;
 
     public static final DeferredRegister<FluidType> FLUID_TYPES =
             DeferredRegister.create(NeoForgeRegistries.Keys.FLUID_TYPES, Data_Energistics.MODID);
@@ -61,10 +62,10 @@ public final class ModFluids {
                     .rarity(Rarity.UNCOMMON)
                     .sound(SoundActions.BUCKET_FILL, SoundEvents.BUCKET_FILL)
                     .sound(SoundActions.BUCKET_EMPTY, SoundEvents.BUCKET_EMPTY)));
-    public static final DeferredHolder<FluidType, FluidType> DRAGON_BREATH_TYPE = FLUID_TYPES.register(
-            "dragon_breath",
+    public static final DeferredHolder<FluidType, FluidType> DATA_CORROSION_LIQUID_TYPE = FLUID_TYPES.register(
+            "data_corrosion_liquid",
             () -> new DragonBreathDamageFluidType(FluidType.Properties.create()
-                    .descriptionId("fluid.data_energistics.dragon_breath")
+                    .descriptionId("fluid.data_energistics.data_corrosion_liquid")
                     .canSwim(false)
                     .canDrown(false)
                     .canHydrate(false)
@@ -81,10 +82,11 @@ public final class ModFluids {
             () -> new BaseFlowingFluid.Source(enderProperties()));
     public static final DeferredHolder<Fluid, FlowingFluid> FLOWING_ENDER = FLUIDS.register("flowing_ender",
             () -> new BaseFlowingFluid.Flowing(enderProperties()));
-    public static final DeferredHolder<Fluid, FlowingFluid> DRAGON_BREATH = FLUIDS.register("dragon_breath",
-            () -> new BaseFlowingFluid.Source(dragonBreathProperties()));
-    public static final DeferredHolder<Fluid, FlowingFluid> FLOWING_DRAGON_BREATH = FLUIDS.register("flowing_dragon_breath",
-            () -> new BaseFlowingFluid.Flowing(dragonBreathProperties()));
+    public static final DeferredHolder<Fluid, FlowingFluid> DATA_CORROSION_LIQUID = FLUIDS.register("data_corrosion_liquid",
+            () -> new BaseFlowingFluid.Source(dataCorrosionLiquidProperties()));
+    public static final DeferredHolder<Fluid, FlowingFluid> FLOWING_DATA_CORROSION_LIQUID =
+            FLUIDS.register("flowing_data_corrosion_liquid",
+                    () -> new BaseFlowingFluid.Flowing(dataCorrosionLiquidProperties()));
 
     public static final DeferredBlock<LiquidBlock> ENDER_BLOCK = ModBlocks.BLOCKS.register(
             "ender",
@@ -94,9 +96,9 @@ public final class ModFluids {
                             .replaceable()
                             .strength(100.0F)
                             .noCollission()));
-    public static final DeferredBlock<LiquidBlock> DRAGON_BREATH_BLOCK = ModBlocks.BLOCKS.register(
-            "dragon_breath",
-            () -> new LiquidBlock((FlowingFluid) DRAGON_BREATH.get(),
+    public static final DeferredBlock<LiquidBlock> DATA_CORROSION_LIQUID_BLOCK = ModBlocks.BLOCKS.register(
+            "data_corrosion_liquid",
+            () -> new LiquidBlock((FlowingFluid) DATA_CORROSION_LIQUID.get(),
                     BlockBehaviour.Properties.ofLegacyCopy(Blocks.WATER)
                             .noLootTable()
                             .replaceable()
@@ -107,9 +109,10 @@ public final class ModFluids {
     public static final DeferredItem<Item> ENDER_BUCKET = ModItems.ITEMS.register(
             "ender_bucket",
             () -> new BucketItem(ENDER.get(), new Item.Properties().stacksTo(1).craftRemainder(Items.BUCKET)));
-    public static final DeferredItem<Item> DRAGON_BREATH_BUCKET = ModItems.ITEMS.register(
-            "dragon_breath_bucket",
-            () -> new BucketItem(DRAGON_BREATH.get(), new Item.Properties().stacksTo(1).craftRemainder(Items.BUCKET).rarity(Rarity.RARE)));
+    public static final DeferredItem<Item> DATA_CORROSION_LIQUID_BUCKET = ModItems.ITEMS.register(
+            "data_corrosion_liquid_bucket",
+            () -> new BucketItem(DATA_CORROSION_LIQUID.get(),
+                    new Item.Properties().stacksTo(1).craftRemainder(Items.BUCKET).rarity(Rarity.RARE)));
 
     private ModFluids() {
     }
@@ -123,9 +126,9 @@ public final class ModFluids {
         return baseProperties(ENDER_TYPE, ENDER, FLOWING_ENDER, ENDER_BUCKET, ENDER_BLOCK, 8, 2, 1400.0F);
     }
 
-    private static BaseFlowingFluid.Properties dragonBreathProperties() {
-        return baseProperties(DRAGON_BREATH_TYPE, DRAGON_BREATH, FLOWING_DRAGON_BREATH, DRAGON_BREATH_BUCKET,
-                DRAGON_BREATH_BLOCK, 12, 2, 1800.0F);
+    private static BaseFlowingFluid.Properties dataCorrosionLiquidProperties() {
+        return baseProperties(DATA_CORROSION_LIQUID_TYPE, DATA_CORROSION_LIQUID, FLOWING_DATA_CORROSION_LIQUID,
+                DATA_CORROSION_LIQUID_BUCKET, DATA_CORROSION_LIQUID_BLOCK, 12, 2, 1800.0F);
     }
 
     private static BaseFlowingFluid.Properties baseProperties(
@@ -217,12 +220,13 @@ public final class ModFluids {
 
             CompoundTag persistentData = entity.getPersistentData();
             long gameTime = serverLevel.getGameTime();
-            if (persistentData.getLong(DRAGON_BREATH_DAMAGE_TAG) > gameTime) {
+            if (persistentData.getLong(DATA_CORROSION_LIQUID_DAMAGE_TAG) > gameTime) {
                 return false;
             }
 
-            if (entity.hurt(serverLevel.damageSources().dragonBreath(), DRAGON_BREATH_FLUID_DAMAGE)) {
-                persistentData.putLong(DRAGON_BREATH_DAMAGE_TAG, gameTime + DRAGON_BREATH_DAMAGE_COOLDOWN_TICKS);
+            if (entity.hurt(serverLevel.damageSources().dragonBreath(), DATA_CORROSION_LIQUID_FLUID_DAMAGE)) {
+                persistentData.putLong(DATA_CORROSION_LIQUID_DAMAGE_TAG,
+                        gameTime + DATA_CORROSION_LIQUID_DAMAGE_COOLDOWN_TICKS);
             }
             return false;
         }
