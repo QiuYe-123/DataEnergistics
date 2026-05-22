@@ -26,6 +26,7 @@ public class TeleportAnchorSavedData extends SavedData {
     private static final String DIMENSION_TAG = "dimension";
     private static final String POSITION_TAG = "pos";
     private static final String NAME_TAG = "name";
+    private static final String CHANNEL_TAG = "channel";
     private static final Factory<TeleportAnchorSavedData> FACTORY = new Factory<>(
             TeleportAnchorSavedData::new,
             TeleportAnchorSavedData::load);
@@ -47,26 +48,28 @@ public class TeleportAnchorSavedData extends SavedData {
 
                 String dimensionId = entry.getString(DIMENSION_TAG);
                 String name = entry.getString(NAME_TAG);
+                String channel = entry.contains(CHANNEL_TAG) ? entry.getString(CHANNEL_TAG) : "default";
                 BlockPos pos = NbtUtils.readBlockPos(entry, POSITION_TAG).orElse(null);
-                if (dimensionId.isBlank() || name.isBlank() || pos == null) {
+                if (dimensionId.isBlank() || name.isBlank() || channel.isBlank() || pos == null) {
                     continue;
                 }
 
                 ResourceLocation dimension = ResourceLocation.parse(dimensionId);
-                data.anchors.put(new AnchorKey(dimension, pos.immutable()), new AnchorRecord(dimension, pos.immutable(), name));
+                data.anchors.put(new AnchorKey(dimension, pos.immutable()),
+                        new AnchorRecord(dimension, pos.immutable(), name, channel));
             }
         }
         return data;
     }
 
-    public void registerAnchor(ResourceLocation dimensionId, BlockPos pos, String name) {
+    public void registerAnchor(ResourceLocation dimensionId, BlockPos pos, String name, String channel) {
         AnchorKey key = new AnchorKey(dimensionId, pos.immutable());
         AnchorRecord existing = this.anchors.get(key);
-        if (existing != null && existing.name().equals(name)) {
+        if (existing != null && existing.name().equals(name) && existing.channel().equals(channel)) {
             return;
         }
 
-        this.anchors.put(key, new AnchorRecord(dimensionId, pos.immutable(), name));
+        this.anchors.put(key, new AnchorRecord(dimensionId, pos.immutable(), name, channel));
         this.setDirty();
     }
 
@@ -128,6 +131,7 @@ public class TeleportAnchorSavedData extends SavedData {
             entry.putString(DIMENSION_TAG, anchor.dimensionId().toString());
             entry.put(POSITION_TAG, NbtUtils.writeBlockPos(anchor.pos()));
             entry.putString(NAME_TAG, anchor.name());
+            entry.putString(CHANNEL_TAG, anchor.channel());
             listTag.add(entry);
         }
         tag.put(ENTRIES_TAG, listTag);
@@ -137,6 +141,6 @@ public class TeleportAnchorSavedData extends SavedData {
     private record AnchorKey(ResourceLocation dimensionId, BlockPos pos) {
     }
 
-    public record AnchorRecord(ResourceLocation dimensionId, BlockPos pos, String name) {
+    public record AnchorRecord(ResourceLocation dimensionId, BlockPos pos, String name, String channel) {
     }
 }

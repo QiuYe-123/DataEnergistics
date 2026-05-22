@@ -31,6 +31,7 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,13 +61,28 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
         super(ModBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
                 .setVisualRepresentation(ModBlocks.DATA_TELEPORT_ANCHOR.get())
+                .setExposedOnSides(getCableExposedSides(blockState))
                 .setIdlePowerUsage(0.0D);
         this.setInternalMaxPower(ENERGY_CAPACITY);
     }
 
     @Override
     public AECableType getCableConnectionType(Direction dir) {
+        if (!isCableSideExposed(dir)) {
+            return AECableType.NONE;
+        }
+
         return AECableType.COVERED;
+    }
+
+    private boolean isCableSideExposed(Direction dir) {
+        return dir != Direction.UP;
+    }
+
+    private static Set<Direction> getCableExposedSides(BlockState blockState) {
+        EnumSet<Direction> sides = EnumSet.allOf(Direction.class);
+        sides.remove(Direction.UP);
+        return sides;
     }
 
     @Override
@@ -147,18 +163,31 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
         return resolvedName.isBlank() ? "Data Teleport Anchor" : resolvedName;
     }
 
+    public String getChannelId() {
+        BlockState state = this.getBlockState();
+        if (state.getBlock() instanceof DataTeleportAnchorBlock
+                && state.hasProperty(DataTeleportAnchorBlock.COLOR)) {
+            return state.getValue(DataTeleportAnchorBlock.COLOR).getSerializedName();
+        }
+        return "default";
+    }
+
     public List<AnchorSummary> getAvailableAnchors() {
         if (!(this.level instanceof ServerLevel serverLevel)) {
             return List.of();
         }
 
         pruneInvalidAnchorsIfNeeded(serverLevel);
+        String ownChannel = getChannelId();
         ArrayList<AnchorSummary> anchors = new ArrayList<>();
         for (var record : TeleportAnchorSavedData.get(serverLevel.getServer()).getAnchors()) {
             if (isSelfAnchor(record.dimensionId(), record.pos())) {
                 continue;
             }
-            anchors.add(new AnchorSummary(record.name(), record.dimensionId().toString(), record.pos().immutable()));
+            if (!channelsCanConnect(ownChannel, record.channel())) {
+                continue;
+            }
+            anchors.add(new AnchorSummary(record.name(), record.dimensionId().toString(), record.pos().immutable(), record.channel()));
         }
 
         anchors.sort(Comparator
@@ -192,6 +221,9 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
         if (targetAnchor == null) {
             TeleportAnchorSavedData.get(sourceLevel.getServer()).removeAnchor(targetDimensionId, targetAnchorPos);
             return new TeleportResult(TeleportStatus.TARGET_NOT_FOUND, 0);
+        }
+        if (!channelsCanConnect(getChannelId(), targetAnchor.getChannelId())) {
+            return new TeleportResult(TeleportStatus.CHANNEL_MISMATCH, 0);
         }
         if (!targetAnchor.isOnline()) {
             return new TeleportResult(TeleportStatus.TARGET_OFFLINE, 0);
@@ -291,6 +323,13 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
                 && this.worldPosition.equals(pos);
     }
 
+    private static boolean channelsCanConnect(String sourceChannel, String targetChannel) {
+        if ("default".equals(sourceChannel) || "default".equals(targetChannel)) {
+            return true;
+        }
+        return sourceChannel.equals(targetChannel);
+    }
+
     private boolean hasRequiredTeleportEnergy() {
         return this.getAECurrentPower() + 0.0001D >= TELEPORT_ENERGY_COST;
     }
@@ -337,12 +376,12 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
     }
 
     private AnchorSummary toSummary() {
-        return new AnchorSummary(getAnchorDisplayName(), getAnchorDimensionId(), this.worldPosition.immutable());
+        return new AnchorSummary(getAnchorDisplayName(), getAnchorDimensionId(), this.worldPosition.immutable(), getChannelId());
     }
 
     private void registerLoadedAnchor(ServerLevel serverLevel) {
         TeleportAnchorSavedData.get(serverLevel.getServer())
-                .registerAnchor(serverLevel.dimension().location(), this.worldPosition, getAnchorDisplayName());
+                .registerAnchor(serverLevel.dimension().location(), this.worldPosition, getAnchorDisplayName(), getChannelId());
         LOADED_ANCHORS
                 .computeIfAbsent(serverLevel.dimension().location(), ignored -> new HashMap<>())
                 .put(this.worldPosition.immutable(), this);
@@ -447,7 +486,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
         }
     }
 
-    public record AnchorSummary(String name, String dimensionId, BlockPos pos) {
+    public record AnchorSummary(String name, String dimensionId, BlockPos pos, String channelId) {
     }
 
     public record TeleportResult(TeleportStatus status, int entityCount) {
@@ -457,6 +496,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
         SUCCESS,
         SOURCE_OFFLINE,
         TARGET_OFFLINE,
+        CHANNEL_MISMATCH,
         SELF_TARGET,
         TARGET_NOT_FOUND,
         INSUFFICIENT_POWER,

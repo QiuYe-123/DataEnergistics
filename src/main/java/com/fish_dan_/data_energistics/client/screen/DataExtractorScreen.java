@@ -6,9 +6,11 @@ import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.ProgressBar;
 import appeng.client.gui.widgets.ProgressBar.Direction;
 import appeng.menu.SlotSemantics;
+import com.fish_dan_.data_energistics.blockentity.DataExtractorAutoExportMode;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
-import com.fish_dan_.data_energistics.client.widget.DataExtractorDropRoutingButton;
+import com.fish_dan_.data_energistics.client.widget.DataExtractorAutoExportButton;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
+import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
 import com.fish_dan_.data_energistics.menu.DataExtractorMenu;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -18,7 +20,8 @@ import net.minecraft.world.inventory.Slot;
 public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
     private final DataExtractorToggleButton redstoneControlButton;
     private final DataExtractorToggleButton rangeVisibleButton;
-    private final DataExtractorDropRoutingButton dropRoutingButton;
+    private final DataExtractorAutoExportButton autoExportButton;
+    private final OutputSideActionButton outputSideButton;
     private final ProgressBar collectionProgressBar;
 
     public DataExtractorScreen(DataExtractorMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
@@ -43,11 +46,26 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
         );
         this.addToLeftToolbar(this.rangeVisibleButton);
 
-        this.dropRoutingButton = new DataExtractorDropRoutingButton(this.menu::sendSetDropRoutingMode);
-        this.addToLeftToolbar(this.dropRoutingButton);
+        this.autoExportButton = new DataExtractorAutoExportButton(this.menu::sendSetAutoExportMode);
+        this.addToLeftToolbar(this.autoExportButton);
+
+        this.outputSideButton = new OutputSideActionButton(button -> openOutputConfig());
+        this.addToLeftToolbar(this.outputSideButton);
 
         this.collectionProgressBar = new ProgressBar(this.menu, style.getImage("progressBar"), Direction.VERTICAL);
         widgets.add("progressBar", this.collectionProgressBar);
+    }
+
+    private void openOutputConfig() {
+        if (this.menu.getHost() == null) {
+            return;
+        }
+
+        this.switchToScreen(new DataExtractorOutputSideScreen(
+                this,
+                this.menu.getHost(),
+                this.menu.getOutputSides(),
+                this.menu::sendSetOutputSide));
     }
 
     @Override
@@ -63,7 +81,8 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
         this.setTextContent("targets", translate("targets", this.menu.targetCount, this.menu.targetLimit));
         this.redstoneControlButton.setState(this.menu.redstoneControlled);
         this.rangeVisibleButton.setState(this.menu.rangeVisible);
-        this.dropRoutingButton.setMode(this.menu.getDropRoutingMode());
+        this.autoExportButton.setMode(this.menu.getAutoExportMode());
+        this.outputSideButton.setVisibility(this.menu.getAutoExportMode() == DataExtractorAutoExportMode.CONTAINER);
 
         boolean hasProgress = this.menu.getMaxProgress() > 0;
         this.collectionProgressBar.visible = hasProgress;
@@ -78,6 +97,10 @@ public class DataExtractorScreen extends UpgradeableScreen<DataExtractorMenu> {
         if (slot.isActive() && slot.getItem().isEmpty()) {
             if (this.menu.getSlotSemantic(slot) == SlotSemantics.MACHINE_INPUT) {
                 DataEnergisticsIcon.getBlitter("BACKGROUND_DATA_CARRIER")
+                        .dest(slot.x, slot.y)
+                        .blit(guiGraphics);
+            } else if (this.menu.getSlotSemantic(slot) == DataExtractorMenu.CROP_INPUT) {
+                DataEnergisticsIcon.getBlitter("BACKGROUND_CROP")
                         .dest(slot.x, slot.y)
                         .blit(guiGraphics);
             } else if (this.menu.getSlotSemantic(slot) == DataExtractorMenu.ORE_INPUT) {

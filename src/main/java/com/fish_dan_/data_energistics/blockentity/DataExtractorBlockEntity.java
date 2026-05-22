@@ -18,22 +18,28 @@ import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
 import appeng.core.definitions.AEItems;
 import appeng.util.Platform;
 import appeng.util.inv.AppEngInternalInventory;
-import appeng.util.inv.CombinedInternalInventory;
 import appeng.util.inv.FilteredInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
+import com.fish_dan_.data_energistics.DataExtractorConfig;
+import com.fish_dan_.data_energistics.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
+import com.fish_dan_.data_energistics.block.DataExtractorBlock.Type;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
+import com.fish_dan_.data_energistics.util.CropDataCarrierData;
 import com.fish_dan_.data_energistics.util.OreDataCarrierData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -63,34 +69,29 @@ import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
-public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity implements IActionHost, IUpgradeableObject, InternalInventoryHost {
+public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity
+        implements IActionHost, IUpgradeableObject, InternalInventoryHost {
     public static final int BASE_WORK_INTERVAL_SECONDS = 5;
     public static final int MIN_WORK_INTERVAL_SECONDS = 1;
-    public static final int WORK_INTERVAL_TICKS = BASE_WORK_INTERVAL_SECONDS * 20;
     public static final int DROP_COLLECTION_INTERVAL_TICKS = 5;
     public static final int TARGET_SCAN_INTERVAL_TICKS = 5;
-    public static final int DATA_FLOW_PER_CYCLE = 100;
-    public static final int DAMAGE_PER_CYCLE = 5;
-    public static final int DATA_FLOW_PER_DAMAGE_POINT = 20;
     public static final double AE_POWER_PER_TICK = 160.0;
     public static final int ENERGY_CACHE_CAPACITY = 1600;
     public static final int DATA_FLOW_PER_ENERGY_CARD = 200;
     public static final int AE_CACHE_PER_ENERGY_CARD = 100;
-    public static final double DATA_FLOW_PER_EXTRA_TARGET_MULTIPLIER = 0.25D;
-    public static final int BASE_TARGET_LIMIT = 20;
-    public static final int TARGET_LIMIT_PER_CAPACITY_CARD = 5;
     private static final int DEBUFF_DURATION_TICKS = 60;
     private static final int DEBUFF_REAPPLY_INTERVAL_TICKS = 10;
-    private static final int STORAGE_SLOTS = 3;
-    private static final int INPUT_SLOT = 0;
-    private static final int OUTPUT_SLOT = 1;
-    private static final int SWORD_SLOT = 2;
-    private static final int ORE_SLOT = 3;
+    private static final int STORAGE_SLOTS = 4;
+    private static final int CARRIER_SLOT = 0;
+    private static final int SWORD_SLOT = 1;
+    private static final int ORE_SLOT = 2;
+    private static final int CROP_SLOT = 3;
     private static final int UPGRADE_SLOTS = 6;
     private static final int BASE_HORIZONTAL_RANGE = 1;
     private static final int BASE_VERTICAL_RANGE = 3;
@@ -101,51 +102,38 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     private static final String UPGRADES_TAG = "upgrades";
     private static final String REDSTONE_CONTROLLED_TAG = "redstone_controlled";
     private static final String SHOW_RANGE_TAG = "show_range";
-    private static final String DROP_ROUTING_MODE_TAG = "drop_routing_mode";
+    private static final String AUTO_EXPORT_MODE_TAG = "auto_export_mode";
+    private static final String OUTPUT_SIDES_TAG = "output_sides";
     private static final String WORK_PROGRESS_TAG = "work_progress";
     private static final TagKey<Item> C_ORES_TAG = ItemTags.create(ResourceLocation.parse("c:ores"));
     private static final TagKey<Item> C_RAW_MATERIALS_TAG = ItemTags.create(ResourceLocation.parse("c:raw_materials"));
 
     private final IUpgradeInventory upgrades =
             UpgradeInventories.forMachine(ModBlocks.DATA_EXTRACTOR.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
-    private final AppEngInternalInventory storage = new AppEngInternalInventory(this, STORAGE_SLOTS + 1);
-    private final InternalInventory externalInput = new FilteredInternalInventory(
-            this.storage.getSubInventory(INPUT_SLOT, ORE_SLOT + 1),
+    private final AppEngInternalInventory storage = new AppEngInternalInventory(this, STORAGE_SLOTS);
+    private final InternalInventory externalInventory = new FilteredInternalInventory(
+            this.storage.getSubInventory(CARRIER_SLOT, CROP_SLOT + 1),
             new IAEItemFilter() {
                 @Override
                 public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
                     return switch (slot) {
-                        case 0 -> stack.is(ModItems.DATA_CARRIER.get());
-                        case 2 -> stack.is(ItemTags.SWORDS);
-                        case 3 -> isOreOrRawOre(stack);
+                        case CARRIER_SLOT -> stack.is(ModItems.DATA_CARRIER.get());
+                        case SWORD_SLOT -> stack.is(ItemTags.SWORDS);
+                        case ORE_SLOT -> isOreOrRawOre(stack);
+                        case CROP_SLOT -> isSupportedCrop(stack);
                         default -> false;
                     };
                 }
 
                 @Override
                 public boolean allowExtract(InternalInventory inv, int slot, int amount) {
-                    return false;
+                    return slot == CARRIER_SLOT && isCompletedCarrier(inv.getStackInSlot(slot));
                 }
             }
     );
-    private final InternalInventory externalOutput = new FilteredInternalInventory(
-            this.storage.getSlotInv(OUTPUT_SLOT),
-            new IAEItemFilter() {
-                @Override
-                public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
-                    return false;
-                }
-
-                @Override
-                public boolean allowExtract(InternalInventory inv, int slot, int amount) {
-                    return true;
-                }
-            }
-    );
-    private final InternalInventory externalInventory = new CombinedInternalInventory(this.externalInput, this.externalOutput);
     private boolean redstoneControlled;
     private boolean showRange;
-    private DataExtractorDropRoutingMode dropRoutingMode = DataExtractorDropRoutingMode.OFF;
+    private DataExtractorAutoExportMode autoExportMode = DataExtractorAutoExportMode.OFF;
     private int syncedCapacityCardCount;
     private int workTicks;
     private int dropCollectionCooldown;
@@ -153,28 +141,48 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     private int debuffCooldown;
     private AABB cachedCoverageAabb;
     private List<LivingEntity> cachedTargets = List.of();
+    private final Set<Direction> outputSides = EnumSet.allOf(Direction.class);
 
     public DataExtractorBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
                 .setVisualRepresentation(ModBlocks.DATA_EXTRACTOR.get())
+                .setExposedOnSides(getCableExposedSides(blockState))
                 .setIdlePowerUsage(0.0);
         this.setInternalMaxPower(ENERGY_CACHE_CAPACITY);
-        this.storage.setMaxStackSize(INPUT_SLOT, 1);
+        this.storage.setMaxStackSize(CARRIER_SLOT, 1);
         this.storage.setMaxStackSize(SWORD_SLOT, 1);
         this.storage.setFilter(new IAEItemFilter() {
             @Override
             public boolean allowInsert(appeng.api.inventories.InternalInventory inv, int slot, ItemStack stack) {
-                return slot == INPUT_SLOT && stack.is(ModItems.DATA_CARRIER.get())
+                return slot == CARRIER_SLOT && stack.is(ModItems.DATA_CARRIER.get())
                         || slot == SWORD_SLOT && stack.is(ItemTags.SWORDS)
-                        || slot == ORE_SLOT && isOreOrRawOre(stack);
+                        || slot == ORE_SLOT && isOreOrRawOre(stack)
+                        || slot == CROP_SLOT && isSupportedCrop(stack);
             }
         });
     }
 
     @Override
     public AECableType getCableConnectionType(net.minecraft.core.Direction dir) {
+        if (!isCableSideExposed(dir)) {
+            return AECableType.NONE;
+        }
+
         return AECableType.COVERED;
+    }
+
+    private boolean isCableSideExposed(Direction dir) {
+        Direction front = this.getBlockState().getValue(DataExtractorBlock.FACING);
+        return dir != Direction.UP && dir != front;
+    }
+
+    private static Set<Direction> getCableExposedSides(BlockState blockState) {
+        Direction front = blockState.getValue(DataExtractorBlock.FACING);
+        Set<Direction> exposedSides = EnumSet.allOf(Direction.class);
+        exposedSides.remove(Direction.UP);
+        exposedSides.remove(front);
+        return exposedSides;
     }
 
     @Override
@@ -190,7 +198,20 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
         this.redstoneControlled = data.getBoolean(REDSTONE_CONTROLLED_TAG);
         this.showRange = data.getBoolean(SHOW_RANGE_TAG);
-        this.dropRoutingMode = DataExtractorDropRoutingMode.fromOrdinal(data.getInt(DROP_ROUTING_MODE_TAG));
+        this.autoExportMode = data.contains(AUTO_EXPORT_MODE_TAG)
+                ? DataExtractorAutoExportMode.fromOrdinal(data.getInt(AUTO_EXPORT_MODE_TAG))
+                : DataExtractorAutoExportMode.OFF;
+        this.outputSides.clear();
+        if (data.contains(OUTPUT_SIDES_TAG)) {
+            for (Tag name : data.getList(OUTPUT_SIDES_TAG, Tag.TAG_STRING)) {
+                Direction side = Direction.byName(name.getAsString());
+                if (side != null) {
+                    this.outputSides.add(side);
+                }
+            }
+        } else {
+            this.outputSides.addAll(EnumSet.allOf(Direction.class));
+        }
         this.syncedCapacityCardCount = computeCapacityCardCount(this.upgrades);
         this.workTicks = Math.max(0, data.getInt(WORK_PROGRESS_TAG));
         this.dropCollectionCooldown = 0;
@@ -207,7 +228,12 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         this.upgrades.writeToNBT(data, UPGRADES_TAG, registries);
         data.putBoolean(REDSTONE_CONTROLLED_TAG, this.redstoneControlled);
         data.putBoolean(SHOW_RANGE_TAG, this.showRange);
-        data.putInt(DROP_ROUTING_MODE_TAG, this.dropRoutingMode.ordinal());
+        data.putInt(AUTO_EXPORT_MODE_TAG, this.autoExportMode.ordinal());
+        ListTag sides = new ListTag();
+        for (Direction side : this.outputSides) {
+            sides.add(StringTag.valueOf(side.getName()));
+        }
+        data.put(OUTPUT_SIDES_TAG, sides);
         data.putInt(WORK_PROGRESS_TAG, this.workTicks);
     }
 
@@ -271,6 +297,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
 
     @Override
     public void saveChangedInventory(AppEngInternalInventory inv) {
+        updateCarrierTypeState();
         this.saveChanges();
     }
 
@@ -303,9 +330,10 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         }
 
         recordOreSample();
+        recordCropSample();
         tryOutputCompletedCarrier();
         performWork();
-        tickDroppedItemCollection();
+        tryAutoExport();
         refillEnergyCache();
         updateOnlineState();
     }
@@ -342,10 +370,6 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         return this.redstoneControlled;
     }
 
-    public DataExtractorDropRoutingMode getDropRoutingMode() {
-        return this.dropRoutingMode;
-    }
-
     public int getCapacityCardCount() {
         if (this.level != null && this.level.isClientSide()) {
             return this.syncedCapacityCardCount;
@@ -354,11 +378,30 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     }
 
     public static int computeDamagePerCycle(ItemStack sword, @org.jetbrains.annotations.Nullable HolderLookup.Provider registries) {
-        return Math.round(DAMAGE_PER_CYCLE + getSwordInheritedDamage(sword) + getStaticSwordEnchantmentDamage(sword, registries));
+        return Math.round(DataExtractorConfig.baseDamage
+                + getSwordInheritedDamage(sword)
+                + getStaticSwordEnchantmentDamage(sword, registries));
     }
 
     public static boolean isOreOrRawOre(ItemStack stack) {
-        return stack.is(C_ORES_TAG) || stack.is(C_RAW_MATERIALS_TAG);
+        return matchesConfiguredRule(DataExtractorRuleTable.Slot.ORE, stack)
+                || stack.is(C_ORES_TAG)
+                || stack.is(C_RAW_MATERIALS_TAG);
+    }
+
+    public static boolean isSupportedCrop(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return false;
+        }
+        if (matchesConfiguredRule(DataExtractorRuleTable.Slot.CROP, stack)) {
+            return true;
+        }
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        return CropDataCarrierData.isAllowedCropItem(itemId);
+    }
+
+    private static boolean matchesConfiguredRule(DataExtractorRuleTable.Slot slot, ItemStack stack) {
+        return DataExtractorRuleTable.hasRuleForSlot(slot, stack);
     }
 
     public static int computeCapacityCardCount(IUpgradeInventory upgrades) {
@@ -366,7 +409,8 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     }
 
     public static int computeTargetLimit(IUpgradeInventory upgrades) {
-        return BASE_TARGET_LIMIT + computeCapacityCardCount(upgrades) * TARGET_LIMIT_PER_CAPACITY_CARD;
+        return DataExtractorConfig.baseTargetLimit
+                + computeCapacityCardCount(upgrades) * DataExtractorConfig.targetLimitPerCapacityCard;
     }
 
     public static int computeEnergyCardCount(IUpgradeInventory upgrades) {
@@ -374,13 +418,13 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     }
 
     public static int computeDataFlowPerCycle(IUpgradeInventory upgrades) {
-        return computeBaseDataFlowPerCycle(upgrades, DAMAGE_PER_CYCLE);
+        return computeBaseDataFlowPerCycle(upgrades, DataExtractorConfig.baseDamage);
     }
 
     public static int computeBaseDataFlowPerCycle(IUpgradeInventory upgrades, int damagePerCycle) {
-        return DATA_FLOW_PER_CYCLE
+        return DataExtractorConfig.baseDataFlowPerCycle
                 + computeEnergyCardCount(upgrades) * DATA_FLOW_PER_ENERGY_CARD
-                + Math.max(0, damagePerCycle) * DATA_FLOW_PER_DAMAGE_POINT;
+                + Math.max(0, damagePerCycle) * DataExtractorConfig.dataFlowPerSwordDamage;
     }
 
     public static int computeDataFlowPerCycle(IUpgradeInventory upgrades, int damagePerCycle, int targetCount) {
@@ -389,7 +433,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         }
 
         int baseDataFlow = computeBaseDataFlowPerCycle(upgrades, damagePerCycle);
-        double multiplier = 1.0D + Math.max(0, targetCount - 1) * DATA_FLOW_PER_EXTRA_TARGET_MULTIPLIER;
+        double multiplier = 1.0D + Math.max(0, targetCount - 1) * DataExtractorConfig.extraTargetDataFlowMultiplier;
         return (int) Math.round(baseDataFlow * multiplier);
     }
 
@@ -406,8 +450,9 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     }
 
     public static int computeWorkIntervalSeconds(int speedCardCount) {
-        int effectiveSpeedCards = Math.min(Math.max(0, speedCardCount), BASE_WORK_INTERVAL_SECONDS - MIN_WORK_INTERVAL_SECONDS);
-        return BASE_WORK_INTERVAL_SECONDS - effectiveSpeedCards;
+        int baseWorkIntervalSeconds = Math.max(MIN_WORK_INTERVAL_SECONDS, DataExtractorConfig.workIntervalSeconds);
+        int effectiveSpeedCards = Math.min(Math.max(0, speedCardCount), baseWorkIntervalSeconds - MIN_WORK_INTERVAL_SECONDS);
+        return baseWorkIntervalSeconds - effectiveSpeedCards;
     }
 
     public int getTargetCount() {
@@ -439,13 +484,39 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         return this.showRange;
     }
 
-    public DataExtractorDropRoutingMode setDropRoutingMode(DataExtractorDropRoutingMode mode) {
-        DataExtractorDropRoutingMode resolvedMode = mode == null ? DataExtractorDropRoutingMode.OFF : mode;
-        if (this.dropRoutingMode != resolvedMode) {
-            this.dropRoutingMode = resolvedMode;
+    public boolean isAutoExportEnabled() {
+        return this.autoExportMode != DataExtractorAutoExportMode.OFF;
+    }
+
+    public DataExtractorAutoExportMode getAutoExportMode() {
+        return this.autoExportMode;
+    }
+
+    public DataExtractorAutoExportMode setAutoExportMode(DataExtractorAutoExportMode mode) {
+        DataExtractorAutoExportMode resolvedMode = mode == null ? DataExtractorAutoExportMode.OFF : mode;
+        if (this.autoExportMode != resolvedMode) {
+            this.autoExportMode = resolvedMode;
             this.saveChanges();
+            this.markForClientUpdate();
         }
-        return this.dropRoutingMode;
+        return this.autoExportMode;
+    }
+
+    public Set<Direction> getOutputSides() {
+        if (this.outputSides.isEmpty()) {
+            return EnumSet.noneOf(Direction.class);
+        }
+        return EnumSet.copyOf(this.outputSides);
+    }
+
+    public void setOutputSideEnabled(Direction side, boolean enabled) {
+        boolean changed = enabled ? this.outputSides.add(side) : this.outputSides.remove(side);
+        if (!changed) {
+            return;
+        }
+
+        this.saveChanges();
+        this.markForClientUpdate();
     }
 
     public AABB getCoverageAabb() {
@@ -568,129 +639,6 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         }
     }
 
-    private void collectDroppedItems() {
-        if (this.dropRoutingMode == DataExtractorDropRoutingMode.OFF || !(this.level instanceof ServerLevel serverLevel)) {
-            return;
-        }
-
-        List<IItemHandler> adjacentHandlers = getAdjacentItemHandlers();
-        MEStorage networkStorage = getConnectedItemNetwork();
-        if (adjacentHandlers.isEmpty() && networkStorage == null) {
-            return;
-        }
-
-        for (ItemEntity itemEntity : serverLevel.getEntitiesOfClass(
-                ItemEntity.class,
-                getCoverageAabb(),
-                entity -> entity.isAlive() && !entity.getItem().isEmpty())) {
-            ItemStack currentStack = itemEntity.getItem();
-            int originalCount = currentStack.getCount();
-            ItemStack remaining = routeDroppedItem(currentStack, adjacentHandlers, networkStorage);
-            if (remaining.getCount() >= originalCount) {
-                continue;
-            }
-
-            if (remaining.isEmpty()) {
-                itemEntity.discard();
-            } else {
-                itemEntity.setItem(remaining);
-            }
-        }
-    }
-
-    private void tickDroppedItemCollection() {
-        if (this.dropRoutingMode == DataExtractorDropRoutingMode.OFF) {
-            this.dropCollectionCooldown = 0;
-            return;
-        }
-
-        if (this.dropCollectionCooldown > 0) {
-            this.dropCollectionCooldown--;
-            return;
-        }
-
-        this.dropCollectionCooldown = DROP_COLLECTION_INTERVAL_TICKS - 1;
-        collectDroppedItems();
-    }
-
-    private ItemStack routeDroppedItem(ItemStack stack, List<IItemHandler> adjacentHandlers, @Nullable MEStorage networkStorage) {
-        ItemStack remaining = stack.copy();
-        if (this.dropRoutingMode == DataExtractorDropRoutingMode.AE) {
-            return insertIntoNetwork(remaining, networkStorage);
-        }
-
-        return insertIntoAdjacentContainers(remaining, adjacentHandlers);
-    }
-
-    private ItemStack insertIntoAdjacentContainers(ItemStack stack, List<IItemHandler> adjacentHandlers) {
-        ItemStack remaining = stack.copy();
-        for (IItemHandler handler : adjacentHandlers) {
-            if (remaining.isEmpty()) {
-                break;
-            }
-            remaining = ItemHandlerHelper.insertItem(handler, remaining, false);
-        }
-        return remaining;
-    }
-
-    private ItemStack insertIntoNetwork(ItemStack stack, @Nullable MEStorage networkStorage) {
-        if (stack.isEmpty() || networkStorage == null) {
-            return stack;
-        }
-
-        AEItemKey key = AEItemKey.of(stack);
-        if (key == null) {
-            return stack;
-        }
-
-        long inserted = networkStorage.insert(key, stack.getCount(), Actionable.MODULATE, IActionSource.ofMachine(this));
-        if (inserted <= 0) {
-            return stack;
-        }
-
-        ItemStack remaining = stack.copy();
-        remaining.shrink((int) Math.min(inserted, stack.getCount()));
-        return remaining;
-    }
-
-    private List<IItemHandler> getAdjacentItemHandlers() {
-        if (this.level == null) {
-            return List.of();
-        }
-
-        List<IItemHandler> handlers = new ArrayList<>();
-        for (Direction direction : Direction.values()) {
-            BlockPos targetPos = this.worldPosition.relative(direction);
-            BlockState targetState = this.level.getBlockState(targetPos);
-            if (targetState.isAir()) {
-                continue;
-            }
-
-            IItemHandler handler = this.level.getCapability(
-                    Capabilities.ItemHandler.BLOCK,
-                    targetPos,
-                    targetState,
-                    this.level.getBlockEntity(targetPos),
-                    direction.getOpposite()
-            );
-            if (handler != null) {
-                handlers.add(handler);
-            }
-        }
-        return handlers;
-    }
-
-    @Nullable
-    private MEStorage getConnectedItemNetwork() {
-        IGridNode node = this.getMainNode().getNode();
-        if (node == null || node.getGrid() == null || !node.isActive()) {
-            return null;
-        }
-
-        var storageService = node.getGrid().getStorageService();
-        return storageService == null ? null : storageService.getInventory();
-    }
-
     private void applyDamageAndCollectBiology(List<LivingEntity> targets) {
         if (!(this.level instanceof ServerLevel serverLevel)) {
             return;
@@ -699,7 +647,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         ItemStack storedSword = this.storage.getStackInSlot(SWORD_SLOT);
         ItemStack sword = storedSword.copy();
         boolean useSword = sword.is(ItemTags.SWORDS);
-        ItemStack carrier = this.storage.getStackInSlot(INPUT_SLOT);
+        ItemStack carrier = this.storage.getStackInSlot(CARRIER_SLOT);
         boolean canCollectBiology = carrier.is(ModItems.DATA_CARRIER.get())
                 && !BiologyDataCarrierData.isComplete(carrier)
                 && !OreDataCarrierData.hasRecordedOre(carrier);
@@ -715,7 +663,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
                 damaged = attackResult.damaged();
                 sword = attackResult.updatedSword();
             } else {
-                damaged = entity.hurt(serverLevel.damageSources().magic(), DAMAGE_PER_CYCLE);
+                damaged = entity.hurt(serverLevel.damageSources().magic(), DataExtractorConfig.baseDamage);
             }
             if (!damaged) {
                 continue;
@@ -743,7 +691,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         }
 
         if (carrierUpdated) {
-            this.storage.setItemDirect(INPUT_SLOT, carrier.copy());
+            this.storage.setItemDirect(CARRIER_SLOT, carrier.copy());
         }
 
         if (useSword && !ItemStack.matches(storedSword, sword)) {
@@ -773,13 +721,22 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     }
 
     private void recordOreSample() {
-        ItemStack carrier = this.storage.getStackInSlot(INPUT_SLOT);
-        if (!carrier.is(ModItems.DATA_CARRIER.get()) || BiologyDataCarrierData.hasRecordedEntity(carrier) || OreDataCarrierData.isComplete(carrier)) {
+        ItemStack carrier = this.storage.getStackInSlot(CARRIER_SLOT);
+        if (!carrier.is(ModItems.DATA_CARRIER.get())
+                || BiologyDataCarrierData.hasRecordedEntity(carrier)
+                || OreDataCarrierData.isComplete(carrier)
+                || CropDataCarrierData.hasRecordedCrop(carrier)) {
             return;
         }
 
         ItemStack oreStack = this.storage.getStackInSlot(ORE_SLOT);
         if (!isOreOrRawOre(oreStack)) {
+            return;
+        }
+
+        DataExtractorRuleTable.ItemRule configuredRule = DataExtractorRuleTable.findRule(DataExtractorRuleTable.Slot.ORE, oreStack);
+        if (configuredRule != null && configuredRule.dataType() == DataExtractorRuleTable.DataType.ORE) {
+            recordConfiguredOreSample(carrier, oreStack, configuredRule);
             return;
         }
 
@@ -790,6 +747,9 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
                 return;
             }
             updated = OreDataCarrierData.recordFirstOre(carrier, recordedStack);
+            if (!updated) {
+                return;
+            }
         }
 
         ResourceLocation recordedOreId = OreDataCarrierData.getOreItemId(carrier);
@@ -797,7 +757,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         ResourceLocation currentRecordedId = recordedStack.isEmpty() ? null : BuiltInRegistries.ITEM.getKey(recordedStack.getItem());
         if (recordedOreId == null || currentRecordedId == null || !recordedOreId.equals(currentRecordedId)) {
             if (updated) {
-                this.storage.setItemDirect(INPUT_SLOT, carrier.copy());
+                this.storage.setItemDirect(CARRIER_SLOT, carrier.copy());
             }
             return;
         }
@@ -814,7 +774,133 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         }
 
         if (updated) {
-            this.storage.setItemDirect(INPUT_SLOT, carrier.copy());
+            this.storage.setItemDirect(CARRIER_SLOT, carrier.copy());
+        }
+    }
+
+    private void recordCropSample() {
+        ItemStack carrier = this.storage.getStackInSlot(CARRIER_SLOT);
+        if (!carrier.is(ModItems.DATA_CARRIER.get())
+                || BiologyDataCarrierData.hasRecordedEntity(carrier)
+                || OreDataCarrierData.hasRecordedOre(carrier)
+                || CropDataCarrierData.isComplete(carrier)) {
+            return;
+        }
+
+        ItemStack cropStack = this.storage.getStackInSlot(CROP_SLOT);
+        if (!isSupportedCrop(cropStack)) {
+            return;
+        }
+
+        DataExtractorRuleTable.ItemRule configuredRule = DataExtractorRuleTable.findRule(DataExtractorRuleTable.Slot.CROP, cropStack);
+        if (configuredRule != null && configuredRule.dataType() == DataExtractorRuleTable.DataType.CROP) {
+            recordConfiguredCropSample(carrier, cropStack, configuredRule);
+            return;
+        }
+
+        boolean updated = false;
+        if (!CropDataCarrierData.hasRecordedCrop(carrier)) {
+            ItemStack recordedStack = cropStack.copyWithCount(1);
+            updated = CropDataCarrierData.recordFirstCrop(carrier, recordedStack);
+            if (!updated) {
+                return;
+            }
+        }
+
+        ResourceLocation recordedCropId = CropDataCarrierData.getCropItemId(carrier);
+        ResourceLocation currentCropId = CropDataCarrierData.getRecordedCropItemId(cropStack);
+        if (recordedCropId == null || currentCropId == null || !recordedCropId.equals(currentCropId)) {
+            if (updated) {
+                this.storage.setItemDirect(CARRIER_SLOT, carrier.copy());
+            }
+            return;
+        }
+
+        float remaining = Math.max(0.0F, CropDataCarrierData.getRequiredAmount(carrier) - CropDataCarrierData.getCollectedAmount(carrier));
+        float progressPerItem = CropDataCarrierData.getCropProgressValue(cropStack);
+        if (progressPerItem <= 0.0F) {
+            if (updated) {
+                this.storage.setItemDirect(CARRIER_SLOT, carrier.copy());
+            }
+            return;
+        }
+        int itemCountToConsume = Math.min(cropStack.getCount(), (int) Math.ceil(remaining / progressPerItem));
+        float toRecord = Math.min(remaining, itemCountToConsume * progressPerItem);
+        if (itemCountToConsume > 0 && toRecord > 0.0F) {
+            updated = CropDataCarrierData.addCollectedCrop(carrier, toRecord) || updated;
+            ItemStack newCropStack = cropStack.copy();
+            newCropStack.shrink(itemCountToConsume);
+            this.storage.setItemDirect(CROP_SLOT, newCropStack);
+        }
+
+        if (updated) {
+            this.storage.setItemDirect(CARRIER_SLOT, carrier.copy());
+        }
+    }
+
+    private void recordConfiguredOreSample(ItemStack carrier, ItemStack oreStack, DataExtractorRuleTable.ItemRule rule) {
+        boolean updated = false;
+        if (!OreDataCarrierData.hasRecordedOre(carrier)) {
+            updated = OreDataCarrierData.recordFirstOre(carrier, new ItemStack(BuiltInRegistries.ITEM.get(rule.recordedItemId())));
+            if (!updated) {
+                return;
+            }
+            OreDataCarrierData.setRequiredAmount(carrier, rule.requiredAmount());
+        }
+
+        ResourceLocation recordedOreId = OreDataCarrierData.getOreItemId(carrier);
+        if (recordedOreId == null || !recordedOreId.equals(rule.recordedItemId())) {
+            if (updated) {
+                this.storage.setItemDirect(CARRIER_SLOT, carrier.copy());
+            }
+            return;
+        }
+
+        float remaining = Math.max(0.0F, OreDataCarrierData.getRequiredAmount(carrier) - OreDataCarrierData.getCollectedAmount(carrier));
+        int itemCountToConsume = Math.min(oreStack.getCount(), (int) Math.ceil(remaining / rule.progressPerItem()));
+        float toRecord = Math.min(remaining, itemCountToConsume * rule.progressPerItem());
+        if (itemCountToConsume > 0 && toRecord > 0.0F) {
+            updated = OreDataCarrierData.addCollectedOre(carrier, toRecord) || updated;
+            ItemStack newOreStack = oreStack.copy();
+            newOreStack.shrink(itemCountToConsume);
+            this.storage.setItemDirect(ORE_SLOT, newOreStack);
+        }
+
+        if (updated) {
+            this.storage.setItemDirect(CARRIER_SLOT, carrier.copy());
+        }
+    }
+
+    private void recordConfiguredCropSample(ItemStack carrier, ItemStack cropStack, DataExtractorRuleTable.ItemRule rule) {
+        boolean updated = false;
+        if (!CropDataCarrierData.hasRecordedCrop(carrier)) {
+            updated = CropDataCarrierData.recordFirstCrop(carrier, new ItemStack(BuiltInRegistries.ITEM.get(rule.recordedItemId())));
+            if (!updated) {
+                return;
+            }
+            CropDataCarrierData.setRequiredAmount(carrier, rule.requiredAmount());
+        }
+
+        ResourceLocation recordedCropId = CropDataCarrierData.getCropItemId(carrier);
+        if (recordedCropId == null || !recordedCropId.equals(rule.recordedItemId())) {
+            if (updated) {
+                this.storage.setItemDirect(CARRIER_SLOT, carrier.copy());
+            }
+            return;
+        }
+
+        float remaining = Math.max(0.0F, CropDataCarrierData.getRequiredAmount(carrier) - CropDataCarrierData.getCollectedAmount(carrier));
+        int itemCountToConsume = Math.min(cropStack.getCount(), (int) Math.ceil(remaining / rule.progressPerItem()));
+        float toRecord = Math.min(remaining, itemCountToConsume * rule.progressPerItem());
+        if (itemCountToConsume > 0 && toRecord > 0.0F) {
+            updated = CropDataCarrierData.addCollectedCrop(carrier, toRecord) || updated;
+            ItemStack newCropStack = cropStack.copy();
+            newCropStack.shrink(itemCountToConsume);
+            this.storage.setItemDirect(CROP_SLOT, newCropStack);
+        }
+
+        if (updated) {
+            this.storage.setItemDirect(CARRIER_SLOT, carrier.copy());
         }
     }
 
@@ -892,7 +978,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
     }
 
     private void tryOutputCompletedCarrier() {
-        ItemStack input = this.storage.getStackInSlot(INPUT_SLOT);
+        ItemStack input = this.storage.getStackInSlot(CARRIER_SLOT);
         if (!input.is(ModItems.DATA_CARRIER.get())) {
             return;
         }
@@ -900,30 +986,213 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         ItemStack result;
         if (BiologyDataCarrierData.isComplete(input)) {
             result = BiologyDataCarrierData.createCompletedCarrier(input);
+        } else if (CropDataCarrierData.isComplete(input)) {
+            result = CropDataCarrierData.createCompletedCarrier(input);
         } else if (OreDataCarrierData.isComplete(input)) {
             result = OreDataCarrierData.createCompletedCarrier(input);
         } else {
             return;
         }
-        ItemStack output = this.storage.getStackInSlot(OUTPUT_SLOT);
-        if (!canAcceptCompletedCarrier(output, result)) {
+        this.storage.setItemDirect(CARRIER_SLOT, result);
+    }
+
+    private void tryAutoExport() {
+        if (this.autoExportMode == DataExtractorAutoExportMode.OFF) {
+            this.dropCollectionCooldown = 0;
             return;
         }
 
-        if (output.isEmpty()) {
-            this.storage.setItemDirect(OUTPUT_SLOT, result);
-        } else {
-            ItemStack merged = output.copy();
-            merged.grow(result.getCount());
-            this.storage.setItemDirect(OUTPUT_SLOT, merged);
+        List<IItemHandler> adjacentHandlers = getAdjacentItemHandlers();
+        MEStorage networkStorage = getConnectedItemNetwork();
+        if (this.autoExportMode == DataExtractorAutoExportMode.CONTAINER) {
+            if (adjacentHandlers.isEmpty()) {
+                this.dropCollectionCooldown = 0;
+            } else {
+                exportCompletedCarrier(adjacentHandlers, networkStorage);
+                tickDroppedItemCollection(adjacentHandlers, networkStorage);
+            }
+            return;
         }
 
-        this.storage.setItemDirect(INPUT_SLOT, ItemStack.EMPTY);
+        exportCompletedCarrier(adjacentHandlers, networkStorage);
+        tickDroppedItemCollection(adjacentHandlers, networkStorage);
     }
 
-    private static boolean canAcceptCompletedCarrier(ItemStack output, ItemStack result) {
-        return output.isEmpty()
-                || ItemStack.isSameItemSameComponents(output, result) && output.getCount() < output.getMaxStackSize();
+    private void exportCompletedCarrier(List<IItemHandler> adjacentHandlers, @org.jetbrains.annotations.Nullable MEStorage networkStorage) {
+        ItemStack carrier = this.storage.getStackInSlot(CARRIER_SLOT);
+        if (!isCompletedCarrier(carrier)) {
+            return;
+        }
+
+        ItemStack remaining = routeAutoExportItem(carrier, adjacentHandlers, networkStorage);
+        if (remaining.getCount() == carrier.getCount()) {
+            return;
+        }
+
+        this.storage.setItemDirect(CARRIER_SLOT, remaining);
+        this.saveChanges();
+        this.markForClientUpdate();
+    }
+
+    private void tickDroppedItemCollection(List<IItemHandler> adjacentHandlers, @org.jetbrains.annotations.Nullable MEStorage networkStorage) {
+        if (this.dropCollectionCooldown > 0) {
+            this.dropCollectionCooldown--;
+            return;
+        }
+
+        this.dropCollectionCooldown = DROP_COLLECTION_INTERVAL_TICKS - 1;
+        collectAndExportDroppedItems(adjacentHandlers, networkStorage);
+    }
+
+    private void collectAndExportDroppedItems(List<IItemHandler> adjacentHandlers, @org.jetbrains.annotations.Nullable MEStorage networkStorage) {
+        if (!(this.level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        if (this.autoExportMode != DataExtractorAutoExportMode.AE && adjacentHandlers.isEmpty()) {
+            return;
+        }
+
+        for (ItemEntity itemEntity : serverLevel.getEntitiesOfClass(
+                ItemEntity.class,
+                getCoverageAabb(),
+                entity -> entity.isAlive() && !entity.getItem().isEmpty())) {
+            ItemStack currentStack = itemEntity.getItem();
+            int originalCount = currentStack.getCount();
+            ItemStack remaining = routeAutoExportItem(currentStack, adjacentHandlers, networkStorage);
+            if (remaining.getCount() >= originalCount) {
+                continue;
+            }
+
+            if (remaining.isEmpty()) {
+                itemEntity.discard();
+            } else {
+                itemEntity.setItem(remaining);
+            }
+        }
+    }
+
+    private ItemStack routeAutoExportItem(ItemStack stack, List<IItemHandler> adjacentHandlers, @org.jetbrains.annotations.Nullable MEStorage networkStorage) {
+        return this.autoExportMode == DataExtractorAutoExportMode.AE
+                ? insertIntoNetwork(stack, networkStorage)
+                : insertIntoAdjacentHandlers(stack, adjacentHandlers);
+    }
+
+    private ItemStack insertIntoAdjacentHandlers(ItemStack stack, List<IItemHandler> adjacentHandlers) {
+        ItemStack remaining = stack.copy();
+        for (IItemHandler handler : adjacentHandlers) {
+            if (remaining.isEmpty()) {
+                break;
+            }
+            remaining = ItemHandlerHelper.insertItem(handler, remaining, false);
+        }
+        return remaining;
+    }
+
+    private ItemStack insertIntoNetwork(ItemStack stack, @org.jetbrains.annotations.Nullable MEStorage networkStorage) {
+        if (stack.isEmpty() || networkStorage == null) {
+            return stack;
+        }
+
+        AEItemKey key = AEItemKey.of(stack);
+        if (key == null) {
+            return stack;
+        }
+
+        long inserted = networkStorage.insert(key, stack.getCount(), Actionable.MODULATE, IActionSource.ofMachine(this));
+        if (inserted <= 0) {
+            return stack;
+        }
+
+        ItemStack remaining = stack.copy();
+        remaining.shrink((int) Math.min(inserted, stack.getCount()));
+        return remaining;
+    }
+
+    private List<IItemHandler> getAdjacentItemHandlers() {
+        if (this.level == null) {
+            return List.of();
+        }
+
+        List<IItemHandler> handlers = new ArrayList<>();
+        for (Direction direction : this.outputSides) {
+            BlockPos targetPos = this.worldPosition.relative(direction);
+            BlockState targetState = this.level.getBlockState(targetPos);
+            if (targetState.isAir()) {
+                continue;
+            }
+
+            IItemHandler handler = this.level.getCapability(
+                    Capabilities.ItemHandler.BLOCK,
+                    targetPos,
+                    targetState,
+                    this.level.getBlockEntity(targetPos),
+                    direction.getOpposite()
+            );
+            if (handler != null) {
+                handlers.add(handler);
+            }
+        }
+        return handlers;
+    }
+
+    @org.jetbrains.annotations.Nullable
+    private MEStorage getConnectedItemNetwork() {
+        IGridNode node = this.getMainNode().getNode();
+        if (node == null || node.getGrid() == null || !node.isActive()) {
+            return null;
+        }
+
+        var storageService = node.getGrid().getStorageService();
+        return storageService == null ? null : storageService.getInventory();
+    }
+
+    private static boolean isCompletedCarrier(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return false;
+        }
+
+        return stack.is(ModItems.MOB_DATA_CARRIER.get())
+                || stack.is(ModItems.ORE_DATA_CARRIER.get())
+                || stack.is(ModItems.CROP_DATA_CARRIER.get())
+                || stack.is(ModItems.DATA_CARRIER.get())
+                && (BiologyDataCarrierData.isComplete(stack)
+                || OreDataCarrierData.isComplete(stack)
+                || CropDataCarrierData.isComplete(stack));
+    }
+
+    private void updateCarrierTypeState() {
+        if (this.level == null || this.level.isClientSide()) {
+            return;
+        }
+
+        BlockState state = this.level.getBlockState(this.worldPosition);
+        if (!(state.getBlock() instanceof DataExtractorBlock) || !state.hasProperty(DataExtractorBlock.TYPE)) {
+            return;
+        }
+
+        Type expectedType = resolveCarrierType(this.storage.getStackInSlot(CARRIER_SLOT));
+        if (state.getValue(DataExtractorBlock.TYPE) != expectedType) {
+            this.level.setBlock(this.worldPosition, state.setValue(DataExtractorBlock.TYPE, expectedType), 3);
+        }
+    }
+
+    private static Type resolveCarrierType(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return Type.NONE;
+        }
+        if (stack.is(ModItems.DATA_CARRIER.get())) {
+            return Type.EMPTY;
+        }
+        if (stack.is(ModItems.MOB_DATA_CARRIER.get())) {
+            return Type.MOB;
+        }
+        if (stack.is(ModItems.CROP_DATA_CARRIER.get())) {
+            return Type.CROP;
+        }
+        if (stack.is(ModItems.ORE_DATA_CARRIER.get())) {
+            return Type.ORE;
+        }
+        return Type.NONE;
     }
 
     private void clearAggro(LivingEntity entity) {
@@ -971,7 +1240,7 @@ public class DataExtractorBlockEntity extends AENetworkedPoweredBlockEntity impl
         );
 
         DamageSource damageSource = level.damageSources().playerAttack(fakePlayer);
-        float totalDamage = DAMAGE_PER_CYCLE + getSwordInheritedDamage(sword);
+        float totalDamage = DataExtractorConfig.baseDamage + getSwordInheritedDamage(sword);
         totalDamage += sword.getItem().getAttackDamageBonus(target, totalDamage, damageSource);
         totalDamage = EnchantmentHelper.modifyDamage(level, sword, target, damageSource, totalDamage);
 

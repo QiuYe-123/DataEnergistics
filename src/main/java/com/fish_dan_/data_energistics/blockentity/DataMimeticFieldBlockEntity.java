@@ -9,38 +9,56 @@ import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.MEStorage;
 import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.GenericStack;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.api.upgrades.UpgradeInventories;
 import appeng.api.util.AECableType;
 import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
 import appeng.core.definitions.AEItems;
+import appeng.helpers.externalstorage.GenericStackInv;
 import appeng.util.Platform;
+import appeng.util.ConfigMenuInventory;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.filter.IAEItemFilter;
+import com.fish_dan_.data_energistics.DataExtractorRuleTable;
 import com.fish_dan_.data_energistics.ae2.DataFlowKey;
+import com.fish_dan_.data_energistics.ae2.DataFlowKeyType;
 import com.fish_dan_.data_energistics.block.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
+import com.fish_dan_.data_energistics.util.CropDataCarrierData;
 import com.fish_dan_.data_energistics.util.OreDataCarrierData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CropBlock;
+import net.minecraft.world.level.block.NetherWartBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
@@ -53,18 +71,23 @@ import net.neoforged.neoforge.items.ItemHandlerHelper;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity implements IUpgradeableObject {
-    public static final int SLOT_COUNT = 36;
-    public static final int BASE_ACTIVE_ROWS = 1;
-    public static final int MAX_ACTIVE_ROWS = 4;
+    public static final int BASE_ACTIVE_SLOTS = 4;
+    public static final int EXTRA_SLOTS_PER_CAPACITY_CARD = 4;
+    public static final int MAX_CAPACITY_CARDS = 1;
+    public static final int SLOT_COUNT = BASE_ACTIVE_SLOTS + EXTRA_SLOTS_PER_CAPACITY_CARD * MAX_CAPACITY_CARDS;
     public static final double ENERGY_CACHE_CAPACITY = 1600.0;
+    public static final long KEY_INPUT_CAPACITY = 640_000L;
     private static final int HIDDEN_BUFFER_SLOTS = 64;
     private static final double POWER_PER_ACTIVE_CARRIER = 500.0;
-    private static final long DATA_FLOW_PER_CARRIER_PER_SECOND = 100L;
-    private static final int BASE_WORK_INTERVAL_SECONDS = 4;
-    private static final int MIN_WORK_INTERVAL_SECONDS = 1;
+    private static final long DATA_FLOW_PER_WORK_CYCLE = 150L;
+    private static final int BASE_WORK_INTERVAL_TICKS = 200;
     private static final int BASE_BIOLOGY_LOOT_ROLLS_PER_CYCLE = 8;
     private static final int BASE_ORE_OUTPUT_ROLLS_PER_CYCLE = 8;
     private static final int HIDDEN_BUFFER_FLUSH_INTERVAL_TICKS = 5;
@@ -72,11 +95,14 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private static final String UPGRADES_TAG = "upgrades";
     private static final String REDSTONE_CONTROLLED_TAG = "redstone_controlled";
     private static final String DROP_ROUTING_MODE_TAG = "drop_routing_mode";
+    private static final String OUTPUT_SIDES_TAG = "output_sides";
+    private static final String KEY_INPUT_TAG = "key_input";
     private static final String WORK_TICKS_TAG = "work_ticks";
     private static final String HIDDEN_BUFFER_TAG = "hidden_buffer";
 
     private final AppEngInternalInventory storage = new AppEngInternalInventory(this, SLOT_COUNT);
     private final AppEngInternalInventory hiddenBuffer = new AppEngInternalInventory(this, HIDDEN_BUFFER_SLOTS);
+    private final GenericStackInv keyMenuInventory = createKeyMenuInventory();
     private final IUpgradeInventory upgrades =
             UpgradeInventories.forMachine(ModBlocks.DATA_MIMETIC_FIELD.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private boolean redstoneControlled;
@@ -85,24 +111,56 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private int hiddenBufferFlushCooldown;
     private boolean powerUsageDirty = true;
     private int cachedActiveCarrierCount;
+    private int clientActiveSlotCount = BASE_ACTIVE_SLOTS;
+    private final Set<Direction> outputSides = EnumSet.allOf(Direction.class);
+    private boolean syncingKeyMenu;
+    private GenericStack keyInputStack;
 
     public DataMimeticFieldBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
                 .setVisualRepresentation(ModBlocks.DATA_MIMETIC_FIELD.get())
+                .setExposedOnSides(getCableExposedSides(blockState))
                 .setIdlePowerUsage(0.0);
         this.setInternalMaxPower(ENERGY_CACHE_CAPACITY);
+        for (int i = 0; i < SLOT_COUNT; i++) {
+            this.storage.setMaxStackSize(i, 1);
+        }
         this.storage.setFilter(new CarrierOnlyFilter());
     }
 
     @Override
     public AECableType getCableConnectionType(Direction dir) {
+        if (!isCableSideExposed(dir)) {
+            return AECableType.NONE;
+        }
         return AECableType.COVERED;
+    }
+
+    private boolean isCableSideExposed(Direction dir) {
+        Direction front = this.getBlockState().getValue(DataMimeticFieldBlock.FACING);
+        return dir != Direction.UP && dir != front;
+    }
+
+    private static Set<Direction> getCableExposedSides(BlockState blockState) {
+        Direction front = blockState.getValue(DataMimeticFieldBlock.FACING);
+        EnumSet<Direction> sides = EnumSet.allOf(Direction.class);
+        sides.remove(Direction.UP);
+        sides.remove(front);
+        return sides;
     }
 
     @Override
     public InternalInventory getInternalInventory() {
         return this.storage;
+    }
+
+    public ConfigMenuInventory getKeyMenuInventory() {
+        return this.keyMenuInventory.createMenuWrapper();
+    }
+
+    public @Nullable GenericStack getKeyInputStack() {
+        return this.keyInputStack;
     }
 
     @Override
@@ -115,12 +173,25 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         super.loadTag(data, registries);
         this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
         this.hiddenBuffer.readFromNBT(data, HIDDEN_BUFFER_TAG, registries);
+        this.keyInputStack = data.contains(KEY_INPUT_TAG) ? GenericStack.readTag(registries, data.getCompound(KEY_INPUT_TAG)) : null;
         this.redstoneControlled = data.getBoolean(REDSTONE_CONTROLLED_TAG);
         this.dropRoutingMode = DataExtractorDropRoutingMode.fromOrdinal(data.getInt(DROP_ROUTING_MODE_TAG));
+        this.outputSides.clear();
+        if (data.contains(OUTPUT_SIDES_TAG)) {
+            for (Tag name : data.getList(OUTPUT_SIDES_TAG, Tag.TAG_STRING)) {
+                Direction side = Direction.byName(name.getAsString());
+                if (side != null) {
+                    this.outputSides.add(side);
+                }
+            }
+        } else {
+            this.outputSides.addAll(EnumSet.allOf(Direction.class));
+        }
         this.workTicks = Math.max(0, data.getInt(WORK_TICKS_TAG));
         this.hiddenBufferFlushCooldown = 0;
         this.powerUsageDirty = true;
         this.cachedActiveCarrierCount = 0;
+        syncKeyMenuFromStack();
     }
 
     @Override
@@ -128,9 +199,58 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         super.saveAdditional(data, registries);
         this.upgrades.writeToNBT(data, UPGRADES_TAG, registries);
         this.hiddenBuffer.writeToNBT(data, HIDDEN_BUFFER_TAG, registries);
+        if (this.keyInputStack != null && this.keyInputStack.amount() > 0) {
+            data.put(KEY_INPUT_TAG, GenericStack.writeTag(registries, this.keyInputStack));
+        }
         data.putBoolean(REDSTONE_CONTROLLED_TAG, this.redstoneControlled);
         data.putInt(DROP_ROUTING_MODE_TAG, this.dropRoutingMode.ordinal());
+        ListTag sides = new ListTag();
+        for (Direction side : this.outputSides) {
+            sides.add(StringTag.valueOf(side.getName()));
+        }
+        data.put(OUTPUT_SIDES_TAG, sides);
         data.putInt(WORK_TICKS_TAG, this.workTicks);
+    }
+
+    @Override
+    protected void writeToStream(RegistryFriendlyByteBuf data) {
+        super.writeToStream(data);
+        int activeSlotCount = getActiveSlotCount();
+        data.writeVarInt(activeSlotCount);
+        for (int i = 0; i < activeSlotCount; i++) {
+            ItemStack stack = this.storage.getStackInSlot(i);
+            data.writeBoolean(!stack.isEmpty());
+            if (!stack.isEmpty()) {
+                ItemStack.STREAM_CODEC.encode(data, stack);
+            }
+        }
+    }
+
+    @Override
+    protected boolean readFromStream(RegistryFriendlyByteBuf data) {
+        boolean changed = super.readFromStream(data);
+        int activeSlotCount = Math.min(data.readVarInt(), SLOT_COUNT);
+        int currentActiveSlotCount = this.clientActiveSlotCount;
+        if (activeSlotCount != currentActiveSlotCount) {
+            this.clientActiveSlotCount = activeSlotCount;
+            changed = true;
+        }
+        for (int i = 0; i < activeSlotCount; i++) {
+            ItemStack syncedStack = data.readBoolean() ? ItemStack.STREAM_CODEC.decode(data) : ItemStack.EMPTY;
+            ItemStack existingStack = this.storage.getStackInSlot(i);
+            if (!ItemStack.matches(existingStack, syncedStack)) {
+                this.storage.setItemDirect(i, syncedStack);
+                changed = true;
+            }
+        }
+        for (int i = activeSlotCount; i < SLOT_COUNT; i++) {
+            ItemStack existingStack = this.storage.getStackInSlot(i);
+            if (!existingStack.isEmpty()) {
+                this.storage.setItemDirect(i, ItemStack.EMPTY);
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     @Override
@@ -152,15 +272,24 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         updatePowerUsageIfNeeded();
         tickHiddenBufferFlush();
         refillEnergyCache();
+        refillKeyFromNetwork();
         if (this.redstoneControlled && !isReceivingRedstonePower()) {
+            resetWorkProgress();
             updateOnlineState();
             return;
         }
         if (isHiddenBufferFull()) {
+            resetWorkProgress();
             updateOnlineState();
             return;
         }
-        if (!consumeDataFlowPerSecond()) {
+        if (getActiveCarrierCount() <= 0) {
+            resetWorkProgress();
+            updateOnlineState();
+            return;
+        }
+        if (!hasEnoughDataFlowForWorkCycle()) {
+            resetWorkProgress();
             updateOnlineState();
             return;
         }
@@ -169,9 +298,15 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             updateOnlineState();
             return;
         }
+        if (!consumeDataFlowPerWorkCycle()) {
+            resetWorkProgress();
+            updateOnlineState();
+            return;
+        }
         this.workTicks = 0;
         performBiologyMimeticWork();
         performOreMimeticWork();
+        performCropMimeticWork();
         updateOnlineState();
     }
 
@@ -192,6 +327,13 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
 
     public DataExtractorDropRoutingMode getDropRoutingMode() {
         return this.dropRoutingMode;
+    }
+
+    public Set<Direction> getOutputSides() {
+        if (this.outputSides.isEmpty()) {
+            return EnumSet.noneOf(Direction.class);
+        }
+        return EnumSet.copyOf(this.outputSides);
     }
 
     public boolean setRedstoneControlled(boolean enabled) {
@@ -219,6 +361,16 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         return this.dropRoutingMode;
     }
 
+    public void setOutputSideEnabled(Direction side, boolean enabled) {
+        boolean changed = enabled ? this.outputSides.add(side) : this.outputSides.remove(side);
+        if (!changed) {
+            return;
+        }
+
+        this.setChanged();
+        this.markForClientUpdate();
+    }
+
     @Override
     public void addAdditionalDrops(Level level, BlockPos pos, List<ItemStack> drops) {
         super.addAdditionalDrops(level, pos, drops);
@@ -239,6 +391,8 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         super.clearContent();
         this.hiddenBuffer.clear();
         this.upgrades.clear();
+        this.keyInputStack = null;
+        syncKeyMenuFromStack();
     }
 
     public void dropContents(Level level, BlockPos pos) {
@@ -255,7 +409,9 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private static final class CarrierOnlyFilter implements IAEItemFilter {
         @Override
         public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
-            return stack.is(ModItems.BIOLOGY_DATA_CARRIER.get()) || stack.is(ModItems.ORE_DATA_CARRIER.get());
+            return stack.is(ModItems.MOB_DATA_CARRIER.get())
+                    || stack.is(ModItems.ORE_DATA_CARRIER.get())
+                    || stack.is(ModItems.CROP_DATA_CARRIER.get());
         }
     }
 
@@ -265,11 +421,39 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         this.markForClientUpdate();
     }
 
+    public List<ItemStack> extractOverflowCarriers() {
+        int activeSlotCount = BASE_ACTIVE_SLOTS + getInstalledCapacityCardCount() * EXTRA_SLOTS_PER_CAPACITY_CARD;
+        List<ItemStack> overflow = new ArrayList<>();
+        boolean changed = false;
+
+        for (int i = activeSlotCount; i < SLOT_COUNT; i++) {
+            ItemStack stack = this.storage.getStackInSlot(i);
+            if (stack.isEmpty()) {
+                continue;
+            }
+
+            overflow.add(stack.copy());
+            this.storage.setItemDirect(i, ItemStack.EMPTY);
+            changed = true;
+        }
+
+        if (changed) {
+            this.saveChanges();
+            this.markForClientUpdate();
+        }
+
+        return overflow;
+    }
+
     @Override
     public void onChangeInventory(AppEngInternalInventory inv, int slot) {
         markPowerUsageDirty();
         if (inv == this.hiddenBuffer) {
             this.hiddenBufferFlushCooldown = 0;
+        }
+        if (inv == this.storage) {
+            this.saveChanges();
+            this.markForClientUpdate();
         }
         updatePowerUsageIfNeeded();
     }
@@ -307,18 +491,20 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
 
     private boolean hasRecordedData(ItemStack stack) {
         return !stack.isEmpty()
-                && (BiologyDataCarrierData.hasRecordedEntity(stack) || OreDataCarrierData.hasRecordedOre(stack));
+                && (BiologyDataCarrierData.isComplete(stack)
+                        || OreDataCarrierData.isComplete(stack)
+                        || CropDataCarrierData.isComplete(stack));
     }
 
     private void performBiologyMimeticWork() {
-        if (!(this.level instanceof ServerLevel serverLevel) || this.dropRoutingMode == DataExtractorDropRoutingMode.OFF) {
+        if (!(this.level instanceof ServerLevel serverLevel)) {
             return;
         }
 
         List<ItemStack> generated = new ArrayList<>();
         for (int i = 0; i < getActiveSlotCount(); i++) {
             ItemStack carrier = this.storage.getStackInSlot(i);
-            if (BiologyDataCarrierData.hasRecordedEntity(carrier)) {
+            if (BiologyDataCarrierData.isComplete(carrier)) {
                 generated.addAll(generateBiologyLoot(serverLevel, carrier));
             }
         }
@@ -327,19 +513,39 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     private void performOreMimeticWork() {
-        if (!(this.level instanceof ServerLevel serverLevel) || this.dropRoutingMode == DataExtractorDropRoutingMode.OFF) {
+        if (!(this.level instanceof ServerLevel serverLevel)) {
             return;
         }
 
         List<ItemStack> generated = new ArrayList<>();
         for (int i = 0; i < getActiveSlotCount(); i++) {
             ItemStack carrier = this.storage.getStackInSlot(i);
-            if (!OreDataCarrierData.hasRecordedOre(carrier)) {
+            if (!OreDataCarrierData.isComplete(carrier)) {
                 continue;
             }
 
             for (int roll = 0; roll < getOreOutputRollsPerCycle(); roll++) {
                 generated.addAll(generateOreLoot(serverLevel, carrier));
+            }
+        }
+
+        submitGeneratedLoot(generated);
+    }
+
+    private void performCropMimeticWork() {
+        if (!(this.level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        List<ItemStack> generated = new ArrayList<>();
+        for (int i = 0; i < getActiveSlotCount(); i++) {
+            ItemStack carrier = this.storage.getStackInSlot(i);
+            if (!CropDataCarrierData.isComplete(carrier)) {
+                continue;
+            }
+
+            for (int roll = 0; roll < getOreOutputRollsPerCycle(); roll++) {
+                generated.addAll(generateCropLoot(serverLevel, carrier));
             }
         }
 
@@ -428,7 +634,7 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         }
 
         List<IItemHandler> handlers = new ArrayList<>();
-        for (Direction direction : Direction.values()) {
+        for (Direction direction : this.outputSides) {
             BlockPos targetPos = this.worldPosition.relative(direction);
             BlockState targetState = this.level.getBlockState(targetPos);
             if (targetState.isAir()) {
@@ -466,6 +672,11 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             return List.of();
         }
 
+        List<ItemStack> configuredOutputs = DataExtractorRuleTable.getConfiguredOutputs(DataExtractorRuleTable.DataType.MOB, entityId);
+        if (!configuredOutputs.isEmpty()) {
+            return configuredOutputs;
+        }
+
         EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.getOptional(entityId).orElse(null);
         if (entityType == null) {
             return List.of();
@@ -479,13 +690,13 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         livingEntity.setPos(Vec3.atCenterOf(this.worldPosition));
         livingEntity.setSilent(true);
         if (livingEntity instanceof Mob mob) {
+            mob.finalizeSpawn(
+                    serverLevel,
+                    serverLevel.getCurrentDifficultyAt(this.worldPosition),
+                    MobSpawnType.COMMAND,
+                    null
+            );
             mob.setNoAi(true);
-        }
-
-        var lootTableId = livingEntity.getLootTable();
-        if (lootTableId == null) {
-            entity.discard();
-            return List.of();
         }
 
         Player fakePlayer = Platform.getFakePlayer(serverLevel, null);
@@ -497,24 +708,82 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
                 fakePlayer.getXRot()
         );
 
-        LootTable lootTable = serverLevel.getServer().reloadableRegistries().getLootTable(lootTableId);
+        List<LivingEntity> simulatedEntities = collectSimulatedLivingEntities(livingEntity);
         ArrayList<ItemStack> drops = new ArrayList<>();
         for (int roll = 0; roll < getBiologyLootRollsPerCycle(); roll++) {
-            LootParams.Builder builder = new LootParams.Builder(serverLevel)
-                    .withParameter(LootContextParams.THIS_ENTITY, livingEntity)
-                    .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(this.worldPosition))
-                    .withParameter(LootContextParams.DAMAGE_SOURCE, serverLevel.damageSources().playerAttack(fakePlayer))
-                    .withParameter(LootContextParams.LAST_DAMAGE_PLAYER, fakePlayer)
-                    .withParameter(LootContextParams.ATTACKING_ENTITY, fakePlayer)
-                    .withParameter(LootContextParams.DIRECT_ATTACKING_ENTITY, fakePlayer);
-
-            drops.addAll(lootTable.getRandomItems(builder.create(LootContextParamSets.ENTITY))
-                    .stream()
-                    .filter(stack -> !stack.isEmpty())
-                    .toList());
+            for (LivingEntity simulatedEntity : simulatedEntities) {
+                drops.addAll(simulateEntityDrops(serverLevel, simulatedEntity, fakePlayer));
+            }
         }
-        entity.discard();
+        for (LivingEntity simulatedEntity : simulatedEntities) {
+            simulatedEntity.discard();
+        }
         return drops;
+    }
+
+    private List<LivingEntity> collectSimulatedLivingEntities(LivingEntity rootEntity) {
+        LinkedHashSet<LivingEntity> result = new LinkedHashSet<>();
+        collectSimulatedLivingEntities(rootEntity, result, new HashSet<>());
+        return List.copyOf(result);
+    }
+
+    private void collectSimulatedLivingEntities(@Nullable Entity entity, Set<LivingEntity> result, Set<Entity> visited) {
+        if (entity == null || !visited.add(entity)) {
+            return;
+        }
+
+        if (entity instanceof LivingEntity livingEntity && result.add(livingEntity)) {
+            livingEntity.setSilent(true);
+            if (livingEntity instanceof Mob mob) {
+                mob.setNoAi(true);
+            }
+        }
+
+        collectSimulatedLivingEntities(entity.getVehicle(), result, visited);
+        for (Entity passenger : entity.getPassengers()) {
+            collectSimulatedLivingEntities(passenger, result, visited);
+        }
+    }
+
+    private List<ItemStack> simulateEntityDrops(ServerLevel serverLevel, LivingEntity livingEntity, Player fakePlayer) {
+        var damageSource = serverLevel.damageSources().playerAttack(fakePlayer);
+        ArrayList<ItemStack> drops = new ArrayList<>(generateEntityLootTableDrops(serverLevel, livingEntity, fakePlayer, damageSource));
+        collectEquipmentDrops(livingEntity, drops);
+        return drops;
+    }
+
+    private List<ItemStack> generateEntityLootTableDrops(ServerLevel serverLevel, LivingEntity livingEntity, Player fakePlayer,
+                                                         net.minecraft.world.damagesource.DamageSource damageSource) {
+        LootParams.Builder builder = new LootParams.Builder(serverLevel)
+                .withParameter(LootContextParams.THIS_ENTITY, livingEntity)
+                .withParameter(LootContextParams.ORIGIN, livingEntity.position())
+                .withParameter(LootContextParams.DAMAGE_SOURCE, damageSource)
+                .withOptionalParameter(LootContextParams.ATTACKING_ENTITY, fakePlayer)
+                .withOptionalParameter(LootContextParams.DIRECT_ATTACKING_ENTITY, fakePlayer)
+                .withOptionalParameter(LootContextParams.LAST_DAMAGE_PLAYER, fakePlayer);
+
+        return serverLevel.getServer()
+                .reloadableRegistries()
+                .getLootTable(livingEntity.getLootTable())
+                .getRandomItems(builder.create(LootContextParamSets.ENTITY), livingEntity.getLootTableSeed());
+    }
+
+    private void collectEquipmentDrops(LivingEntity livingEntity, List<ItemStack> drops) {
+        if (!(livingEntity instanceof Mob mob)) {
+            return;
+        }
+
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            ItemStack stack = mob.getItemBySlot(slot);
+            if (stack.isEmpty()) {
+                continue;
+            }
+
+            ItemStack copy = stack.copy();
+            if (!copy.isEmpty()) {
+                drops.add(copy);
+            }
+        }
     }
 
     private List<ItemStack> generateOreLoot(ServerLevel serverLevel, ItemStack carrier) {
@@ -523,12 +792,104 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
             return List.of();
         }
 
+        List<ItemStack> configuredOutputs = DataExtractorRuleTable.getConfiguredOutputs(DataExtractorRuleTable.DataType.ORE, oreItemId);
+        if (!configuredOutputs.isEmpty()) {
+            return configuredOutputs;
+        }
+
         Item oreItem = BuiltInRegistries.ITEM.getOptional(oreItemId).orElse(null);
         if (oreItem == null) {
             return List.of();
         }
 
         return List.of(new ItemStack(oreItem));
+    }
+
+    private List<ItemStack> generateCropLoot(ServerLevel serverLevel, ItemStack carrier) {
+        ResourceLocation cropItemId = CropDataCarrierData.getCropItemId(carrier);
+        if (cropItemId != null) {
+            List<ItemStack> configuredOutputs = DataExtractorRuleTable.getConfiguredOutputs(DataExtractorRuleTable.DataType.CROP, cropItemId);
+            if (!configuredOutputs.isEmpty()) {
+                return configuredOutputs;
+            }
+        }
+
+        ResourceLocation lootTableId = CropDataCarrierData.getLootTableId(carrier);
+        if (lootTableId != null) {
+            List<ItemStack> treeLoot = generateConfiguredLootTableDrops(serverLevel, lootTableId);
+            if (!treeLoot.isEmpty()) {
+                return treeLoot;
+            }
+        }
+
+        ResourceLocation sourceBlockId = CropDataCarrierData.getSourceBlockId(carrier);
+        if (sourceBlockId != null) {
+            Block sourceBlock = BuiltInRegistries.BLOCK.getOptional(sourceBlockId).orElse(null);
+            if (sourceBlock != null) {
+                List<ItemStack> lootTableDrops = generateBlockLootDrops(serverLevel, getRecordedCropLootState(sourceBlock));
+                if (!lootTableDrops.isEmpty()) {
+                    return lootTableDrops;
+                }
+            }
+        }
+
+        if (cropItemId == null) {
+            return List.of();
+        }
+
+        Item cropItem = BuiltInRegistries.ITEM.getOptional(cropItemId).orElse(null);
+        if (cropItem == null) {
+            return List.of();
+        }
+
+        return List.of(new ItemStack(cropItem));
+    }
+
+    private List<ItemStack> generateConfiguredLootTableDrops(ServerLevel serverLevel, ResourceLocation lootTableId) {
+        LootTable lootTable = serverLevel.getServer()
+                .reloadableRegistries()
+                .getLootTable(net.minecraft.resources.ResourceKey.create(Registries.LOOT_TABLE, lootTableId));
+        LootParams.Builder builder = new LootParams.Builder(serverLevel)
+                .withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(this.worldPosition));
+        return lootTable.getRandomItems(builder.create(LootContextParamSets.CHEST)).stream()
+                .filter(stack -> !stack.isEmpty())
+                .toList();
+    }
+
+    private List<ItemStack> generateBlockLootDrops(ServerLevel serverLevel, BlockState state) {
+        if (state == null || state.isAir()) {
+            return List.of();
+        }
+
+        return Block.getDrops(state, serverLevel, this.worldPosition, null).stream()
+                .filter(stack -> !stack.isEmpty())
+                .toList();
+    }
+
+    private BlockState getRecordedCropLootState(Block cropBlock) {
+        if (cropBlock == Blocks.WHEAT) {
+            return getMaxAgeCropState(Blocks.WHEAT);
+        }
+        if (cropBlock == Blocks.CARROTS) {
+            return getMaxAgeCropState(Blocks.CARROTS);
+        }
+        if (cropBlock == Blocks.POTATOES) {
+            return getMaxAgeCropState(Blocks.POTATOES);
+        }
+        if (cropBlock == Blocks.BEETROOTS) {
+            return getMaxAgeCropState(Blocks.BEETROOTS);
+        }
+        if (cropBlock == Blocks.NETHER_WART) {
+            return Blocks.NETHER_WART.defaultBlockState().setValue(NetherWartBlock.AGE, NetherWartBlock.MAX_AGE);
+        }
+        return cropBlock.defaultBlockState();
+    }
+
+    private BlockState getMaxAgeCropState(Block block) {
+        if (block instanceof CropBlock cropBlock) {
+            return cropBlock.getStateForAge(cropBlock.getMaxAge());
+        }
+        return block.defaultBlockState();
     }
 
     private boolean isHiddenBufferFull() {
@@ -624,13 +985,15 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         return this.level != null && this.level.hasNeighborSignal(this.worldPosition);
     }
 
-    public int getActiveRows() {
-        int capacityCards = Math.max(0, this.upgrades.getInstalledUpgrades(AEItems.CAPACITY_CARD));
-        return Math.min(MAX_ACTIVE_ROWS, BASE_ACTIVE_ROWS + capacityCards);
+    public int getInstalledCapacityCardCount() {
+        return Math.min(MAX_CAPACITY_CARDS, Math.max(0, this.upgrades.getInstalledUpgrades(AEItems.CAPACITY_CARD)));
     }
 
     public int getActiveSlotCount() {
-        return getActiveRows() * 9;
+        if (this.level != null && this.level.isClientSide()) {
+            return this.clientActiveSlotCount;
+        }
+        return BASE_ACTIVE_SLOTS + getInstalledCapacityCardCount() * EXTRA_SLOTS_PER_CAPACITY_CARD;
     }
 
     public int getActiveCarrierCount() {
@@ -639,43 +1002,68 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     public int getWorkIntervalSeconds() {
-        int speedCards = Math.max(0, this.upgrades.getInstalledUpgrades(AEItems.SPEED_CARD));
-        int effectiveSpeedCards = Math.min(speedCards, BASE_WORK_INTERVAL_SECONDS - MIN_WORK_INTERVAL_SECONDS);
-        return BASE_WORK_INTERVAL_SECONDS - effectiveSpeedCards;
+        return Math.max(1, (computeWorkIntervalTicks() + 19) / 20);
+    }
+
+    public int getWorkProgress() {
+        return this.workTicks;
+    }
+
+    public int getWorkMaxProgress() {
+        return computeWorkIntervalTicks();
     }
 
     public int getBiologyLootRollsPerCycle() {
-        return BASE_BIOLOGY_LOOT_ROLLS_PER_CYCLE + Math.max(0, this.upgrades.getInstalledUpgrades(AEItems.SPEED_CARD)) * 4;
+        return BASE_BIOLOGY_LOOT_ROLLS_PER_CYCLE + getInstalledSpeedCardCount() * 2;
     }
 
     public int getOreOutputRollsPerCycle() {
-        return BASE_ORE_OUTPUT_ROLLS_PER_CYCLE + Math.max(0, this.upgrades.getInstalledUpgrades(AEItems.SPEED_CARD)) * 4;
+        return BASE_ORE_OUTPUT_ROLLS_PER_CYCLE + getInstalledSpeedCardCount() * 2;
     }
 
     private int computeWorkIntervalTicks() {
-        return getWorkIntervalSeconds() * 20;
+        return Math.max(1, BASE_WORK_INTERVAL_TICKS - getInstalledSpeedCardCount() * 40);
     }
 
-    private boolean consumeDataFlowPerSecond() {
+    private boolean hasEnoughDataFlowForWorkCycle() {
         int activeCarrierCount = getActiveCarrierCount();
         if (activeCarrierCount <= 0) {
             return true;
         }
 
-        IGridNode node = this.getMainNode().getNode();
-        if (node == null || node.getGrid() == null || !node.isActive()) {
+        long required = getDataFlowCostPerWorkCycle(activeCarrierCount);
+        return this.keyInputStack != null
+                && this.keyInputStack.what() instanceof DataFlowKey
+                && this.keyInputStack.amount() >= required;
+    }
+
+    private boolean consumeDataFlowPerWorkCycle() {
+        int activeCarrierCount = getActiveCarrierCount();
+        if (activeCarrierCount <= 0) {
+            return true;
+        }
+
+        long required = getDataFlowCostPerWorkCycle(activeCarrierCount);
+        if (this.keyInputStack == null
+                || !(this.keyInputStack.what() instanceof DataFlowKey)
+                || this.keyInputStack.amount() < required) {
             return false;
         }
 
-        var inventory = node.getGrid().getStorageService().getInventory();
-        long required = activeCarrierCount * DATA_FLOW_PER_CARRIER_PER_SECOND;
-        long simulated = inventory.extract(DataFlowKey.of(), required, Actionable.SIMULATE, IActionSource.ofMachine(this));
-        if (simulated < required) {
-            return false;
-        }
-
-        inventory.extract(DataFlowKey.of(), required, Actionable.MODULATE, IActionSource.ofMachine(this));
+        long remaining = this.keyInputStack.amount() - required;
+        this.keyInputStack = remaining > 0 ? new GenericStack(DataFlowKey.of(), remaining) : null;
+        syncKeyMenuFromStack();
+        setChanged();
+        markForClientUpdate();
         return true;
+    }
+
+    private int getInstalledSpeedCardCount() {
+        return Math.max(0, this.upgrades.getInstalledUpgrades(AEItems.SPEED_CARD));
+    }
+
+    private long getDataFlowCostPerWorkCycle(int activeCarrierCount) {
+        return (long) activeCarrierCount * (DATA_FLOW_PER_WORK_CYCLE + getInstalledSpeedCardCount() * 50L);
     }
 
     private void refillEnergyCache() {
@@ -692,6 +1080,80 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         double extracted = node.getGrid().getEnergyService().extractAEPower(missing, Actionable.MODULATE, PowerMultiplier.ONE);
         if (extracted > 0.0D) {
             this.injectExternalPower(PowerUnit.AE, extracted, Actionable.MODULATE);
+        }
+    }
+
+    private void refillKeyFromNetwork() {
+        IGridNode node = this.getMainNode().getNode();
+        if (node == null || node.getGrid() == null || !node.isActive()) {
+            return;
+        }
+
+        long stored = this.keyInputStack != null && this.keyInputStack.what() instanceof DataFlowKey
+                ? this.keyInputStack.amount()
+                : 0L;
+        long missing = KEY_INPUT_CAPACITY - stored;
+        if (missing <= 0) {
+            return;
+        }
+
+        var inventory = node.getGrid().getStorageService().getInventory();
+        if (inventory == null) {
+            return;
+        }
+
+        long extracted = inventory.extract(DataFlowKey.of(), missing, Actionable.MODULATE, IActionSource.ofMachine(this));
+        if (extracted <= 0) {
+            return;
+        }
+
+        long updated = stored + extracted;
+        this.keyInputStack = new GenericStack(DataFlowKey.of(), Math.min(KEY_INPUT_CAPACITY, updated));
+        syncKeyMenuFromStack();
+        setChanged();
+        markForClientUpdate();
+    }
+
+    private GenericStackInv createKeyMenuInventory() {
+        var inv = new GenericStackInv(java.util.Set.of(DataFlowKeyType.TYPE), this::syncStackFromKeyMenu, GenericStackInv.Mode.STORAGE, 1) {
+            {
+                this.setFilter((slot, what) -> what instanceof DataFlowKey);
+            }
+        };
+        inv.setCapacity(DataFlowKeyType.TYPE, KEY_INPUT_CAPACITY);
+        return inv;
+    }
+
+    private void syncKeyMenuFromStack() {
+        if (this.syncingKeyMenu) {
+            return;
+        }
+
+        this.syncingKeyMenu = true;
+        try {
+            this.keyMenuInventory.setStack(0, this.keyInputStack);
+        } finally {
+            this.syncingKeyMenu = false;
+        }
+    }
+
+    private void syncStackFromKeyMenu() {
+        if (this.syncingKeyMenu) {
+            return;
+        }
+
+        this.syncingKeyMenu = true;
+        try {
+            var stack = this.keyMenuInventory.getStack(0);
+            if (stack == null || !(stack.what() instanceof DataFlowKey) || stack.amount() <= 0) {
+                this.keyInputStack = null;
+            } else {
+                this.keyInputStack = new GenericStack(DataFlowKey.of(), Math.min(KEY_INPUT_CAPACITY, stack.amount()));
+            }
+            saveChanges();
+            markForClientUpdate();
+        } finally {
+            this.syncingKeyMenu = false;
         }
     }
 
@@ -716,5 +1178,13 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
 
     private void markPowerUsageDirty() {
         this.powerUsageDirty = true;
+    }
+
+    private void resetWorkProgress() {
+        if (this.workTicks != 0) {
+            this.workTicks = 0;
+            setChanged();
+            markForClientUpdate();
+        }
     }
 }

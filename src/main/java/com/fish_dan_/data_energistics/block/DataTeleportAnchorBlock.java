@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.block;
 
+import appeng.api.util.AEColor;
 import appeng.block.AEBaseBlock;
+import appeng.items.tools.powered.ColorApplicatorItem;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
@@ -9,7 +11,10 @@ import com.fish_dan_.data_energistics.registry.ModMenus;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.DyeItem;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -26,18 +31,22 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.Nullable;
 
 public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock {
     public static final BooleanProperty LIT = BlockStateProperties.LIT;
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
+    public static final EnumProperty<ColorVariant> COLOR = EnumProperty.create("color", ColorVariant.class);
 
     public DataTeleportAnchorBlock(BlockBehaviour.Properties properties) {
         super(properties);
         this.registerDefaultState(this.defaultBlockState()
                 .setValue(LIT, false)
-                .setValue(FACING, Direction.NORTH));
+                .setValue(FACING, Direction.NORTH)
+                .setValue(COLOR, ColorVariant.DEFAULT));
     }
 
     @Override
@@ -48,7 +57,7 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         super.createBlockStateDefinition(builder);
-        builder.add(LIT, FACING);
+        builder.add(LIT, FACING, COLOR);
     }
 
     @Nullable
@@ -56,7 +65,8 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
     public BlockState getStateForPlacement(BlockPlaceContext context) {
         return this.defaultBlockState()
                 .setValue(LIT, false)
-                .setValue(FACING, context.getHorizontalDirection().getOpposite());
+                .setValue(FACING, context.getHorizontalDirection().getOpposite())
+                .setValue(COLOR, ColorVariant.DEFAULT);
     }
 
     @Override
@@ -76,6 +86,46 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
             MenuOpener.open(ModMenus.DATA_TELEPORT_ANCHOR.get(), player, MenuLocators.forBlockEntity(anchor));
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
+    }
+
+    @Override
+    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+            Player player, net.minecraft.world.InteractionHand hand, BlockHitResult hitResult) {
+        if (stack.getItem() instanceof DyeItem dyeItem) {
+            ColorVariant variant = ColorVariant.fromDyeColor(dyeItem.getDyeColor());
+            return applyColor(state, level, pos, player, stack, variant, false);
+        }
+        if (stack.getItem() instanceof ColorApplicatorItem colorApplicatorItem) {
+            AEColor aeColor = colorApplicatorItem.getActiveColor(stack);
+            ColorVariant variant = ColorVariant.fromAEColor(aeColor);
+            if (variant == null) {
+                return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            }
+            return applyColor(state, level, pos, player, stack, variant, true);
+        }
+        return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
+    }
+
+    private ItemInteractionResult applyColor(BlockState state, Level level, BlockPos pos, Player player, ItemStack stack,
+            ColorVariant variant, boolean fromApplicator) {
+        if (variant == null || state.getValue(COLOR) == variant) {
+            return ItemInteractionResult.CONSUME;
+        }
+
+        if (!level.isClientSide()) {
+            level.setBlock(pos, state.setValue(COLOR, variant), 3);
+            if (!player.getAbilities().instabuild) {
+                if (fromApplicator && stack.getItem() instanceof ColorApplicatorItem colorApplicatorItem) {
+                    AEColor aeColor = variant.toAEColor();
+                    if (aeColor != null) {
+                        colorApplicatorItem.consumeColor(stack, aeColor, false);
+                    }
+                } else {
+                    stack.shrink(1);
+                }
+            }
+        }
+        return ItemInteractionResult.sidedSuccess(level.isClientSide());
     }
 
     @Override
@@ -99,5 +149,61 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
                 anchor.serverTick();
             }
         };
+    }
+
+    public enum ColorVariant implements StringRepresentable {
+        DEFAULT("default", null),
+        BLACK("black", net.minecraft.world.item.DyeColor.BLACK),
+        BLUE("blue", net.minecraft.world.item.DyeColor.BLUE),
+        BROWN("brown", net.minecraft.world.item.DyeColor.BROWN),
+        CYAN("cyan", net.minecraft.world.item.DyeColor.CYAN),
+        GRAY("gray", net.minecraft.world.item.DyeColor.GRAY),
+        GREEN("green", net.minecraft.world.item.DyeColor.GREEN),
+        LIGHT_BLUE("light_blue", net.minecraft.world.item.DyeColor.LIGHT_BLUE),
+        LIGHT_GRAY("light_gray", net.minecraft.world.item.DyeColor.LIGHT_GRAY),
+        LIME("lime", net.minecraft.world.item.DyeColor.LIME),
+        MAGENTA("magenta", net.minecraft.world.item.DyeColor.MAGENTA),
+        ORANGE("orange", net.minecraft.world.item.DyeColor.ORANGE),
+        PINK("pink", net.minecraft.world.item.DyeColor.PINK),
+        PURPLE("purple", net.minecraft.world.item.DyeColor.PURPLE),
+        RED("red", net.minecraft.world.item.DyeColor.RED),
+        WHITE("white", net.minecraft.world.item.DyeColor.WHITE),
+        YELLOW("yellow", net.minecraft.world.item.DyeColor.YELLOW);
+
+        private final String name;
+        private final net.minecraft.world.item.DyeColor dyeColor;
+
+        ColorVariant(String name, net.minecraft.world.item.DyeColor dyeColor) {
+            this.name = name;
+            this.dyeColor = dyeColor;
+        }
+
+        public static ColorVariant fromDyeColor(net.minecraft.world.item.DyeColor dyeColor) {
+            for (ColorVariant value : values()) {
+                if (value.dyeColor == dyeColor) {
+                    return value;
+                }
+            }
+            return DEFAULT;
+        }
+
+        public static @Nullable ColorVariant fromAEColor(@Nullable AEColor aeColor) {
+            if (aeColor == null || aeColor == AEColor.TRANSPARENT || aeColor.dye == null) {
+                return null;
+            }
+            return fromDyeColor(aeColor.dye);
+        }
+
+        public @Nullable AEColor toAEColor() {
+            if (this.dyeColor == null) {
+                return null;
+            }
+            return AEColor.fromDye(this.dyeColor);
+        }
+
+        @Override
+        public String getSerializedName() {
+            return this.name;
+        }
     }
 }

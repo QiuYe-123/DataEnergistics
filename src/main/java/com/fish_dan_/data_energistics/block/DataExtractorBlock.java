@@ -31,6 +31,8 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.Nullable;
 
@@ -40,12 +42,14 @@ import java.util.List;
 public class DataExtractorBlock extends AEBaseBlock implements EntityBlock {
     public static final BooleanProperty LIT = BlockStateProperties.LIT;
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
+    public static final EnumProperty<Type> TYPE = EnumProperty.create("type", Type.class);
 
     public DataExtractorBlock(BlockBehaviour.Properties properties) {
         super(properties);
         this.registerDefaultState(this.defaultBlockState()
                 .setValue(LIT, false)
-                .setValue(FACING, Direction.NORTH));
+                .setValue(FACING, Direction.NORTH)
+                .setValue(TYPE, Type.NONE));
     }
 
     @Override
@@ -56,7 +60,7 @@ public class DataExtractorBlock extends AEBaseBlock implements EntityBlock {
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         super.createBlockStateDefinition(builder);
-        builder.add(LIT, FACING);
+        builder.add(LIT, FACING, TYPE);
     }
 
     @Nullable
@@ -64,7 +68,8 @@ public class DataExtractorBlock extends AEBaseBlock implements EntityBlock {
     public BlockState getStateForPlacement(BlockPlaceContext context) {
         return this.defaultBlockState()
                 .setValue(LIT, false)
-                .setValue(FACING, context.getHorizontalDirection().getOpposite());
+                .setValue(FACING, context.getHorizontalDirection().getOpposite())
+                .setValue(TYPE, Type.NONE);
     }
 
     @Override
@@ -147,6 +152,25 @@ public class DataExtractorBlock extends AEBaseBlock implements EntityBlock {
             if (!drop.isEmpty()) {
                 Block.popResource(level, pos, drop);
             }
+        }
+    }
+
+    public enum Type implements StringRepresentable {
+        NONE("none"),
+        EMPTY("empty"),
+        MOB("mob"),
+        ORE("ore"),
+        CROP("crop");
+
+        private final String serializedName;
+
+        Type(String serializedName) {
+            this.serializedName = serializedName;
+        }
+
+        @Override
+        public String getSerializedName() {
+            return this.serializedName;
         }
     }
 }

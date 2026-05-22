@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.util;
 
+import com.fish_dan_.data_energistics.DataExtractorConfig;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -33,11 +34,11 @@ public final class BiologyDataCarrierData {
         }
 
         ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
-        if (entityId == null) {
+        if (entityId == null || !canRecordEntity(entityId)) {
             return false;
         }
 
-        float requiredDamage = Math.max(1.0F, entity.getMaxHealth() * 64.0F);
+        float requiredDamage = Math.max(1.0F, DataExtractorConfig.mobRequiredDamage);
         CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
             tag.putString(TAG_ENTITY_TYPE, entityId.toString());
             tag.putFloat(TAG_REQUIRED_DAMAGE, requiredDamage);
@@ -101,7 +102,7 @@ public final class BiologyDataCarrierData {
     }
 
     public static ItemStack createCompletedCarrier(ItemStack source) {
-        ItemStack result = new ItemStack(ModItems.BIOLOGY_DATA_CARRIER.get());
+        ItemStack result = new ItemStack(ModItems.MOB_DATA_CARRIER.get());
         CompoundTag tag = getTag(source);
         if (!tag.isEmpty()) {
             tag.putFloat(TAG_COLLECTED_DAMAGE, Math.max(tag.getFloat(TAG_COLLECTED_DAMAGE), tag.getFloat(TAG_REQUIRED_DAMAGE)));
@@ -119,5 +120,24 @@ public final class BiologyDataCarrierData {
 
     private static CompoundTag getTag(ItemStack stack) {
         return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+    }
+
+    public static boolean canRecordEntity(ResourceLocation entityId) {
+        if (entityId == null) {
+            return false;
+        }
+        return !containsId(DataExtractorConfig.mobDataBlacklist, entityId);
+    }
+
+    private static boolean containsId(String csv, ResourceLocation id) {
+        if (csv == null || csv.isBlank()) {
+            return false;
+        }
+        for (String token : csv.split(",")) {
+            if (id.toString().equals(token.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 }

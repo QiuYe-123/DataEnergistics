@@ -8,6 +8,7 @@ import appeng.menu.AEBaseMenu;
 import appeng.menu.SlotSemantics;
 import appeng.menu.slot.RestrictedInputSlot;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectionMode;
 import com.fish_dan_.data_energistics.client.screen.DataDistributionTowerScreen;
 import com.fish_dan_.data_energistics.registry.ModMenus;
 import it.unimi.dsi.fastutil.shorts.ShortSet;
@@ -18,6 +19,7 @@ import org.jetbrains.annotations.Nullable;
 public class DataDistributionTowerMenu extends AEBaseMenu {
     private static final String ACTION_FOCUS_TARGET = "focus_target";
     private static final String ACTION_SET_RANGE_VISIBLE = "set_range_visible";
+    private static final String ACTION_SET_CONNECTION_MODE = "set_connection_mode";
     @Nullable
     private final DataDistributionTowerBlockEntity host;
     private final RestrictedInputSlot boosterSlot;
@@ -44,6 +46,8 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
     public String boundTargetMeta = "";
     @GuiSync(740)
     public String boundTargetKinds = "";
+    @GuiSync(741)
+    public int connectionMode = ConnectionMode.AE_AND_FE.ordinal();
 
     public DataDistributionTowerMenu(int id, Inventory playerInventory, @Nullable DataDistributionTowerBlockEntity host) {
         super(ModMenus.DATA_DISTRIBUTION_TOWER.get(), id, playerInventory, host);
@@ -58,6 +62,7 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
         this.boosterSlot.setEmptyTooltip(() -> Tooltips.slotTooltip(ButtonToolTips.PlaceWirelessBooster.text()));
         registerClientAction(ACTION_FOCUS_TARGET, TargetAction.class, this::onFocusTarget);
         registerClientAction(ACTION_SET_RANGE_VISIBLE, Boolean.class, this::setRangeVisible);
+        registerClientAction(ACTION_SET_CONNECTION_MODE, Integer.class, this::setConnectionMode);
     }
 
     @Override
@@ -78,6 +83,7 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
             this.chunkRadius = tower.getConfiguredChunkRadius();
             this.online = tower.isNetworkNodeOnline();
             this.rangeVisible = tower.isRangeDisplayEnabled();
+            this.connectionMode = tower.getConnectionMode().ordinal();
             this.boundTargetCount = tower.getBoundTargetCount();
             var summaries = tower.getBoundTargetSummaries(64);
             this.boundTargets = String.join("\n", summaries.stream()
@@ -105,6 +111,11 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
 
     public void sendSetRangeVisible(boolean visible) {
         sendClientAction(ACTION_SET_RANGE_VISIBLE, visible);
+    }
+
+    public void sendSetConnectionMode(ConnectionMode connectionMode) {
+        sendClientAction(ACTION_SET_CONNECTION_MODE,
+                (connectionMode == null ? ConnectionMode.AE_AND_FE : connectionMode).ordinal());
     }
 
     private void onFocusTarget(TargetAction action) {
@@ -157,6 +168,16 @@ public class DataDistributionTowerMenu extends AEBaseMenu {
         }
 
         this.rangeVisible = this.host.toggleRangeDisplay();
+        broadcastChanges();
+    }
+
+    private void setConnectionMode(Integer connectionMode) {
+        if (connectionMode == null || this.host == null) {
+            return;
+        }
+
+        this.host.setConnectionMode(ConnectionMode.fromOrdinal(connectionMode));
+        this.connectionMode = this.host.getConnectionMode().ordinal();
         broadcastChanges();
     }
 

@@ -18,6 +18,7 @@ import appeng.api.stacks.AEKeyTypes;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
+import appeng.core.definitions.AEItems;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.api.upgrades.UpgradeInventories;
@@ -134,6 +135,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         super(ModBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
                 .setVisualRepresentation(ModBlocks.DATA_RIPPER_REASSEMBLER.get())
+                .setExposedOnSides(getCableExposedSides(blockState))
                 .setIdlePowerUsage(1.0D);
         this.setInternalMaxPower(ENERGY_CAPACITY);
         this.configManager.registerSetting(Settings.AUTO_EXPORT, YesNo.NO);
@@ -148,7 +150,23 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     @Override
     public AECableType getCableConnectionType(Direction dir) {
+        if (!isCableSideExposed(dir)) {
+            return AECableType.NONE;
+        }
         return AECableType.COVERED;
+    }
+
+    private boolean isCableSideExposed(Direction dir) {
+        Direction front = this.getBlockState().getValue(DataRipperReassemblerBlock.FACING);
+        return dir != Direction.UP && dir != front;
+    }
+
+    private static Set<Direction> getCableExposedSides(BlockState blockState) {
+        Direction front = blockState.getValue(DataRipperReassemblerBlock.FACING);
+        EnumSet<Direction> sides = EnumSet.allOf(Direction.class);
+        sides.remove(Direction.UP);
+        sides.remove(front);
+        return sides;
     }
 
     @Override
@@ -408,12 +426,6 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 drops.add(stack.copy());
             }
         }
-        if (this.keyInputStack != null && this.keyInputStack.amount() > 0) {
-            drops.add(GenericStack.wrapInItemStack(this.keyInputStack.what(), this.keyInputStack.amount()));
-        }
-        if (this.keyOutputStack != null && this.keyOutputStack.amount() > 0) {
-            drops.add(GenericStack.wrapInItemStack(this.keyOutputStack.what(), this.keyOutputStack.amount()));
-        }
     }
 
     @Override
@@ -491,11 +503,11 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         if (!recipeHolder.id().equals(this.activeRecipeId)) {
             this.activeRecipeId = recipeHolder.id();
             this.progress = 0;
-            this.maxProgress = Math.max(1, recipe.getProcessTicks());
+            this.maxProgress = getEffectiveProcessTicks(recipe);
             setChanged();
         }
 
-        this.maxProgress = Math.max(1, recipe.getProcessTicks());
+        this.maxProgress = getEffectiveProcessTicks(recipe);
         this.progress++;
         setChanged();
 
@@ -523,6 +535,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         this.maxProgress = MAX_PROGRESS;
         this.activeRecipeId = null;
         setChanged();
+    }
+
+    private int getEffectiveProcessTicks(DataRipperReassemblerRecipe recipe) {
+        int speedCards = this.upgrades.getInstalledUpgrades(AEItems.SPEED_CARD);
+        int reducedTicks = recipe.getProcessTicks() - speedCards * 40;
+        return Math.max(1, reducedTicks);
     }
 
     private RecipeHolder<DataRipperReassemblerRecipe> getActiveOrMatchingRecipe() {

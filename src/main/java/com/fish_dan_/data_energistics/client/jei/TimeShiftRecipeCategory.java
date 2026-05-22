@@ -28,7 +28,7 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<WorldI
     private static final int HEIGHT = 72;
     private static final int CENTER_Y = 36;
     private static final int SLOT_SIZE = 18;
-    private static final int INPUT_X = 18;
+    private static final int INPUT_X = 0;
     private static final int ARROW_X = 62;
     private static final int OUTPUT_X = 112;
     private static final int TEXT_X = 40;
@@ -105,7 +105,7 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<WorldI
                 "recipe.data_energistics.time_shift.duration",
                 formatMinutes(recipe),
                 conditionText);
-        drawCenteredString(guiGraphics, font, timeText, TEXT_X + TEXT_WIDTH / 2, CENTER_Y + 14);
+        drawCenteredString(guiGraphics, font, timeText, TEXT_X + TEXT_WIDTH / 2, CENTER_Y + 26);
     }
 
     private void setTimeShiftRecipe(IRecipeLayoutBuilder builder, TimeShiftRecipe recipe) {

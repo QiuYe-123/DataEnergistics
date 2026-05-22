@@ -141,6 +141,8 @@ public class DataTeleportAnchorMenu extends AEBaseMenu {
                     "message.data_energistics.data_teleport_anchor.source_offline");
             case TARGET_OFFLINE -> Component.translatable(
                     "message.data_energistics.data_teleport_anchor.target_offline");
+            case CHANNEL_MISMATCH -> Component.translatable(
+                    "message.data_energistics.data_teleport_anchor.channel_mismatch");
             case SELF_TARGET -> Component.translatable(
                     "message.data_energistics.data_teleport_anchor.self_target");
             case TARGET_NOT_FOUND -> Component.translatable(

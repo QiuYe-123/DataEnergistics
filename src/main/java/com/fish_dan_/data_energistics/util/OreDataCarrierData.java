@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.util;
 
+import com.fish_dan_.data_energistics.DataExtractorConfig;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -16,7 +17,6 @@ public final class OreDataCarrierData {
     private static final String TAG_ORE_ITEM = "ore_item";
     private static final String TAG_REQUIRED_AMOUNT = "required_amount";
     private static final String TAG_COLLECTED_AMOUNT = "collected_amount";
-    private static final float REQUIRED_AMOUNT = 4096.0F;
     private OreDataCarrierData() {
     }
 
@@ -30,13 +30,13 @@ public final class OreDataCarrierData {
         }
 
         ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(oreStack.getItem());
-        if (itemId == null) {
+        if (itemId == null || !canRecordOre(itemId)) {
             return false;
         }
 
         CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
             tag.putString(TAG_ORE_ITEM, itemId.toString());
-            tag.putFloat(TAG_REQUIRED_AMOUNT, REQUIRED_AMOUNT);
+            tag.putFloat(TAG_REQUIRED_AMOUNT, Math.max(1.0F, DataExtractorConfig.oreRequiredAmount));
             tag.putFloat(TAG_COLLECTED_AMOUNT, 0.0F);
         });
         return true;
@@ -64,6 +64,19 @@ public final class OreDataCarrierData {
         float required = Math.max(0.0F, tag.getFloat(TAG_REQUIRED_AMOUNT));
         float collected = Math.max(0.0F, tag.getFloat(TAG_COLLECTED_AMOUNT));
         return required > 0 ? Math.min(collected, required) : collected;
+    }
+
+    public static void setRequiredAmount(ItemStack stack, float requiredAmount) {
+        if (stack.isEmpty()) {
+            return;
+        }
+
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
+            float clampedRequired = Math.max(1.0F, requiredAmount);
+            float current = Math.max(0.0F, tag.getFloat(TAG_COLLECTED_AMOUNT));
+            tag.putFloat(TAG_REQUIRED_AMOUNT, clampedRequired);
+            tag.putFloat(TAG_COLLECTED_AMOUNT, Mth.clamp(current, 0.0F, clampedRequired));
+        });
     }
 
     public static boolean isComplete(ItemStack stack) {
@@ -107,5 +120,24 @@ public final class OreDataCarrierData {
 
     private static CompoundTag getTag(ItemStack stack) {
         return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+    }
+
+    public static boolean canRecordOre(ResourceLocation itemId) {
+        if (itemId == null) {
+            return false;
+        }
+        return !containsId(DataExtractorConfig.oreDataBlacklist, itemId);
+    }
+
+    private static boolean containsId(String csv, ResourceLocation id) {
+        if (csv == null || csv.isBlank()) {
+            return false;
+        }
+        for (String token : csv.split(",")) {
+            if (id.toString().equals(token.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 }

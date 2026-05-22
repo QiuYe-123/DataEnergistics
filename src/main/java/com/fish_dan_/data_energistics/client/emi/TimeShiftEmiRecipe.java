@@ -21,7 +21,7 @@ public final class TimeShiftEmiRecipe extends BasicEmiRecipe {
     private static final int HEIGHT = 72;
     private static final int CENTER_Y = 36;
     private static final int SLOT_SIZE = 18;
-    private static final int INPUT_X = 18;
+    private static final int INPUT_X = 0;
     private static final int ARROW_X = 62;
     private static final int TEXT_X = 40;
     private static final int TEXT_WIDTH = 68;
@@ -84,7 +84,7 @@ public final class TimeShiftEmiRecipe extends BasicEmiRecipe {
                 "recipe.data_energistics.time_shift.duration",
                 formatMinutes(this.recipe),
                 conditionText);
-        widgets.addText(timeText, TEXT_X + TEXT_WIDTH / 2, CENTER_Y + 14, 0x7E7E7E, false)
+        widgets.addText(timeText, TEXT_X + TEXT_WIDTH / 2, CENTER_Y + 26, 0x7E7E7E, false)
                 .horizontalAlign(TextWidget.Alignment.CENTER);
     }
 

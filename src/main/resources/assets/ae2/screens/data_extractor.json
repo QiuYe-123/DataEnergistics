@@ -12,11 +12,7 @@
   "slots": {
     "MACHINE_INPUT": {
       "left": 138,
-      "top": 10
-    },
-    "MACHINE_OUTPUT": {
-      "left": 138,
-      "top": 62
+      "top": 60
     },
     "DATA_EXTRACTOR_SWORD": {
       "left": 112,
@@ -25,6 +21,10 @@
     "DATA_EXTRACTOR_ORE": {
       "left": 153,
       "top": 31
+    },
+    "DATA_EXTRACTOR_CROP": {
+      "left": 138,
+      "top": 10
     },
     "PLAYER_INVENTORY": {
       "left": 8,

@@ -1,24 +1,24 @@
 {
-	"format_version": "1.21.11",
+	"format_version": "1.9.0",
 	"credit": "Made with Blockbench",
-  "parent": "minecraft:block/cube_all",
+	"parent": "block/block",
 	"textures": {
-		"0": "data_energistics:block/data_crystal_cluster/data_crystal_cluster_off",
-		"1": "data_energistics:block/data_crystal_cluster/data_crystal_cluster_top_off",
-		"2": "ae2:block/generics/bottom",
-		"particle": "data_energistics:block/data_crystal_cluster/data_crystal_cluster_off"
+		"0": "data_energistics:block/generics/bottom",
+		"1": "data_energistics:block/data_teleport_anchor/side_off",
+		"2": "data_energistics:block/data_teleport_anchor/top_off",
+		"particle": "data_energistics:block/generics/bottom"
 	},
 	"elements": [
 		{
 			"from": [0, 0, 0],
 			"to": [16, 16, 16],
 			"faces": {
-				"north": {"uv": [0, 0, 16, 16], "texture": "#0"},
-				"east": {"uv": [0, 0, 16, 16], "texture": "#0"},
-				"south": {"uv": [0, 0, 16, 16], "texture": "#0"},
-				"west": {"uv": [0, 0, 16, 16], "texture": "#0"},
-				"up": {"uv": [0, 0, 16, 16], "texture": "#1"},
-				"down": {"uv": [0, 0, 16, 16], "texture": "#2"}
+				"north": {"uv": [0, 0, 16, 16], "texture": "#1", "cullface": "north"},
+				"east": {"uv": [0, 0, 16, 16], "texture": "#1", "cullface": "east"},
+				"south": {"uv": [0, 0, 16, 16], "texture": "#1", "cullface": "south"},
+				"west": {"uv": [0, 0, 16, 16], "texture": "#1", "cullface": "west"},
+				"up": {"uv": [0, 0, 16, 16], "texture": "#2", "cullface": "up"},
+				"down": {"uv": [0, 0, 16, 16], "texture": "#0", "cullface": "down"}
 			}
 		}
 	]

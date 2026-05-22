@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.item;
 
 import com.fish_dan_.data_energistics.util.BiologyDataCarrierData;
+import com.fish_dan_.data_energistics.util.CropDataCarrierData;
 import com.fish_dan_.data_energistics.util.OreDataCarrierData;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
@@ -41,9 +42,22 @@ public class BiologyDataCarrierItem extends Item {
                     BiologyDataCarrierData.formatAmount(OreDataCarrierData.getCollectedAmount(stack)),
                     BiologyDataCarrierData.formatAmount(OreDataCarrierData.getRequiredAmount(stack))
             ));
+        } else if (CropDataCarrierData.hasRecordedCrop(stack)) {
+            tooltip.add(Component.translatable(
+                    "item.data_energistics.carrier.target",
+                    CropDataCarrierData.getCropDisplayName(stack).copy()
+            ));
+            tooltip.add(Component.translatable(
+                    "item.data_energistics.carrier.progress",
+                    BiologyDataCarrierData.formatAmount(CropDataCarrierData.getCollectedAmount(stack)),
+                    BiologyDataCarrierData.formatAmount(CropDataCarrierData.getRequiredAmount(stack))
+            ));
         }
 
-        if (this.completedCarrier && (BiologyDataCarrierData.hasRecordedEntity(stack) || OreDataCarrierData.hasRecordedOre(stack))) {
+        if (this.completedCarrier
+                && (BiologyDataCarrierData.hasRecordedEntity(stack)
+                || OreDataCarrierData.hasRecordedOre(stack)
+                || CropDataCarrierData.hasRecordedCrop(stack))) {
             tooltip.add(Component.translatable("item.data_energistics.carrier.completed"));
         }
     }

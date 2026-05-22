@@ -95,7 +95,9 @@ public final class ModItems {
     public static final DeferredItem<Item> OBSIDIAN_DUST = ITEMS.registerSimpleItem("obsidian_dust");
     public static final DeferredItem<Item> DATA_CARRIER = ITEMS.register("data_carrier",
             () -> new BiologyDataCarrierItem(new Item.Properties(), false));
-    public static final DeferredItem<Item> BIOLOGY_DATA_CARRIER = ITEMS.register("biology_data_carrier",
+    public static final DeferredItem<Item> MOB_DATA_CARRIER = ITEMS.register("mob_data_carrier",
+            () -> new BiologyDataCarrierItem(new Item.Properties(), true));
+    public static final DeferredItem<Item> CROP_DATA_CARRIER = ITEMS.register("crop_data_carrier",
             () -> new BiologyDataCarrierItem(new Item.Properties(), true));
     public static final DeferredItem<Item> ORE_DATA_CARRIER = ITEMS.register("ore_data_carrier",
             () -> new BiologyDataCarrierItem(new Item.Properties(), true));

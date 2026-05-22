@@ -4,9 +4,11 @@ import appeng.client.gui.style.Blitter;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
+import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -16,10 +18,12 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class DataEnergisticsIcon {
+    private static final Logger LOGGER = LogUtils.getLogger();
     private static final ResourceLocation STATES_JSON =
             ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/guis/states.json");
     private static final ResourceLocation DEFAULT_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/guis/states.png");
+    private static final String FALLBACK_ICON = "BACKGROUND_BLOCK";
     private static final Map<String, IconDef> CACHE = new ConcurrentHashMap<>();
 
     private DataEnergisticsIcon() {
@@ -45,7 +49,21 @@ public final class DataEnergisticsIcon {
 
                 JsonObject icons = root.getAsJsonObject("icons");
                 if (icons == null || !icons.has(name)) {
-                    throw new IllegalArgumentException("Missing icon definition in states.json: " + name);
+                    LOGGER.error("Missing icon definition in {}: {}, falling back to {}",
+                            STATES_JSON, name, FALLBACK_ICON);
+                    JsonObject fallback = icons == null ? null : icons.getAsJsonObject(FALLBACK_ICON);
+                    if (fallback != null) {
+                        return new IconDef(
+                                texture,
+                                textureWidth,
+                                textureHeight,
+                                fallback.get("x").getAsInt(),
+                                fallback.get("y").getAsInt(),
+                                fallback.get("width").getAsInt(),
+                                fallback.get("height").getAsInt()
+                        );
+                    }
+                    return new IconDef(texture, textureWidth, textureHeight, 0, 0, 16, 16);
                 }
 
                 JsonObject icon = icons.getAsJsonObject(name);
@@ -59,8 +77,9 @@ public final class DataEnergisticsIcon {
                         icon.get("height").getAsInt()
                 );
             }
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to load GUI icon from " + STATES_JSON, e);
+        } catch (Exception e) {
+            LOGGER.error("Failed to load GUI icon {} from {}, using hard-coded fallback", name, STATES_JSON, e);
+            return new IconDef(DEFAULT_TEXTURE, 128, 128, 0, 0, 16, 16);
         }
     }
 

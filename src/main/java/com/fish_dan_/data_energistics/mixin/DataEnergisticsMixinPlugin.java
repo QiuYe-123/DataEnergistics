@@ -37,8 +37,6 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
     private static final boolean JEI_TRANSFER_PRESENT = isClassPresent(JEI_TRANSFER_SENTINEL_CLASS);
     private static final boolean EMI_PRESENT =
             isClassPresent(EMI_API_SENTINEL_CLASS) && isClassPresent(EMI_HANDLER_SENTINEL_CLASS);
-    private static final boolean NEOECOAE_PRESENT = ModList.get().isLoaded(NEOECOAE_MOD_ID);
-
     @Override
     public void onLoad(String mixinPackage) {
     }
@@ -75,13 +73,18 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
             return EMI_PRESENT;
         }
         if ("com.fish_dan_.data_energistics.mixin.NeoECOAEClientMixin".equals(mixinClassName)) {
-            return NEOECOAE_PRESENT;
+            return isModLoaded(NEOECOAE_MOD_ID);
         }
         return true;
     }
 
     private static boolean isClassPresent(String classResourcePath) {
         return DataEnergisticsMixinPlugin.class.getClassLoader().getResource(classResourcePath) != null;
+    }
+
+    private static boolean isModLoaded(String modId) {
+        ModList modList = ModList.get();
+        return modList != null && modList.isLoaded(modId);
     }
 
     @Override

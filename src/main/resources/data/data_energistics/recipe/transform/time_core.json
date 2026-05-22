@@ -7,13 +7,37 @@
       "ingredient": {
         "item": "ae2:singularity"
       },
-      "count": 2
+      "count": 8
     },
     {
       "ingredient": {
         "item": "minecraft:clock"
       },
-      "count": 8
+      "count": 1
+    },
+    {
+      "ingredient": {
+        "item": "minecraft:echo_shard"
+      },
+      "count": 4
+    },
+    {
+      "ingredient": {
+        "item": "minecraft:conduit"
+      },
+      "count": 1
+    },
+    {
+      "ingredient": {
+        "item": "ae2:not_so_mysterious_cube"
+      },
+      "count": 1
+    },
+    {
+      "ingredient": {
+        "item": "ae2:spatial_cell_component_16"
+      },
+      "count": 1
     }
   ],
   "results": [

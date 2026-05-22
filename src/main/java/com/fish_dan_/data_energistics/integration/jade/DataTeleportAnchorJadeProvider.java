@@ -19,6 +19,7 @@ public class DataTeleportAnchorJadeProvider implements IBlockComponentProvider, 
     private static final String TAG_ONLINE = "online";
     private static final String TAG_CURRENT_POWER = "current_power";
     private static final String TAG_MAX_POWER = "max_power";
+    private static final String TAG_COLOR = "color";
 
     @Override
     public ResourceLocation getUid() {
@@ -39,6 +40,12 @@ public class DataTeleportAnchorJadeProvider implements IBlockComponentProvider, 
             ));
         }
 
+        if (serverData.contains(TAG_COLOR)) {
+            tooltip.add(Component.translatable(
+                    "jade.data_energistics.data_teleport_anchor.color",
+                    Component.translatable("color.minecraft." + serverData.getString(TAG_COLOR))));
+        }
+
         tooltip.add(Component.translatable(serverData.getBoolean(TAG_ONLINE)
                 ? "jade.data_energistics.data_teleport_anchor.status.online"
                 : "jade.data_energistics.data_teleport_anchor.status.offline"));
@@ -56,6 +63,7 @@ public class DataTeleportAnchorJadeProvider implements IBlockComponentProvider, 
             data.putDouble(TAG_CURRENT_POWER, anchor.getAECurrentPower());
             data.putDouble(TAG_MAX_POWER, anchor.getAEMaxPower());
         }
+        data.putString(TAG_COLOR, anchor.getChannelId());
     }
 
     private DataTeleportAnchorBlockEntity resolveAnchor(BlockAccessor accessor) {

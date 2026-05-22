@@ -1,0 +1,18 @@
+{
+	"textures": {
+		"0": "data_energistics:block/data_extractor/data_carriers",
+		"particle": "data_energistics:block/data_extractor/data_carriers"
+	},
+	"elements": [
+		{
+			"name": "cell",
+			"from": [2, 14, 3],
+			"to": [4, 16, 7],
+			"faces": {
+				"east": {"uv": [2, 0, 4, 4], "rotation": 90, "texture": "#0"},
+				"west": {"uv": [2, 0, 4, 4], "rotation": 270, "texture": "#0"},
+				"up": {"uv": [2, 0, 4, 4], "texture": "#0"}
+			}
+		}
+	]
+}

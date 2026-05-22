@@ -5,7 +5,9 @@ import appeng.client.gui.Icon;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.AETextField;
 import appeng.client.gui.widgets.Scrollbar;
+import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity.ConnectionMode;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
+import com.fish_dan_.data_energistics.client.widget.DataDistributionTowerConnectionModeButton;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerSelectionHighlighter;
 import com.fish_dan_.data_energistics.menu.DataDistributionTowerMenu;
 import net.sourceforge.pinyin4j.PinyinHelper;
@@ -44,6 +46,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
 
     private final Scrollbar scrollbar;
     private final DataExtractorToggleButton rangeVisibleButton;
+    private final DataDistributionTowerConnectionModeButton connectionModeButton;
     private List<BoundRow> allRows = List.of();
     private List<BoundRow> cachedRows = List.of();
     private AETextField searchBox;
@@ -61,6 +64,8 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
                 this.menu::sendSetRangeVisible
         );
         this.addToLeftToolbar(this.rangeVisibleButton);
+        this.connectionModeButton = new DataDistributionTowerConnectionModeButton(this.menu::sendSetConnectionMode);
+        this.addToLeftToolbar(this.connectionModeButton);
         refreshFromServer();
     }
 
@@ -115,6 +120,7 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
                         : "screen.data_energistics.data_distribution_tower.range_visible.off"
         ));
         this.rangeVisibleButton.setState(this.menu.rangeVisible);
+        this.connectionModeButton.setMode(ConnectionMode.fromOrdinal(this.menu.connectionMode));
         setTextContent("bound_title", Component.translatable(
                 "screen.data_energistics.data_distribution_tower.bound_title",
                 this.menu.boundTargetCount

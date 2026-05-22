@@ -73,7 +73,8 @@ public final class ModCreativeTabs {
                         output.accept(ModFluids.ENDER_BUCKET);
                         output.accept(ModFluids.DATA_CORROSION_LIQUID_BUCKET);
                         output.accept(ModItems.DATA_CARRIER);
-                        output.accept(ModItems.BIOLOGY_DATA_CARRIER);
+                        output.accept(ModItems.MOB_DATA_CARRIER);
+                        output.accept(ModItems.CROP_DATA_CARRIER);
                         output.accept(ModItems.ORE_DATA_CARRIER);
                         output.accept(ModItems.TIME_CORE);
                         output.accept(ModItems.DATA_FLOW_COMPONENT_HOUSING);
