@@ -4,10 +4,12 @@ import com.fish_dan_.data_energistics.DataExtractorConfig;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.TagKey;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -16,8 +18,11 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CocoaBlock;
 import net.minecraft.world.level.block.CropBlock;
 import net.minecraft.world.level.block.NetherWartBlock;
+import net.minecraft.world.level.block.StemBlock;
+import net.minecraft.world.level.block.SweetBerryBushBlock;
 import org.jetbrains.annotations.Nullable;
 
 public final class CropDataCarrierData {
@@ -27,6 +32,9 @@ public final class CropDataCarrierData {
     private static final String TAG_REQUIRED_AMOUNT = "required_amount";
     private static final String TAG_COLLECTED_AMOUNT = "collected_amount";
     private static final String TREE_LOOT_TABLE_PREFIX = "mimetic_tree/";
+
+    private static final TagKey<Item> TAG_COMMON_SEEDS = TagKey.create(Registries.ITEM, ResourceLocation.parse("c:seeds"));
+    private static final TagKey<Item> TAG_COMMON_CROPS = TagKey.create(Registries.ITEM, ResourceLocation.parse("c:crops"));
 
     private CropDataCarrierData() {
     }
@@ -298,6 +306,11 @@ public final class CropDataCarrierData {
             return true;
         }
 
+        Item item = BuiltInRegistries.ITEM.getOptional(itemId).orElse(null);
+        if (item != null && isInCropTag(item)) {
+            return true;
+        }
+
         Block sourceBlock = deriveSourceBlockId(itemId) != null
                 ? BuiltInRegistries.BLOCK.getOptional(deriveSourceBlockId(itemId)).orElse(null)
                 : null;
@@ -309,9 +322,30 @@ public final class CropDataCarrierData {
             return false;
         }
 
-        return sourceBlock instanceof CropBlock
-                || sourceBlock instanceof NetherWartBlock
-                || isTreeSaplingBlock(sourceBlock, itemId);
+        if (sourceBlock instanceof CropBlock) return true;
+        if (sourceBlock instanceof NetherWartBlock) return true;
+        if (sourceBlock instanceof StemBlock) return true;
+        if (sourceBlock instanceof CocoaBlock) return true;
+        if (sourceBlock instanceof SweetBerryBushBlock) return true;
+
+        if (isTreeSaplingBlock(sourceBlock, itemId)) return true;
+
+        if (sourceBlock.defaultBlockState().is(BlockTags.CROPS)) return true;
+        if (sourceBlock.defaultBlockState().is(BlockTags.MAINTAINS_FARMLAND)) return true;
+
+        if (hasAgeProperty(sourceBlock)) return true;
+
+        return false;
+    }
+
+    private static boolean isInCropTag(Item item) {
+        ItemStack stack = new ItemStack(item);
+        return stack.is(TAG_COMMON_SEEDS) || stack.is(TAG_COMMON_CROPS);
+    }
+
+    private static boolean hasAgeProperty(Block block) {
+        return block.defaultBlockState().getProperties().stream()
+                .anyMatch(prop -> prop.getName().equals("age"));
     }
 
     @Nullable

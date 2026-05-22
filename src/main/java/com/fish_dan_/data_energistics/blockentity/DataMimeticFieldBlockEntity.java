@@ -57,9 +57,13 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CocoaBlock;
 import net.minecraft.world.level.block.CropBlock;
 import net.minecraft.world.level.block.NetherWartBlock;
+import net.minecraft.world.level.block.StemBlock;
+import net.minecraft.world.level.block.SweetBerryBushBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
@@ -882,7 +886,39 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
         if (cropBlock == Blocks.NETHER_WART) {
             return Blocks.NETHER_WART.defaultBlockState().setValue(NetherWartBlock.AGE, NetherWartBlock.MAX_AGE);
         }
+        if (cropBlock instanceof CropBlock crop) {
+            return crop.getStateForAge(crop.getMaxAge());
+        }
+        if (cropBlock instanceof StemBlock) {
+            return cropBlock.defaultBlockState().setValue(StemBlock.AGE, StemBlock.MAX_AGE);
+        }
+        if (cropBlock instanceof CocoaBlock) {
+            return cropBlock.defaultBlockState().setValue(CocoaBlock.AGE, CocoaBlock.MAX_AGE);
+        }
+        if (cropBlock instanceof SweetBerryBushBlock) {
+            return cropBlock.defaultBlockState().setValue(SweetBerryBushBlock.AGE, SweetBerryBushBlock.MAX_AGE);
+        }
+        if (hasAgeProperty(cropBlock)) {
+            return applyMaxAge(cropBlock);
+        }
         return cropBlock.defaultBlockState();
+    }
+
+    private static boolean hasAgeProperty(Block block) {
+        return block.defaultBlockState().getProperties().stream()
+                .anyMatch(prop -> prop.getName().equals("age"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private BlockState applyMaxAge(Block block) {
+        BlockState state = block.defaultBlockState();
+        for (var prop : state.getProperties()) {
+            if (prop.getName().equals("age") && prop instanceof IntegerProperty intProp) {
+                int max = intProp.getPossibleValues().stream().max(Integer::compareTo).orElse(0);
+                return state.setValue(intProp, max);
+            }
+        }
+        return state;
     }
 
     private BlockState getMaxAgeCropState(Block block) {
