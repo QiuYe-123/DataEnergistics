@@ -202,6 +202,10 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         return this.inGround || this.inGroundTime > 0;
     }
 
+    public int getEmbeddedTime() {
+        return this.inGroundTime;
+    }
+
     @Override
     public void playerTouch(Player player) {
         if (this.ownedBy(player) || this.getOwner() == null) {
