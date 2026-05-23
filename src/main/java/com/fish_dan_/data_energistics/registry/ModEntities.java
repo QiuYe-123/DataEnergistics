@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.registry;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
 import com.fish_dan_.data_energistics.entity.MatterConvergingBoltEntity;
+import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
 import com.fish_dan_.data_energistics.entity.TntConfigurablePrimedEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EntityType;
@@ -30,6 +31,13 @@ public final class ModEntities {
                     .clientTrackingRange(4)
                     .updateInterval(10)
                     .build("matter_converging_bolt"));
+    public static final DeferredHolder<EntityType<?>, EntityType<ThrownLightSaberEntity>> THROWN_LIGHT_SABER =
+            ENTITY_TYPES.register("thrown_light_saber", () -> EntityType.Builder
+                    .<ThrownLightSaberEntity>of(ThrownLightSaberEntity::new, MobCategory.MISC)
+                    .sized(0.5F, 0.5F)
+                    .clientTrackingRange(8)
+                    .updateInterval(1)
+                    .build("thrown_light_saber"));
     public static final DeferredHolder<EntityType<?>, EntityType<TntConfigurablePrimedEntity>> TNT_CONFIGURABLE_PRIMED =
             ENTITY_TYPES.register("tnt_configurable_primed", () -> EntityType.Builder
                     .<TntConfigurablePrimedEntity>of(TntConfigurablePrimedEntity::new, MobCategory.MISC)

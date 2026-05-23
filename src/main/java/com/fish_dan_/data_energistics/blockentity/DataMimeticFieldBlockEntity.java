@@ -92,8 +92,8 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     private static final double POWER_PER_ACTIVE_CARRIER = 500.0;
     private static final long DATA_FLOW_PER_WORK_CYCLE = 150L;
     private static final int BASE_WORK_INTERVAL_TICKS = 200;
-    private static final int BASE_BIOLOGY_LOOT_ROLLS_PER_CYCLE = 8;
-    private static final int BASE_ORE_OUTPUT_ROLLS_PER_CYCLE = 8;
+    private static final int BASE_BIOLOGY_LOOT_ROLLS_PER_CYCLE = 48;
+    private static final int BASE_ORE_OUTPUT_ROLLS_PER_CYCLE = 48;
     private static final int HIDDEN_BUFFER_FLUSH_INTERVAL_TICKS = 5;
     private static final int UPGRADE_SLOTS = 4;
     private static final String UPGRADES_TAG = "upgrades";
@@ -1050,11 +1050,11 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity i
     }
 
     public int getBiologyLootRollsPerCycle() {
-        return BASE_BIOLOGY_LOOT_ROLLS_PER_CYCLE + getInstalledSpeedCardCount() * 2;
+        return BASE_BIOLOGY_LOOT_ROLLS_PER_CYCLE + getInstalledSpeedCardCount() * 16;
     }
 
     public int getOreOutputRollsPerCycle() {
-        return BASE_ORE_OUTPUT_ROLLS_PER_CYCLE + getInstalledSpeedCardCount() * 2;
+        return BASE_ORE_OUTPUT_ROLLS_PER_CYCLE + getInstalledSpeedCardCount() * 16;
     }
 
     private int computeWorkIntervalTicks() {

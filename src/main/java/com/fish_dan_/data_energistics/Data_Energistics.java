@@ -31,6 +31,7 @@ import com.fish_dan_.data_energistics.client.render.DataMimeticFieldRenderer;
 import com.fish_dan_.data_energistics.client.render.DispersingDataRenderer;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
 import com.fish_dan_.data_energistics.client.render.MatterConvergingBoltRenderer;
+import com.fish_dan_.data_energistics.client.render.ThrownLightSaberRenderer;
 import com.fish_dan_.data_energistics.client.screen.DataDistributionTowerScreen;
 import com.fish_dan_.data_energistics.client.screen.DataExtractorScreen;
 import com.fish_dan_.data_energistics.client.screen.DataMimeticFieldScreen;
@@ -50,6 +51,7 @@ import com.fish_dan_.data_energistics.client.screen.UniversalPatternEncodingTerm
 import com.fish_dan_.data_energistics.client.screen.UniversalTerminalScreenHook;
 import com.fish_dan_.data_energistics.integration.AppMekCompat;
 import com.fish_dan_.data_energistics.integration.Ae2WtLibCompat;
+import com.fish_dan_.data_energistics.item.PoweredEnergyItem;
 import com.fish_dan_.data_energistics.menu.common.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.network.ModPayloads;
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
@@ -83,6 +85,7 @@ import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.api.distmarker.Dist;
@@ -502,6 +505,7 @@ public class Data_Energistics {
                 ModStorageCells.registerClientModels();
                 registerMatterConvergingCrossbowProperties();
                 registerDataCaptureBallProperties();
+                registerLightSaberProperties();
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenOpening);
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenInitPost);
                 NeoForge.EVENT_BUS.addListener(ClientModEvents::onScreenRenderPost);
@@ -542,6 +546,7 @@ public class Data_Energistics {
             event.registerBlockEntityRenderer(ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), DataMimeticFieldRenderer::new);
             event.registerEntityRenderer(ModEntities.DISPERSING_DATA.get(), DispersingDataRenderer::new);
             event.registerEntityRenderer(ModEntities.MATTER_CONVERGING_BOLT.get(), MatterConvergingBoltRenderer::new);
+            event.registerEntityRenderer(ModEntities.THROWN_LIGHT_SABER.get(), ThrownLightSaberRenderer::new);
             event.registerEntityRenderer(ModEntities.TNT_CONFIGURABLE_PRIMED.get(), TntRenderer::new);
         }
 
@@ -550,6 +555,7 @@ public class Data_Energistics {
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/mob_data_carrier")));
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/ore_data_carrier")));
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/crop_data_carrier")));
+            event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_core_outer")));
         }
 
         private static void registerMatterConvergingCrossbowProperties() {
@@ -586,6 +592,18 @@ public class Data_Energistics {
         private static void registerDataCaptureBallProperties() {
             ItemProperties.register(ModItems.DATA_CAPTURE_BALL.get(), Data_Energistics.id("fill_level"),
                     (stack, level, entity, seed) -> DataCaptureBallItem.getFillModelValue(stack));
+        }
+
+        private static void registerLightSaberProperties() {
+            ItemProperties.register(ModItems.DATA_LIGHT_SABER.get(), Data_Energistics.id("powered"),
+                    (stack, level, entity, seed) -> isPowered(stack) ? 1.0F : 0.0F);
+            ItemProperties.register(ModItems.DATA_SANCTIFIER.get(), Data_Energistics.id("powered"),
+                    (stack, level, entity, seed) -> isPowered(stack) ? 1.0F : 0.0F);
+        }
+
+        private static boolean isPowered(ItemStack stack) {
+            return stack.getItem() instanceof PoweredEnergyItem poweredEnergyItem
+                    && poweredEnergyItem.getAECurrentPower(stack) > 0.0D;
         }
 
         public static void onScreenInitPost(ScreenEvent.Init.Post event) {

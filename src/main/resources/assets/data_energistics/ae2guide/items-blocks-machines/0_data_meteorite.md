@@ -54,7 +54,7 @@ item_ids:
 ## 数位陨石
 
 | 陨石 | 基础掉落 | 额外产出 |
-|---|---|---|
+|---|-|---|
 | <ItemImage id="ae2:sky_stone_block" /> | 100% <ItemImage id="ae2:sky_stone_block" /> | 无 |
 | <ItemImage id="data_energistics:data_meteorite_0" /> | 100% <ItemImage id="ae2:sky_stone_block" /> 10% + 时运每级 +3% <ItemImage id="ae2:ender_dust" /> | 5% + 时运每级 +3%：生成 1 个即散数据实体 |
 | <ItemImage id="data_energistics:data_meteorite_1" /> | 100% <ItemImage id="ae2:sky_stone_block" /> 20% + 时运每级 +3% <ItemImage id="ae2:ender_dust" /> 10% + 时运每级 +3% <ItemImage id="ae2:sky_dust" /> | 10% + 时运每级 +3%：生成 1 个即散数据实体 |

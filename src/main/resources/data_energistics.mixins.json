@@ -39,7 +39,10 @@
     "EmiEncodePatternHandlerMixin",
     "EncodedPatternItemMixin",
     "Ae2ltWirelessConnectorUsePacketMixin",
-    "Ae2ltEjectCapabilityMixin"
+    "Ae2ltEjectCapabilityMixin",
+    "AnvilMenuMixin",
+    "CraftingMenuMixin",
+    "CraftingTermMenuMixin"
   ],
   "client": [
     "CondenserScreenMixin",

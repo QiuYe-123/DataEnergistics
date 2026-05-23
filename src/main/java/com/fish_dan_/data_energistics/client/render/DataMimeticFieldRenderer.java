@@ -32,8 +32,8 @@ public class DataMimeticFieldRenderer implements BlockEntityRenderer<DataMimetic
     private static final float MODEL_SCALE = 1.0F;
     private static final float MODEL_OFFSET_X = -0.0625F;
     private static final float MODEL_OFFSET_Y = -0.25F;
-    private static final int MIN_BLOCK_LIGHT = 10;
-    private static final int MIN_SKY_LIGHT = 10;
+    private static final int MIN_BLOCK_LIGHT = 13;
+    private static final int MIN_SKY_LIGHT = 13;
     private static final ModelResourceLocation MOB_CARRIER_MODEL =
             ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/mob_data_carrier"));
     private static final ModelResourceLocation ORE_CARRIER_MODEL =

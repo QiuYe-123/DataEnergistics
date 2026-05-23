@@ -66,6 +66,15 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.ME_SOLAR_PANEL_PART);
                         output.accept(ModItems.UNIVERSAL_TERMINAL);
                         output.accept(ModItems.DATA_CRYSTAL);
+                        output.accept(ModItems.DATA_CRYSTAL_SWORD);
+                        output.accept(ModItems.DATA_CRYSTAL_AXE);
+                        output.accept(ModItems.DATA_CRYSTAL_PICKAXE);
+                        output.accept(ModItems.DATA_CRYSTAL_HOE);
+                        output.accept(ModItems.DATA_CRYSTAL_SHOVEL);
+                        output.accept(ModItems.DATA_CRYSTAL_CUTTING_KNIFE);
+                        output.accept(ModItems.DATA_LIGHT_SABER);
+                        output.accept(ModItems.DATA_SANCTIFIER);
+                        output.accept(ModItems.CARD_SABER_ENERGY);
                         output.accept(ModItems.REDSTONE_TUNING_CARD);
                         output.accept(ModItems.SOLIDIFIED_OBSIDIAN);
                         output.accept(ModItems.DATA_DUST);
