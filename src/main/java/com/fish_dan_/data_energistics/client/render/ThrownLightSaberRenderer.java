@@ -8,11 +8,15 @@ import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.client.renderer.entity.ThrownItemRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 
 public class ThrownLightSaberRenderer extends ThrownItemRenderer<ThrownLightSaberEntity> {
+    private static final ResourceLocation DATA_SANCTIFIER_ID = ResourceLocation.withDefaultNamespace("air");
+    private static final float SANCTIFIER_SPIN_DEGREES_PER_TICK = 40.0F;
+    private static final int SANCTIFIER_EMBEDDED_SPIN_TICKS = 40;
     private final ItemRenderer itemRenderer;
 
     public ThrownLightSaberRenderer(EntityRendererProvider.Context context) {
@@ -33,11 +37,27 @@ public class ThrownLightSaberRenderer extends ThrownItemRenderer<ThrownLightSabe
         poseStack.mulPose(Axis.YP.rotationDegrees(Mth.lerp(partialTick, entity.yRotO, entity.getYRot()) - 90.0F));
         poseStack.mulPose(Axis.ZP.rotationDegrees(Mth.lerp(partialTick, entity.xRotO, entity.getXRot()) - 90.0F));
         poseStack.mulPose(Axis.YP.rotationDegrees(90.0F));
+        if (isSanctifier(stack)) {
+            poseStack.mulPose(Axis.XP.rotationDegrees(getSanctifierSpinDegrees(entity, partialTick)));
+        }
         if (entity.isEmbedded()) {
             poseStack.translate(0.0D, 0.0D, 0.0D);
         }
         this.itemRenderer.renderStatic(stack, ItemDisplayContext.NONE, packedLight, OverlayTexture.NO_OVERLAY,
                 poseStack, buffer, entity.level(), entity.getId());
         poseStack.popPose();
+    }
+
+    private static boolean isSanctifier(ItemStack stack) {
+        ResourceLocation itemId = stack.getItemHolder().getKey().location();
+        return "data_energistics".equals(itemId.getNamespace()) && "data_sanctifier".equals(itemId.getPath());
+    }
+
+    private static float getSanctifierSpinDegrees(ThrownLightSaberEntity entity, float partialTick) {
+        if (entity.isEmbedded()) {
+            float embeddedTicks = Math.min(entity.getEmbeddedTime() + partialTick, SANCTIFIER_EMBEDDED_SPIN_TICKS);
+            return embeddedTicks * SANCTIFIER_SPIN_DEGREES_PER_TICK;
+        }
+        return (entity.tickCount + partialTick) * SANCTIFIER_SPIN_DEGREES_PER_TICK;
     }
 }
