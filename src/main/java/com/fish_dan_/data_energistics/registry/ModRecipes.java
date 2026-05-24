@@ -54,7 +54,6 @@ public final class ModRecipes {
                     return Data_Energistics.MODID + ":data_capture_ball_condenser";
                 }
             });
-
     public static final DeferredHolder<RecipeSerializer<?>, TimeShiftRecipeSerializer> TIME_SHIFT_SERIALIZER =
             RECIPE_SERIALIZERS.register("time_shift", TimeShiftRecipeSerializer::new);
     public static final DeferredHolder<RecipeSerializer<?>, DataRipperReassemblerRecipeSerializer> DATA_RIPPER_REASSEMBLER_SERIALIZER =

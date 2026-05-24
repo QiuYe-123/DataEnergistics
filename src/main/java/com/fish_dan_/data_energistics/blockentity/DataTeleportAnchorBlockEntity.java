@@ -199,7 +199,19 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
         return List.copyOf(anchors);
     }
 
+    public TeleportResult teleportEntitiesToRecordedTarget() {
+        if (!this.hasTarget) {
+            return new TeleportResult(TeleportStatus.NO_RECORDED_TARGET, 0);
+        }
+        return this.teleportEntitiesTo(this.targetDimension, this.targetPos, false);
+    }
+
     public TeleportResult teleportEntitiesTo(ResourceLocation targetDimensionId, BlockPos targetAnchorPos) {
+        return teleportEntitiesTo(targetDimensionId, targetAnchorPos, true);
+    }
+
+    private TeleportResult teleportEntitiesTo(ResourceLocation targetDimensionId, BlockPos targetAnchorPos,
+            boolean requireSourcePower) {
         if (!(this.level instanceof ServerLevel sourceLevel)) {
             return new TeleportResult(TeleportStatus.TARGET_NOT_FOUND, 0);
         }
@@ -228,7 +240,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
         if (!targetAnchor.isOnline()) {
             return new TeleportResult(TeleportStatus.TARGET_OFFLINE, 0);
         }
-        if (!hasRequiredTeleportEnergy()) {
+        if (requireSourcePower && !hasRequiredTeleportEnergy()) {
             return new TeleportResult(TeleportStatus.INSUFFICIENT_POWER, 0);
         }
 
@@ -272,7 +284,9 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
         }
 
         if (teleportedCount > 0) {
+            if (requireSourcePower) {
             consumeAllStoredEnergy();
+            }
             return new TeleportResult(TeleportStatus.SUCCESS, teleportedCount);
         }
         return new TeleportResult(TeleportStatus.NO_ENTITIES, 0);
@@ -500,6 +514,7 @@ public class DataTeleportAnchorBlockEntity extends AENetworkedPoweredBlockEntity
         SELF_TARGET,
         TARGET_NOT_FOUND,
         INSUFFICIENT_POWER,
+        NO_RECORDED_TARGET,
         NO_ENTITIES
     }
 }

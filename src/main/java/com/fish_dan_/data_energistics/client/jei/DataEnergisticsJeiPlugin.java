@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -19,6 +20,7 @@ import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IRecipeTransferRegistration;
+import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.core.component.DataComponents;
@@ -34,6 +36,7 @@ import org.slf4j.Logger;
 import com.fish_dan_.data_energistics.registry.ModItems;
 
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
 import java.util.List;
 
 @JeiPlugin
@@ -43,6 +46,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
             "tamaized.ae2jeiintegration.integration.modules.jei.transfer.UseCraftingRecipeTransfer";
     private static final String ENCODING_HANDLER_CLASS =
             "tamaized.ae2jeiintegration.integration.modules.jei.transfer.EncodePatternTransferHandler";
+    private IJeiRuntime jeiRuntime;
 
     @Override
     public ResourceLocation getPluginUid() {
@@ -84,14 +88,16 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         registration.addRecipes(DataCaptureBallCondenserCategory.RECIPE_TYPE, List.of(DataCaptureBallCondenserRecipe.INSTANCE));
         var level = Minecraft.getInstance().level;
         if (level != null) {
+            List<WorldInteractionJeiRecipe> worldInteractionRecipes = new ArrayList<>();
+            worldInteractionRecipes.addAll(level.getRecipeManager().getAllRecipesFor(ModRecipes.TIME_SHIFT_TYPE.get()).stream()
+                    .map(WorldInteractionJeiRecipe.TimeShiftView::new)
+                    .toList());
+            worldInteractionRecipes.addAll(level.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get()).stream()
+                    .map(WorldInteractionJeiRecipe.RightClickView::new)
+                    .toList());
             registration.addRecipes(
                     TimeShiftRecipeCategory.RECIPE_TYPE,
-                    java.util.stream.Stream.<WorldInteractionJeiRecipe>concat(
-                                    level.getRecipeManager().getAllRecipesFor(ModRecipes.TIME_SHIFT_TYPE.get()).stream()
-                                            .map(WorldInteractionJeiRecipe.TimeShiftView::new),
-                                    level.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_CAPTURE_BALL_RIGHT_CLICK_TYPE.get()).stream()
-                                            .map(WorldInteractionJeiRecipe.RightClickView::new))
-                            .toList());
+                    worldInteractionRecipes);
             registration.addRecipes(
                     DataRipperReassemblerRecipeCategory.RECIPE_TYPE,
                     level.getRecipeManager().getAllRecipesFor(ModRecipes.DATA_RIPPER_REASSEMBLER_TYPE.get()).stream()
@@ -128,6 +134,33 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                         List.of(powerBook),
                         List.of(enchantedCrossbow),
                         Data_Energistics.id("anvil/matter_converging_crossbow_power"))));
+    }
+
+    @Override
+    public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
+        this.jeiRuntime = jeiRuntime;
+        hidePoweredRepairRecipes();
+    }
+
+    @Override
+    public void onRuntimeUnavailable() {
+        this.jeiRuntime = null;
+    }
+
+    private void hidePoweredRepairRecipes() {
+        if (this.jeiRuntime == null) {
+            return;
+        }
+
+        var recipeManager = this.jeiRuntime.getRecipeManager();
+        var repairRecipes = recipeManager.createRecipeLookup(RecipeTypes.ANVIL)
+                .includeHidden()
+                .get()
+                .filter(PoweredRepairRecipeFilter::shouldHideJeiRepairRecipe)
+                .toList();
+        if (!repairRecipes.isEmpty()) {
+            recipeManager.hideRecipes(RecipeTypes.ANVIL, repairRecipes);
+        }
     }
 
     @SuppressWarnings("unchecked")

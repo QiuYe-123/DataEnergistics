@@ -25,7 +25,16 @@
       "tag": "c:ingots/obsidian"
     },
     "J": {
-      "item": "data_energistics:data_capture_ball"
+      "type": "neoforge:components",
+      "items": "data_energistics:data_capture_ball",
+      "components": {
+        "ae2:storage_cell_inv": [
+          {
+            "#": 8,
+            "#t": "data_energistics:data"
+          }
+        ]
+      }
     }
   },
   "result": {

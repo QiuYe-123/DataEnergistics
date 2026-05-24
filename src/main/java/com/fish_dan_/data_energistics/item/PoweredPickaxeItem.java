@@ -50,7 +50,9 @@ public class PoweredPickaxeItem extends PickaxeItem implements PoweredEnergyItem
 
     @Override
     public float getDestroySpeed(ItemStack stack, BlockState state) {
-        return this.hasSufficientEnergy(stack) ? super.getDestroySpeed(stack, state) : this.getUnpoweredDestroySpeed(stack, state);
+        return this.hasSufficientEnergy(stack)
+                ? super.getDestroySpeed(stack, state) + this.getSpeedCardDestroySpeedBonus(stack)
+                : this.getUnpoweredDestroySpeed(stack, state);
     }
 
     @Override

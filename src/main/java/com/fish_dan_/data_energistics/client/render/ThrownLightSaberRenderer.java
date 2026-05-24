@@ -14,7 +14,7 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 
 public class ThrownLightSaberRenderer extends ThrownItemRenderer<ThrownLightSaberEntity> {
-    private static final float SANCTIFIER_SPIN_DEGREES_PER_TICK = 40.0F;
+    private static final float SANCTIFIER_SPIN_DEGREES_PER_TICK = 80.0F;
     private static final int SANCTIFIER_PRE_EMBED_SPIN_TICKS = 40;
     private final ItemRenderer itemRenderer;
 
@@ -37,7 +37,7 @@ public class ThrownLightSaberRenderer extends ThrownItemRenderer<ThrownLightSabe
         poseStack.mulPose(Axis.ZP.rotationDegrees(Mth.lerp(partialTick, entity.xRotO, entity.getXRot()) - 90.0F));
         poseStack.mulPose(Axis.YP.rotationDegrees(90.0F));
         if (isSanctifier(stack)) {
-            poseStack.mulPose(Axis.XP.rotationDegrees(getSanctifierSpinDegrees(entity, partialTick)));
+            poseStack.mulPose(Axis.ZP.rotationDegrees(getSanctifierSpinDegrees(entity, partialTick)));
         }
         if (entity.isEmbedded() && !isSanctifierPreEmbedSpinPhase(entity, stack)) {
             poseStack.translate(0.0D, 0.0D, 0.0D);

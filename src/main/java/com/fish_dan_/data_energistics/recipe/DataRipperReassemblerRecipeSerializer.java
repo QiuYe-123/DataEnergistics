@@ -18,11 +18,7 @@ import net.minecraft.world.item.crafting.RecipeSerializer;
 public final class DataRipperReassemblerRecipeSerializer implements RecipeSerializer<DataRipperReassemblerRecipe> {
     private static final Codec<List<DataRipperReassemblerIngredient>> INPUTS_CODEC =
             DataRipperReassemblerIngredient.CODEC.codec().listOf();
-    private static final Codec<List<ItemStack>> OUTPUTS_CODEC = ItemStack.CODEC.listOf().flatXmap(
-            outputs -> outputs.isEmpty()
-                    ? DataResult.error(() -> "Data rippper reassembler recipe must have at least one item output")
-                    : DataResult.success(outputs),
-            DataResult::success);
+    private static final Codec<List<ItemStack>> OUTPUTS_CODEC = ItemStack.CODEC.listOf();
     private static final Codec<Integer> TICKS_CODEC = Codec.INT.flatXmap(
             ticks -> ticks <= 0
                     ? DataResult.error(() -> "Data rippper reassembler recipe process_ticks must be greater than 0")
@@ -65,12 +61,14 @@ public final class DataRipperReassemblerRecipeSerializer implements RecipeSerial
     private static final MapCodec<DataRipperReassemblerRecipe> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             INPUTS_CODEC.optionalFieldOf("item_inputs", List.of()).forGetter(DataRipperReassemblerRecipe::getItemInputs),
             FLUID_INPUTS_CODEC.optionalFieldOf("fluid_inputs", List.of()).forGetter(DataRipperReassemblerRecipe::getFluidInputs),
-            OUTPUTS_CODEC.fieldOf("item_outputs").forGetter(DataRipperReassemblerRecipe::getItemOutputs),
+            OUTPUTS_CODEC.optionalFieldOf("item_outputs", List.of()).forGetter(DataRipperReassemblerRecipe::getItemOutputs),
             FLUID_OUTPUTS_CODEC.optionalFieldOf("fluid_outputs", List.of()).forGetter(DataRipperReassemblerRecipe::getFluidOutputs),
             TICKS_CODEC.optionalFieldOf("process_ticks", DataRipperReassemblerRecipe.PROCESS_TICKS)
                     .forGetter(DataRipperReassemblerRecipe::getProcessTicks),
-            KEY_INPUT_CODEC.optionalFieldOf("key_input").forGetter(recipe -> Optional.ofNullable(recipe.getKeyInput())),
-            KEY_OUTPUT_CODEC.optionalFieldOf("key_output").forGetter(recipe -> Optional.ofNullable(recipe.getKeyOutput()))
+            KEY_INPUT_CODEC.optionalFieldOf("key_input").forGetter(
+                    (DataRipperReassemblerRecipe recipe) -> Optional.ofNullable(recipe.getKeyInput())),
+            KEY_OUTPUT_CODEC.optionalFieldOf("key_output").forGetter(
+                    (DataRipperReassemblerRecipe recipe) -> Optional.ofNullable(recipe.getKeyOutput()))
     ).apply(instance, (itemInputs, fluidInputs, itemOutputs, fluidOutputs, processTicks, keyInput, keyOutput) ->
             new DataRipperReassemblerRecipe(itemInputs, fluidInputs, itemOutputs, fluidOutputs, processTicks,
                     keyInput.orElse(null), keyOutput.orElse(null))));

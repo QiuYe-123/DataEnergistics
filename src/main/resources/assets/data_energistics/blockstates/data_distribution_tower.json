@@ -1,13 +1,94 @@
 {
   "variants": {
-    "part=0": {
-      "model": "data_energistics:block/data_distribution_tower_bottom"
+    "active=false,facing=east,part=0": {
+      "model": "data_energistics:block/data_distribution_tower_bottom_offline",
+      "y": 90
     },
-    "part=1": {
-      "model": "data_energistics:block/data_distribution_tower_middle"
+    "active=false,facing=east,part=1": {
+      "model": "data_energistics:block/data_distribution_tower_middle_offline",
+      "y": 90
     },
-    "part=2": {
-      "model": "data_energistics:block/data_distribution_tower_top"
+    "active=false,facing=east,part=2": {
+      "model": "data_energistics:block/data_distribution_tower_top_offline",
+      "y": 90
+    },
+    "active=false,facing=north,part=0": {
+      "model": "data_energistics:block/data_distribution_tower_bottom_offline"
+    },
+    "active=false,facing=north,part=1": {
+      "model": "data_energistics:block/data_distribution_tower_middle_offline"
+    },
+    "active=false,facing=north,part=2": {
+      "model": "data_energistics:block/data_distribution_tower_top_offline"
+    },
+    "active=false,facing=south,part=0": {
+      "model": "data_energistics:block/data_distribution_tower_bottom_offline",
+      "y": 180
+    },
+    "active=false,facing=south,part=1": {
+      "model": "data_energistics:block/data_distribution_tower_middle_offline",
+      "y": 180
+    },
+    "active=false,facing=south,part=2": {
+      "model": "data_energistics:block/data_distribution_tower_top_offline",
+      "y": 180
+    },
+    "active=false,facing=west,part=0": {
+      "model": "data_energistics:block/data_distribution_tower_bottom_offline",
+      "y": 270
+    },
+    "active=false,facing=west,part=1": {
+      "model": "data_energistics:block/data_distribution_tower_middle_offline",
+      "y": 270
+    },
+    "active=false,facing=west,part=2": {
+      "model": "data_energistics:block/data_distribution_tower_top_offline",
+      "y": 270
+    },
+    "active=true,facing=east,part=0": {
+      "model": "data_energistics:block/data_distribution_tower_bottom_online",
+      "y": 90
+    },
+    "active=true,facing=east,part=1": {
+      "model": "data_energistics:block/data_distribution_tower_middle_online",
+      "y": 90
+    },
+    "active=true,facing=east,part=2": {
+      "model": "data_energistics:block/data_distribution_tower_top_online",
+      "y": 90
+    },
+    "active=true,facing=north,part=0": {
+      "model": "data_energistics:block/data_distribution_tower_bottom_online"
+    },
+    "active=true,facing=north,part=1": {
+      "model": "data_energistics:block/data_distribution_tower_middle_online"
+    },
+    "active=true,facing=north,part=2": {
+      "model": "data_energistics:block/data_distribution_tower_top_online"
+    },
+    "active=true,facing=south,part=0": {
+      "model": "data_energistics:block/data_distribution_tower_bottom_online",
+      "y": 180
+    },
+    "active=true,facing=south,part=1": {
+      "model": "data_energistics:block/data_distribution_tower_middle_online",
+      "y": 180
+    },
+    "active=true,facing=south,part=2": {
+      "model": "data_energistics:block/data_distribution_tower_top_online",
+      "y": 180
+    },
+    "active=true,facing=west,part=0": {
+      "model": "data_energistics:block/data_distribution_tower_bottom_online",
+      "y": 270
+    },
+    "active=true,facing=west,part=1": {
+      "model": "data_energistics:block/data_distribution_tower_middle_online",
+      "y": 270
+    },
+    "active=true,facing=west,part=2": {
+      "model": "data_energistics:block/data_distribution_tower_top_online",
+      "y": 270
     }
   }
 }

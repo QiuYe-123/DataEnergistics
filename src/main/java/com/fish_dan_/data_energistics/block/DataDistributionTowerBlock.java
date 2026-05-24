@@ -9,7 +9,6 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
-import com.fish_dan_.data_energistics.registry.ModMenus;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -26,12 +25,17 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.Mirror;
+import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.server.level.ServerLevel;
@@ -52,6 +56,8 @@ import java.util.List;
 @EventBusSubscriber(modid = Data_Energistics.MODID)
 public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlock {
     public static final IntegerProperty PART = IntegerProperty.create("part", 0, 2);
+    public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
+    public static final BooleanProperty ACTIVE = BooleanProperty.create("active");
     private static final VoxelShape BOTTOM_SHAPE = Shapes.or(
             Block.box(0, 1, 0, 16, 4, 16),
             Block.box(2, 0, 2, 14, 8, 14),
@@ -81,13 +87,16 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
 
     public DataDistributionTowerBlock(BlockBehaviour.Properties properties) {
         super(properties);
-        this.registerDefaultState(this.stateDefinition.any().setValue(PART, 0));
+        this.registerDefaultState(this.stateDefinition.any()
+                .setValue(PART, 0)
+                .setValue(FACING, Direction.NORTH)
+                .setValue(ACTIVE, false));
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         super.createBlockStateDefinition(builder);
-        builder.add(PART);
+        builder.add(PART, FACING, ACTIVE);
     }
 
     @Override
@@ -114,7 +123,10 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
             return null;
         }
 
-        return this.defaultBlockState().setValue(PART, 0);
+        return this.defaultBlockState()
+                .setValue(PART, 0)
+                .setValue(FACING, context.getHorizontalDirection().getOpposite())
+                .setValue(ACTIVE, false);
     }
 
     @Override
@@ -122,6 +134,16 @@ public class DataDistributionTowerBlock extends AEBaseBlock implements EntityBlo
         super.setPlacedBy(level, pos, state, placer, stack);
         level.setBlock(pos.above(), state.setValue(PART, 1), Block.UPDATE_ALL);
         level.setBlock(pos.above(2), state.setValue(PART, 2), Block.UPDATE_ALL);
+    }
+
+    @Override
+    protected BlockState rotate(BlockState state, Rotation rotation) {
+        return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
+    }
+
+    @Override
+    protected BlockState mirror(BlockState state, Mirror mirror) {
+        return state.rotate(mirror.getRotation(state.getValue(FACING)));
     }
 
     @Override

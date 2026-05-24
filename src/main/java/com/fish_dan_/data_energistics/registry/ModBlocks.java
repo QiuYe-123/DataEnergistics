@@ -56,7 +56,8 @@ public final class ModBlocks {
             DataDistributionTowerBlock::new,
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK)
                     .noOcclusion()
-                    .lightLevel(state -> state.getValue(DataDistributionTowerBlock.PART) == 2 ? 15 : 0));
+                    .lightLevel(state -> state.getValue(DataDistributionTowerBlock.PART) == 2
+                            && state.getValue(DataDistributionTowerBlock.ACTIVE) ? 15 : 0));
 
     public static final DeferredBlock<Block> DATA_MIMETIC_FIELD = BLOCKS.registerBlock(
             "data_mimetic_field",

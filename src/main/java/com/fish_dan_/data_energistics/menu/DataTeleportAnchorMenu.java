@@ -149,6 +149,8 @@ public class DataTeleportAnchorMenu extends AEBaseMenu {
                     "message.data_energistics.data_teleport_anchor.target_missing");
             case INSUFFICIENT_POWER -> Component.translatable(
                     "message.data_energistics.data_teleport_anchor.insufficient_power");
+            case NO_RECORDED_TARGET -> Component.translatable(
+                    "message.data_energistics.data_teleport_anchor.no_recorded_target");
             case NO_ENTITIES -> Component.translatable(
                     "message.data_energistics.data_teleport_anchor.no_entities");
         };

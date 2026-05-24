@@ -59,16 +59,19 @@ public final class PatternEncodingSourceHelper {
             DATA_RIPPER_KEY_OUTPUT_SLOT + DataRipperReassemblerRecipe.KEY_OUTPUT_SLOTS;
     public static final String ACTION_SET_PATTERN_SOURCE = "dataEnergisticsSetPatternSource";
     public static final String ACTION_SET_TRANSFER_KEY_INPUT = "dataEnergisticsSetTransferKeyInput";
+    public static final String ACTION_SET_TRANSFER_KEY_OUTPUT = "dataEnergisticsSetTransferKeyOutput";
     public static final String ACTION_SET_TRANSFER_FLUID_INPUTS = "dataEnergisticsSetTransferFluidInputs";
     public static final String ACTION_SET_TRANSFER_FLUID_OUTPUTS = "dataEnergisticsSetTransferFluidOutputs";
     public static final String CLEAR_PATTERN_SOURCE = "";
     public static final String CLEAR_TRANSFER_KEY_INPUT = "";
+    public static final String CLEAR_TRANSFER_KEY_OUTPUT = "";
     public static final String CLEAR_TRANSFER_FLUID_STACKS = "";
     private static final String PLAYER_PATTERN_SOURCE_ROOT = "data_energistics_pattern_source";
     private static final String TAG_PENDING = "pending";
     private static final String TAG_LAST = "last";
     private static final String TAG_ENABLED = "enabled";
     private static final String TAG_PENDING_KEY_INPUT = "pending_key_input";
+    private static final String TAG_PENDING_KEY_OUTPUT = "pending_key_output";
     private static final String WORKSTATION_MAPPINGS_RESOURCE = "data_energistics/pattern_workstation_mappings.json";
     private static final ResourceLocation CRAFTING_TABLE_ID = ResourceLocation.withDefaultNamespace("crafting_table");
     private static final ResourceLocation FURNACE_ID = ResourceLocation.withDefaultNamespace("furnace");
@@ -291,6 +294,17 @@ public final class PatternEncodingSourceHelper {
         syncPendingTransferFluidInputs(menu, dataRipperRecipe != null ? dataRipperRecipe.getFluidInputs() : List.of());
     }
 
+    public static void rememberTransferKeyOutput(PatternEncodingTermMenu menu, @Nullable Object recipe,
+                                                 @Nullable Object transferContext) {
+        if (menu.getMode() != EncodingMode.PROCESSING) {
+            syncPendingTransferKeyOutput(menu, null);
+            return;
+        }
+
+        DataRipperReassemblerRecipe dataRipperRecipe = resolveDataRipperReassemblerRecipe(recipe, transferContext);
+        syncPendingTransferKeyOutput(menu, dataRipperRecipe != null ? dataRipperRecipe.getKeyOutput() : null);
+    }
+
     public static void rememberTransferFluidOutputs(PatternEncodingTermMenu menu, @Nullable Object recipe,
                                                     @Nullable Object transferContext) {
         if (menu.getMode() != EncodingMode.PROCESSING) {
@@ -306,6 +320,10 @@ public final class PatternEncodingSourceHelper {
         syncPendingTransferKeyInput(menu, keyInput);
     }
 
+    public static void syncManualTransferKeyOutput(PatternEncodingTermMenu menu, @Nullable GenericStack keyOutput) {
+        syncPendingTransferKeyOutput(menu, keyOutput);
+    }
+
     public static void applyPendingTransferKeyInput(PatternEncodingTermMenu menu) {
         if (menu.getMode() != EncodingMode.PROCESSING) {
             return;
@@ -318,7 +336,7 @@ public final class PatternEncodingSourceHelper {
 
         GenericStack keyInput = readPendingTransferKeyInput(menu.getPlayer());
         if (keyInput == null && menu instanceof PatternEncodingTransferKeyAware transferKeyAware) {
-            keyInput = deserializeTransferKeyInput(menu, transferKeyAware.dataEnergistics$getDisplayedTransferKeyInputSerialized());
+            keyInput = deserializeTransferKey(menu, transferKeyAware.dataEnergistics$getDisplayedTransferKeyInputSerialized());
         }
         if (keyInput == null) {
             LOGGER.info("[DE][PatternKey] pending key is null");
@@ -339,6 +357,33 @@ public final class PatternEncodingSourceHelper {
 
         LOGGER.info("[DE][PatternKey] applying pending key {}", describeGenericStack(keyInput));
         applyTransferKeyInputServer(encodedInputsInv, keySlot, keyInput);
+    }
+
+    public static void applyPendingTransferKeyOutput(PatternEncodingTermMenu menu) {
+        if (menu.getMode() != EncodingMode.PROCESSING) {
+            return;
+        }
+
+        ResourceLocation pendingPatternSource = readPendingPatternSource(menu.getPlayer());
+        if (!DATA_RIPPER_REASSEMBLER_ID.equals(pendingPatternSource)) {
+            return;
+        }
+
+        GenericStack keyOutput = readPendingTransferKeyOutput(menu.getPlayer());
+        if (keyOutput == null && menu instanceof PatternEncodingTransferKeyAware transferKeyAware) {
+            keyOutput = deserializeTransferKey(menu, transferKeyAware.dataEnergistics$getDisplayedTransferKeyOutputSerialized());
+        }
+        if (keyOutput == null) {
+            return;
+        }
+
+        if (!(menu.getHost() instanceof IPatternTerminalMenuHost host)) {
+            return;
+        }
+
+        PatternEncodingLogic logic = host.getLogic();
+        ConfigInventory encodedOutputsInv = logic.getEncodedOutputInv();
+        applyTransferKeyOutputServer(encodedOutputsInv, keyOutput);
     }
 
     public static void sanitizeActiveDataRipperTransferLayout(PatternEncodingTermMenu menu) {
@@ -403,6 +448,8 @@ public final class PatternEncodingSourceHelper {
         }
 
         LOGGER.info("[DE][PatternKey] resolve outputs={}", describeItems(outputs));
+        GenericStack keyOutput = extractDataRipperKeyStack(encodedOutputsInv);
+        List<GenericStack> fluidOutputs = extractFluidStacks(encodedOutputsInv);
 
         var level = menu.getPlayer().level();
         for (RecipeHolder<DataRipperReassemblerRecipe> holder : level.getRecipeManager()
@@ -411,7 +458,7 @@ public final class PatternEncodingSourceHelper {
             if (!recipe.matches(new DataRipperReassemblerRecipeInput(items, List.of(), null), level)) {
                 continue;
             }
-            if (!matchesEncodedOutputs(recipe, outputs)) {
+            if (!matchesEncodedOutputs(recipe, outputs, keyOutput, fluidOutputs)) {
                 continue;
             }
 
@@ -496,6 +543,11 @@ public final class PatternEncodingSourceHelper {
     private static void applyTransferKeyInputServer(ConfigInventory encodedInputsInv, int keySlot,
                                                     @Nullable GenericStack keyInput) {
         repackDataRipperInputs(encodedInputsInv, keyInput, null);
+    }
+
+    private static void applyTransferKeyOutputServer(ConfigInventory encodedOutputsInv,
+                                                     @Nullable GenericStack keyOutput) {
+        repackDataRipperOutputs(encodedOutputsInv, keyOutput, null);
     }
 
     private static void applyTransferFluidStacksServer(ConfigInventory inventory, int slotBase, int slotCount,
@@ -637,12 +689,10 @@ public final class PatternEncodingSourceHelper {
         return itemKey.is(AEItems.WRAPPED_GENERIC_STACK);
     }
 
-    private static boolean matchesEncodedOutputs(DataRipperReassemblerRecipe recipe, List<ItemStack> encodedOutputs) {
+    private static boolean matchesEncodedOutputs(DataRipperReassemblerRecipe recipe, List<ItemStack> encodedOutputs,
+                                                 @Nullable GenericStack encodedKeyOutput,
+                                                 List<GenericStack> encodedFluidOutputs) {
         List<ItemStack> recipeOutputs = recipe.getItemOutputs();
-        if (recipeOutputs.isEmpty()) {
-            return false;
-        }
-
         for (int i = 0; i < recipeOutputs.size(); i++) {
             if (i >= encodedOutputs.size()) {
                 return false;
@@ -661,11 +711,25 @@ public final class PatternEncodingSourceHelper {
             }
         }
 
-        return true;
+        if (!matchesGenericStack(recipe.getKeyOutput(), encodedKeyOutput)) {
+            return false;
+        }
+
+        List<GenericStack> recipeFluidOutputs = recipe.getFluidOutputs();
+        if (recipeFluidOutputs.size() > encodedFluidOutputs.size()) {
+            return false;
+        }
+        for (int i = 0; i < recipeFluidOutputs.size(); i++) {
+            if (!matchesGenericStack(recipeFluidOutputs.get(i), encodedFluidOutputs.get(i))) {
+                return false;
+            }
+        }
+
+        return !recipeOutputs.isEmpty() || isMeaningfulGenericStack(recipe.getKeyOutput()) || !recipeFluidOutputs.isEmpty();
     }
 
     public static void applyTransferKeyInputAction(PatternEncodingTermMenu menu, @Nullable String serializedKeyInput) {
-        GenericStack keyInput = deserializeTransferKeyInput(menu, serializedKeyInput);
+        GenericStack keyInput = deserializeTransferKey(menu, serializedKeyInput);
         if (menu instanceof PatternEncodingTransferKeyAware transferKeyAware) {
             transferKeyAware.dataEnergistics$setDisplayedTransferKeyInputSerialized(serializedKeyInput);
         }
@@ -688,6 +752,25 @@ public final class PatternEncodingSourceHelper {
         }
 
         applyTransferKeyInputServer(encodedInputsInv, keySlot, keyInput);
+    }
+
+    public static void applyTransferKeyOutputAction(PatternEncodingTermMenu menu, @Nullable String serializedKeyOutput) {
+        GenericStack keyOutput = deserializeTransferKey(menu, serializedKeyOutput);
+        if (menu instanceof PatternEncodingTransferKeyAware transferKeyAware) {
+            transferKeyAware.dataEnergistics$setDisplayedTransferKeyOutputSerialized(serializedKeyOutput);
+        }
+        writePendingTransferKeyOutput(menu.getPlayer(), keyOutput);
+
+        if (menu.getMode() != EncodingMode.PROCESSING) {
+            return;
+        }
+        if (!(menu.getHost() instanceof IPatternTerminalMenuHost host)) {
+            return;
+        }
+
+        PatternEncodingLogic logic = host.getLogic();
+        ConfigInventory encodedOutputsInv = logic.getEncodedOutputInv();
+        applyTransferKeyOutputServer(encodedOutputsInv, keyOutput);
     }
 
     public static void applyTransferFluidInputsAction(PatternEncodingTermMenu menu,
@@ -737,6 +820,17 @@ public final class PatternEncodingSourceHelper {
         writePendingTransferKeyInput(menu.getPlayer(), keyInput);
     }
 
+    private static void syncPendingTransferKeyOutput(PatternEncodingTermMenu menu, @Nullable GenericStack keyOutput) {
+        if (menu.isClientSide()) {
+            if (menu instanceof PatternEncodingTransferKeyAware transferKeyAware) {
+                transferKeyAware.dataEnergistics$sendTransferKeyOutputAction(serializeTransferKeyOutput(menu, keyOutput));
+            }
+            return;
+        }
+
+        writePendingTransferKeyOutput(menu.getPlayer(), keyOutput);
+    }
+
     private static void syncPendingTransferFluidInputs(PatternEncodingTermMenu menu, List<GenericStack> fluidInputs) {
         if (menu.isClientSide()) {
             if (menu instanceof PatternEncodingTransferKeyAware transferKeyAware) {
@@ -770,8 +864,21 @@ public final class PatternEncodingSourceHelper {
         return tag.toString();
     }
 
+    private static String serializeTransferKeyOutput(PatternEncodingTermMenu menu, @Nullable GenericStack keyOutput) {
+        if (keyOutput == null) {
+            return CLEAR_TRANSFER_KEY_OUTPUT;
+        }
+
+        CompoundTag tag = GenericStack.writeTag(menu.getPlayer().registryAccess(), keyOutput);
+        return tag.toString();
+    }
+
     public static String serializeTransferKeyInputForDisplay(PatternEncodingTermMenu menu, @Nullable GenericStack keyInput) {
         return serializeTransferKeyInput(menu, keyInput);
+    }
+
+    public static String serializeTransferKeyOutputForDisplay(PatternEncodingTermMenu menu, @Nullable GenericStack keyOutput) {
+        return serializeTransferKeyOutput(menu, keyOutput);
     }
 
     private static String serializeTransferFluidStacks(PatternEncodingTermMenu menu, @Nullable List<GenericStack> stacks) {
@@ -791,14 +898,14 @@ public final class PatternEncodingSourceHelper {
     }
 
     @Nullable
-    private static GenericStack deserializeTransferKeyInput(PatternEncodingTermMenu menu,
-                                                            @Nullable String serializedKeyInput) {
-        if (serializedKeyInput == null || serializedKeyInput.isEmpty()) {
+    private static GenericStack deserializeTransferKey(PatternEncodingTermMenu menu,
+                                                       @Nullable String serializedKey) {
+        if (serializedKey == null || serializedKey.isEmpty()) {
             return null;
         }
 
         try {
-            CompoundTag tag = TagParser.parseTag(serializedKeyInput);
+            CompoundTag tag = TagParser.parseTag(serializedKey);
             return GenericStack.readTag(menu.getPlayer().registryAccess(), tag);
         } catch (CommandSyntaxException ignored) {
             return null;
@@ -898,6 +1005,20 @@ public final class PatternEncodingSourceHelper {
         return GenericStack.readTag(player.registryAccess(), tag.getCompound(TAG_PENDING_KEY_INPUT));
     }
 
+    @Nullable
+    public static GenericStack readPendingTransferKeyOutput(Player player) {
+        GenericStack keyOutput = PatternEncodingSessionState.getPendingTransferKeyOutput(player.getUUID());
+        if (keyOutput != null) {
+            return new GenericStack(keyOutput.what(), keyOutput.amount());
+        }
+
+        CompoundTag tag = getPatternSourceData(player, false);
+        if (tag == null || !tag.contains(TAG_PENDING_KEY_OUTPUT, CompoundTag.TAG_COMPOUND)) {
+            return null;
+        }
+        return GenericStack.readTag(player.registryAccess(), tag.getCompound(TAG_PENDING_KEY_OUTPUT));
+    }
+
     public static void writePendingTransferKeyInput(Player player, @Nullable GenericStack keyInput) {
         if (player.level().isClientSide()) {
             return;
@@ -918,6 +1039,38 @@ public final class PatternEncodingSourceHelper {
                 cleanupPatternSourceData(player, tag);
             }
         }
+    }
+
+    public static void writePendingTransferKeyOutput(Player player, @Nullable GenericStack keyOutput) {
+        if (player.level().isClientSide()) {
+            return;
+        }
+
+        CompoundTag tag = getPatternSourceData(player, keyOutput != null && keyOutput.amount() > 0);
+        if (keyOutput == null || keyOutput.amount() <= 0) {
+            PatternEncodingSessionState.clearPendingTransferKeyOutput(player.getUUID());
+            if (tag != null) {
+                tag.remove(TAG_PENDING_KEY_OUTPUT);
+                cleanupPatternSourceData(player, tag);
+            }
+        } else {
+            GenericStack copy = new GenericStack(keyOutput.what(), keyOutput.amount());
+            PatternEncodingSessionState.setPendingTransferKeyOutput(player.getUUID(), copy);
+            if (tag != null) {
+                tag.put(TAG_PENDING_KEY_OUTPUT, GenericStack.writeTag(player.registryAccess(), copy));
+                cleanupPatternSourceData(player, tag);
+            }
+        }
+    }
+
+    private static boolean matchesGenericStack(@Nullable GenericStack expected, @Nullable GenericStack actual) {
+        if (!isMeaningfulGenericStack(expected)) {
+            return !isMeaningfulGenericStack(actual);
+        }
+        if (!isMeaningfulGenericStack(actual)) {
+            return false;
+        }
+        return expected.what().equals(actual.what()) && actual.amount() >= expected.amount();
     }
 
     public static List<GenericStack> readPendingTransferFluidInputs(Player player) {

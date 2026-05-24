@@ -750,7 +750,14 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         for (int slot = 0; slot < encodedOutputsInv.size(); slot++) {
             outputs[slot] = encodedOutputsInv.getStack(slot);
         }
-        if (outputs[0] == null) {
+        boolean hasOutput = false;
+        for (GenericStack output : outputs) {
+            if (output != null) {
+                hasOutput = true;
+                break;
+            }
+        }
+        if (!hasOutput) {
             return null;
         }
 

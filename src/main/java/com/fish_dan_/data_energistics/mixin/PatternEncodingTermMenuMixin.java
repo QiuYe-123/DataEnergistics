@@ -106,6 +106,9 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     @Unique
     @Nullable
     private String dataEnergistics$displayTransferKeyInputSerialized;
+    @Unique
+    @Nullable
+    private String dataEnergistics$displayTransferKeyOutputSerialized;
 
     @Shadow
     @Final
@@ -241,6 +244,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
         PatternEncodingSourceHelper.resolveAndApplyDataRipperRecipeKeyInput((PatternEncodingTermMenu) (Object) this);
         PatternEncodingSourceHelper.applyPendingTransferKeyInput((PatternEncodingTermMenu) (Object) this);
+        PatternEncodingSourceHelper.applyPendingTransferKeyOutput((PatternEncodingTermMenu) (Object) this);
 
         ItemStack encodedPattern = this.mode == EncodingMode.PROCESSING
                 ? dataEnergistics$encodeProcessingPatternWithGenericStacks()
@@ -248,6 +252,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         if (encodedPattern == null) {
             this.dataEnergistics$invokeClearPattern();
             PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
+            PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
             ci.cancel();
             return;
         }
@@ -257,12 +262,14 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 && !PatternDetailsHelper.isEncodedPattern(encodeOutput)
                 && !AEItems.BLANK_PATTERN.is(encodeOutput)) {
             PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
+            PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
             ci.cancel();
             return;
         }
 
         if (encodeOutput.isEmpty() && !dataEnergistics$consumeOneBlankPatternFromNetwork()) {
             PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
+            PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
             ci.cancel();
             return;
         }
@@ -274,6 +281,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
         this.encodedPatternSlot.set(encodedPattern);
         PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
+        PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
         ci.cancel();
     }
 
@@ -304,7 +312,14 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         for (int slot = 0; slot < encodedOutputsInv.size(); slot++) {
             outputs[slot] = encodedOutputsInv.getStack(slot);
         }
-        if (outputs.length == 0 || outputs[0] == null) {
+        boolean hasOutput = false;
+        for (GenericStack output : outputs) {
+            if (output != null) {
+                hasOutput = true;
+                break;
+            }
+        }
+        if (!hasOutput) {
             return null;
         }
 
@@ -455,6 +470,14 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Override
+    public void dataEnergistics$sendTransferKeyOutputAction(@Nullable String serializedKeyOutput) {
+        if (this.isClientSide()) {
+            this.dataEnergistics$displayTransferKeyOutputSerialized = serializedKeyOutput;
+            sendClientAction(PatternEncodingSourceHelper.ACTION_SET_TRANSFER_KEY_OUTPUT, serializedKeyOutput);
+        }
+    }
+
+    @Override
     public @Nullable GenericStack dataEnergistics$getDisplayedTransferKeyInput() {
         if (this.dataEnergistics$displayTransferKeyInputSerialized == null
                 || this.dataEnergistics$displayTransferKeyInputSerialized.isEmpty()) {
@@ -469,13 +492,37 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Override
+    public @Nullable GenericStack dataEnergistics$getDisplayedTransferKeyOutput() {
+        if (this.dataEnergistics$displayTransferKeyOutputSerialized == null
+                || this.dataEnergistics$displayTransferKeyOutputSerialized.isEmpty()) {
+            return PatternEncodingSourceHelper.readPendingTransferKeyOutput(this.getPlayer());
+        }
+        try {
+            return GenericStack.readTag(this.getPlayer().registryAccess(),
+                    TagParser.parseTag(this.dataEnergistics$displayTransferKeyOutputSerialized));
+        } catch (CommandSyntaxException ignored) {
+            return PatternEncodingSourceHelper.readPendingTransferKeyOutput(this.getPlayer());
+        }
+    }
+
+    @Override
     public void dataEnergistics$setDisplayedTransferKeyInputSerialized(@Nullable String serializedKeyInput) {
         this.dataEnergistics$displayTransferKeyInputSerialized = serializedKeyInput;
     }
 
     @Override
+    public void dataEnergistics$setDisplayedTransferKeyOutputSerialized(@Nullable String serializedKeyOutput) {
+        this.dataEnergistics$displayTransferKeyOutputSerialized = serializedKeyOutput;
+    }
+
+    @Override
     public @Nullable String dataEnergistics$getDisplayedTransferKeyInputSerialized() {
         return this.dataEnergistics$displayTransferKeyInputSerialized;
+    }
+
+    @Override
+    public @Nullable String dataEnergistics$getDisplayedTransferKeyOutputSerialized() {
+        return this.dataEnergistics$displayTransferKeyOutputSerialized;
     }
 
     @Override
@@ -523,6 +570,9 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         registerClientAction(PatternEncodingSourceHelper.ACTION_SET_TRANSFER_KEY_INPUT, String.class,
                 serializedKeyInput -> PatternEncodingSourceHelper.applyTransferKeyInputAction(
                         (PatternEncodingTermMenu) (Object) this, serializedKeyInput));
+        registerClientAction(PatternEncodingSourceHelper.ACTION_SET_TRANSFER_KEY_OUTPUT, String.class,
+                serializedKeyOutput -> PatternEncodingSourceHelper.applyTransferKeyOutputAction(
+                        (PatternEncodingTermMenu) (Object) this, serializedKeyOutput));
         registerClientAction(PatternEncodingSourceHelper.ACTION_SET_TRANSFER_FLUID_INPUTS, String.class,
                 serializedFluidInputs -> PatternEncodingSourceHelper.applyTransferFluidInputsAction(
                         (PatternEncodingTermMenu) (Object) this, serializedFluidInputs));

@@ -6,10 +6,14 @@ import appeng.items.tools.powered.ColorApplicatorItem;
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
 import com.fish_dan_.data_energistics.blockentity.DataTeleportAnchorBlockEntity;
+import com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModMenus;
+import com.fish_dan_.data_energistics.util.CuttingKnifeTeleportData;
+import appeng.api.config.Actionable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -34,6 +38,7 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.Nullable;
 
 public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock {
@@ -91,6 +96,9 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
             Player player, net.minecraft.world.InteractionHand hand, BlockHitResult hitResult) {
+        if (stack.getItem() instanceof PoweredCuttingKnifeItem && level.getBlockEntity(pos) instanceof DataTeleportAnchorBlockEntity anchor) {
+            return tryHandleCuttingKnifeTeleportToAnchor(stack, level, pos, player, anchor);
+        }
         if (stack.getItem() instanceof DyeItem dyeItem) {
             ColorVariant variant = ColorVariant.fromDyeColor(dyeItem.getDyeColor());
             return applyColor(state, level, pos, player, stack, variant, false);
@@ -104,6 +112,60 @@ public class DataTeleportAnchorBlock extends AEBaseBlock implements EntityBlock 
             return applyColor(state, level, pos, player, stack, variant, true);
         }
         return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
+    }
+
+    public static ItemInteractionResult tryHandleCuttingKnifeTeleportToAnchor(ItemStack stack, Level level, BlockPos pos, Player player,
+            DataTeleportAnchorBlockEntity anchor) {
+        if (level.isClientSide()) {
+            return ItemInteractionResult.sidedSuccess(true);
+        }
+
+        if (!CuttingKnifeTeleportData.hasEnoughDataFlow(stack)) {
+            player.displayClientMessage(Component.translatable(
+                    "message.data_energistics.data_teleport_anchor.data_flow_insufficient"), true);
+            return ItemInteractionResult.CONSUME;
+        }
+        if (!CuttingKnifeTeleportData.canConsumeDataFlow(stack)) {
+            player.displayClientMessage(Component.translatable(
+                    "message.data_energistics.data_teleport_anchor.data_flow_insufficient"), true);
+            return ItemInteractionResult.CONSUME;
+        }
+        if (!(stack.getItem() instanceof PoweredCuttingKnifeItem poweredCuttingKnifeItem)) {
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        }
+        if (poweredCuttingKnifeItem.extractAEPower(stack, CuttingKnifeTeleportData.AE_POWER_COST, Actionable.SIMULATE)
+                < CuttingKnifeTeleportData.AE_POWER_COST) {
+            player.displayClientMessage(Component.translatable(
+                    "message.data_energistics.data_teleport_anchor.knife_insufficient_power"), true);
+            return ItemInteractionResult.CONSUME;
+        }
+        if (!anchor.isOnline()) {
+            player.displayClientMessage(Component.translatable(
+                    "message.data_energistics.data_teleport_anchor.anchor_offline"), true);
+            return ItemInteractionResult.CONSUME;
+        }
+
+        if (!CuttingKnifeTeleportData.consumeDataFlow(stack)) {
+            player.displayClientMessage(Component.translatable(
+                    "message.data_energistics.data_teleport_anchor.data_flow_insufficient"), true);
+            return ItemInteractionResult.CONSUME;
+        }
+        poweredCuttingKnifeItem.extractAEPower(stack, CuttingKnifeTeleportData.AE_POWER_COST, Actionable.MODULATE);
+
+        double targetX = pos.getX() + 0.5D;
+        double targetY = pos.getY() + 1.1D;
+        double targetZ = pos.getZ() + 0.5D;
+        if (player instanceof ServerPlayer serverPlayer) {
+            serverPlayer.teleportTo(serverPlayer.serverLevel(), targetX, targetY, targetZ, java.util.Set.of(),
+                    serverPlayer.getYRot(), serverPlayer.getXRot());
+        } else {
+            player.teleportTo(targetX, targetY, targetZ);
+        }
+        player.fallDistance = 0.0F;
+        player.displayClientMessage(Component.translatable(
+                "message.data_energistics.data_teleport_anchor.self_teleported",
+                pos.getX(), pos.getY(), pos.getZ()), true);
+        return ItemInteractionResult.CONSUME;
     }
 
     private ItemInteractionResult applyColor(BlockState state, Level level, BlockPos pos, Player player, ItemStack stack,

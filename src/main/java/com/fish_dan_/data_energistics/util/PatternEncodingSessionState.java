@@ -13,6 +13,7 @@ import net.minecraft.resources.ResourceLocation;
 final class PatternEncodingSessionState {
     private static final Map<UUID, ResourceLocation> LAST_ENCODED_PATTERN_SOURCES = new ConcurrentHashMap<>();
     private static final Map<UUID, GenericStack> PENDING_TRANSFER_KEY_INPUTS = new ConcurrentHashMap<>();
+    private static final Map<UUID, GenericStack> PENDING_TRANSFER_KEY_OUTPUTS = new ConcurrentHashMap<>();
     private static final Map<UUID, List<GenericStack>> PENDING_TRANSFER_FLUID_INPUTS = new ConcurrentHashMap<>();
     private static final Map<UUID, List<GenericStack>> PENDING_TRANSFER_FLUID_OUTPUTS = new ConcurrentHashMap<>();
 
@@ -46,6 +47,19 @@ final class PatternEncodingSessionState {
     }
 
     @Nullable
+    static GenericStack getPendingTransferKeyOutput(UUID playerId) {
+        return PENDING_TRANSFER_KEY_OUTPUTS.get(playerId);
+    }
+
+    static void setPendingTransferKeyOutput(UUID playerId, GenericStack keyOutput) {
+        PENDING_TRANSFER_KEY_OUTPUTS.put(playerId, keyOutput);
+    }
+
+    static void clearPendingTransferKeyOutput(UUID playerId) {
+        PENDING_TRANSFER_KEY_OUTPUTS.remove(playerId);
+    }
+
+    @Nullable
     static List<GenericStack> getPendingTransferFluidInputs(UUID playerId) {
         return PENDING_TRANSFER_FLUID_INPUTS.get(playerId);
     }
@@ -74,6 +88,7 @@ final class PatternEncodingSessionState {
     static void clear(UUID playerId) {
         LAST_ENCODED_PATTERN_SOURCES.remove(playerId);
         PENDING_TRANSFER_KEY_INPUTS.remove(playerId);
+        PENDING_TRANSFER_KEY_OUTPUTS.remove(playerId);
         PENDING_TRANSFER_FLUID_INPUTS.remove(playerId);
         PENDING_TRANSFER_FLUID_OUTPUTS.remove(playerId);
     }

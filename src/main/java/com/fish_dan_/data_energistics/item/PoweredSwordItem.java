@@ -1,6 +1,9 @@
 package com.fish_dan_.data_energistics.item;
 
+import appeng.api.util.AEColor;
+import appeng.items.tools.powered.ColorApplicatorItem;
 import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
+import com.fish_dan_.data_energistics.util.LightSaberColorData;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
@@ -15,7 +18,12 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.ClickAction;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.item.DyeItem;
 import net.minecraft.world.entity.projectile.AbstractArrow.Pickup;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.ItemStack;
@@ -119,6 +127,44 @@ public class PoweredSwordItem extends SwordItem implements PoweredEnergyItem, Pr
     }
 
     @Override
+    public boolean overrideOtherStackedOnMe(ItemStack stack, ItemStack carriedStack, Slot slot,
+            ClickAction clickAction, Player player, SlotAccess carriedSlotAccess) {
+        if (clickAction != ClickAction.SECONDARY || !LightSaberColorData.isColorableLightSaber(stack)) {
+            return false;
+        }
+
+        DyeColor color = LightSaberColorData.getColorFromIngredient(carriedStack);
+        if (color == null || color == LightSaberColorData.getStoredColor(stack)) {
+            return false;
+        }
+
+        slot.set(LightSaberColorData.withColor(stack, color));
+
+        if (player.getAbilities().instabuild) {
+            return true;
+        }
+
+        if (carriedStack.getItem() instanceof ColorApplicatorItem colorApplicatorItem) {
+            AEColor aeColor = colorApplicatorItem.getActiveColor(carriedStack);
+            if (aeColor != null && aeColor != AEColor.TRANSPARENT && aeColor.dye != null) {
+                ItemStack updatedApplicator = carriedStack.copy();
+                colorApplicatorItem.consumeColor(updatedApplicator, aeColor, false);
+                carriedSlotAccess.set(updatedApplicator);
+            }
+            return true;
+        }
+
+        if (carriedStack.getItem() instanceof DyeItem) {
+            ItemStack updatedDye = carriedStack.copy();
+            updatedDye.shrink(1);
+            carriedSlotAccess.set(updatedDye);
+            return true;
+        }
+
+        return false;
+    }
+
+    @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (!this.throwable) {
@@ -141,7 +187,7 @@ public class PoweredSwordItem extends SwordItem implements PoweredEnergyItem, Pr
         }
 
         int useTicks = this.getUseDuration(stack, livingEntity) - timeLeft;
-        if (useTicks < THROW_THRESHOLD_TIME) {
+        if (useTicks < this.getThrowThresholdTime(stack)) {
             return;
         }
 
@@ -197,6 +243,10 @@ public class PoweredSwordItem extends SwordItem implements PoweredEnergyItem, Pr
 
             level.playSound(null, player, sound.value(), SoundSource.PLAYERS, 1.0F, 1.0F);
         }
+    }
+
+    protected int getThrowThresholdTime(ItemStack stack) {
+        return Math.max(4, THROW_THRESHOLD_TIME - this.getSpeedCardCount(stack) * 2);
     }
 
     @Override

@@ -25,6 +25,8 @@ import appeng.api.upgrades.UpgradeInventories;
 import appeng.api.util.AECableType;
 import appeng.api.util.IConfigManager;
 import appeng.api.util.IConfigurableObject;
+import appeng.api.config.PowerMultiplier;
+import appeng.api.config.PowerUnit;
 import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
 import appeng.helpers.externalstorage.GenericStackInv;
 import appeng.util.ConfigManager;
@@ -180,6 +182,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return;
         }
 
+        refillEnergyCache();
         processRecipe();
         tryAutoExport();
         updateOnlineState();
@@ -1232,6 +1235,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         var inv = new GenericStackInv(AEKeyTypes.getAll(), this::syncStackFromKeyMenu, GenericStackInv.Mode.STORAGE, 1) {
             {
                 this.setFilter((slot, what) -> {
+                    if (!isAllowedMenuKey(what)) {
+                        return false;
+                    }
                     var current = this.getStack(slot);
                     return current == null || current.amount() <= 0 || current.what().equals(what);
                 });
@@ -1245,6 +1251,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         var inv = new GenericStackInv(AEKeyTypes.getAll(), this::syncStackFromKeyOutputMenu, GenericStackInv.Mode.STORAGE, 1) {
             {
                 this.setFilter((slot, what) -> {
+                    if (!isAllowedMenuKey(what)) {
+                        return false;
+                    }
                     var current = this.getStack(slot);
                     return current == null || current.amount() <= 0 || current.what().equals(what);
                 });
@@ -1258,6 +1267,27 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         for (AEKeyType type : AEKeyTypes.getAll()) {
             inv.setCapacity(type, capacity);
         }
+    }
+
+    private void refillEnergyCache() {
+        var node = this.getMainNode().getNode();
+        if (node == null || node.getGrid() == null || !node.isActive()) {
+            return;
+        }
+
+        double missing = this.getInternalMaxPower() - this.getInternalCurrentPower();
+        if (missing <= 0.0001D) {
+            return;
+        }
+
+        double extracted = node.getGrid().getEnergyService().extractAEPower(missing, Actionable.MODULATE, PowerMultiplier.ONE);
+        if (extracted > 0.0001D) {
+            this.injectExternalPower(PowerUnit.AE, extracted, Actionable.MODULATE);
+        }
+    }
+
+    private static boolean isAllowedMenuKey(@Nullable AEKey what) {
+        return what != null && !(what instanceof AEItemKey) && !(what instanceof AEFluidKey);
     }
 
     private void syncMenuFluidsFromTanks() {

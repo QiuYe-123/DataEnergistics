@@ -4,7 +4,12 @@ import appeng.api.config.AccessRestriction;
 import appeng.api.config.Actionable;
 import appeng.api.ids.AEComponents;
 import appeng.api.implementations.items.IAEItemPowerStorage;
+import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.upgrades.IUpgradeableItem;
+import appeng.api.upgrades.UpgradeInventories;
+import appeng.core.definitions.AEItems;
 import appeng.core.localization.Tooltips;
+import appeng.api.upgrades.Upgrades;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -16,10 +21,12 @@ import net.neoforged.neoforge.common.extensions.IItemExtension;
 
 import java.util.List;
 
-public interface PoweredEnergyItem extends IAEItemPowerStorage, IItemExtension {
+public interface PoweredEnergyItem extends IAEItemPowerStorage, IItemExtension, IUpgradeableItem {
     double MAX_POWER = 20_000.0D;
     double CHARGE_RATE = 20_000.0D;
     double ENERGY_PER_ACTION = 100.0D;
+    double ENERGY_PER_SPEED_CARD = 100.0D;
+    int MAX_UPGRADES = 3;
 
     default void appendEnergyHoverText(ItemStack stack, List<Component> lines) {
         lines.add(Tooltips.energyStorageComponent(this.getAECurrentPower(stack), this.getAEMaxPower(stack)));
@@ -38,23 +45,42 @@ public interface PoweredEnergyItem extends IAEItemPowerStorage, IItemExtension {
     }
 
     default void consumeActionEnergy(ItemStack stack) {
-        this.extractAEPower(stack, ENERGY_PER_ACTION, Actionable.MODULATE);
+        this.extractAEPower(stack, this.getActionEnergyCost(stack), Actionable.MODULATE);
     }
 
     default boolean hasSufficientEnergy(ItemStack stack) {
-        return this.getAECurrentPower(stack) >= ENERGY_PER_ACTION;
+        return this.getAECurrentPower(stack) >= this.getActionEnergyCost(stack);
     }
 
     default float getUnpoweredDestroySpeed(ItemStack stack, BlockState state) {
         return 1.0F;
     }
 
+    default double getActionEnergyCost(ItemStack stack) {
+        return ENERGY_PER_ACTION + ENERGY_PER_SPEED_CARD * this.getSpeedCardCount(stack);
+    }
+
+    default int getSpeedCardCount(ItemStack stack) {
+        return Math.max(0, this.getUpgrades(stack).getInstalledUpgrades(AEItems.SPEED_CARD));
+    }
+
+    default int getEnergyCardCount(ItemStack stack) {
+        return Math.max(0, this.getUpgrades(stack).getInstalledUpgrades(AEItems.ENERGY_CARD));
+    }
+
+    default float getSpeedCardAttackSpeedBonus(ItemStack stack) {
+        return 0.2F * this.getSpeedCardCount(stack);
+    }
+
+    default float getSpeedCardDestroySpeedBonus(ItemStack stack) {
+        return 0.2F * this.getSpeedCardCount(stack);
+    }
+
     static boolean isAnvilRepairBlocked(ItemStack baseStack, ItemStack additionStack) {
         return baseStack.getItem() instanceof PoweredEnergyItem
                 && !additionStack.isEmpty()
-                && baseStack.isDamageableItem()
                 && additionStack.is(baseStack.getItem())
-                && additionStack.isDamageableItem();
+                && additionStack.getItem() instanceof PoweredEnergyItem;
     }
 
     static boolean canCraftWithEnergy(CraftingInput input) {
@@ -92,7 +118,7 @@ public interface PoweredEnergyItem extends IAEItemPowerStorage, IItemExtension {
 
     @Override
     default double getAEMaxPower(ItemStack stack) {
-        return MAX_POWER;
+        return MAX_POWER * (1 + 8 * this.getEnergyCardCount(stack));
     }
 
     @Override
@@ -119,22 +145,24 @@ public interface PoweredEnergyItem extends IAEItemPowerStorage, IItemExtension {
     }
 
     @Override
+    default IUpgradeInventory getUpgrades(ItemStack stack) {
+        return UpgradeInventories.forItem(stack, this.getMaxUpgradeSlots(stack), this::onUpgradesChanged);
+    }
+
+    default int getMaxUpgradeSlots(ItemStack stack) {
+        return MAX_UPGRADES;
+    }
+
+    default void onUpgradesChanged(ItemStack stack, IUpgradeInventory upgrades) {
+        double maxPower = this.getAEMaxPower(stack);
+        if (this.getAECurrentPower(stack) > maxPower) {
+            this.setAECurrentPower(stack, maxPower);
+        }
+    }
+
+    @Override
     default boolean onLeftClickEntity(ItemStack stack, Player player, Entity entity) {
         return !this.hasSufficientEnergy(stack);
     }
 
-    @Override
-    default boolean hasCraftingRemainingItem(ItemStack stack) {
-        return true;
-    }
-
-    @Override
-    default ItemStack getCraftingRemainingItem(ItemStack itemStack) {
-        if (!this.hasSufficientEnergy(itemStack)) {
-            return ItemStack.EMPTY;
-        }
-        ItemStack remainder = itemStack.copyWithCount(1);
-        this.consumeActionEnergy(remainder);
-        return remainder;
-    }
 }

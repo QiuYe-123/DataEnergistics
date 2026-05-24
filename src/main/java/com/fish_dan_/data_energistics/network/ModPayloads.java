@@ -24,5 +24,10 @@ public final class ModPayloads {
                 UniversalTerminalSelectPayload.STREAM_CODEC,
                 UniversalTerminalSelectPayload::handle
         );
+        registrar.playToServer(
+                DataTeleportAnchorKnifeTeleportPayload.TYPE,
+                DataTeleportAnchorKnifeTeleportPayload.STREAM_CODEC,
+                DataTeleportAnchorKnifeTeleportPayload::handle
+        );
     }
 }

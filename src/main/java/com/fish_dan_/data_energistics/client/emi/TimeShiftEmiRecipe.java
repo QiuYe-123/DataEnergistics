@@ -21,7 +21,8 @@ public final class TimeShiftEmiRecipe extends BasicEmiRecipe {
     private static final int HEIGHT = 72;
     private static final int CENTER_Y = 36;
     private static final int SLOT_SIZE = 18;
-    private static final int INPUT_X = 0;
+    private static final int INPUT_X = 10;
+    private static final int INPUT_Y = 10;
     private static final int ARROW_X = 62;
     private static final int TEXT_X = 40;
     private static final int TEXT_WIDTH = 68;
@@ -52,12 +53,8 @@ public final class TimeShiftEmiRecipe extends BasicEmiRecipe {
 
     @Override
     public void addWidgets(WidgetHolder widgets) {
-        int inputRows = visibleRows(this.inputs.size());
-        int inputStartY = centeredSlotY(this.inputs.size());
         for (int i = 0; i < this.inputs.size(); i++) {
-            int x = INPUT_X + i / inputRows * SLOT_SIZE;
-            int y = inputStartY + i % inputRows * SLOT_SIZE;
-            widgets.addSlot(this.inputs.get(i), x, y);
+            widgets.addSlot(this.inputs.get(i), inputWidgetX(i), inputWidgetY(this.inputs.size(), i));
         }
 
         int outputRows = visibleRows(this.outputs.size());
@@ -99,6 +96,26 @@ public final class TimeShiftEmiRecipe extends BasicEmiRecipe {
 
     private static int centeredSlotY(int slotCount) {
         return CENTER_Y - visibleRows(slotCount) * SLOT_SIZE / 2;
+    }
+
+    private static int inputWidgetX(int index) {
+        return inputContentX(index) - 1;
+    }
+
+    private static int inputWidgetY(int slotCount, int index) {
+        return inputContentY(slotCount, index) - 1;
+    }
+
+    private static int inputContentX(int index) {
+        return INPUT_X + index / 3 * SLOT_SIZE;
+    }
+
+    private static int inputContentY(int slotCount, int index) {
+        return inputStartY(slotCount) + index % 3 * SLOT_SIZE;
+    }
+
+    private static int inputStartY(int slotCount) {
+        return INPUT_Y + (slotCount < 3 ? 9 * (3 - slotCount) : 0);
     }
 
     private static int visibleRows(int slotCount) {

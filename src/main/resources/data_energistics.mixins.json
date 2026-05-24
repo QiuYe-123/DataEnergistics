@@ -41,6 +41,8 @@
     "Ae2ltWirelessConnectorUsePacketMixin",
     "Ae2ltEjectCapabilityMixin",
     "AnvilMenuMixin",
+    "ResultSlotMixin",
+    "CraftingTermSlotMixin",
     "CraftingMenuMixin",
     "CraftingTermMenuMixin"
   ],

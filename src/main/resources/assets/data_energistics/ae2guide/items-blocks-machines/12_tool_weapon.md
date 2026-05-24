@@ -37,7 +37,7 @@ item_ids:
 | <ItemImage id="data_energistics:data_crystal_pickaxe" /> 数据水晶镐 | 20kae | 1.4 | 6 | 下界合金\金  | <ItemLink id="ae2:speed_card"/> : 增加0.2攻击\挖掘速度，增加耗能 / <ItemLink id="ae2:energy_card"/> : 最大能源 = 基础容量 × (1 + 8 × 能源卡数量) |
 | <ItemImage id="data_energistics:data_crystal_hoe" /> 数据水晶锄 | 20kae | 1.4 | 6 | 下界合金\金  | <ItemLink id="ae2:speed_card"/> : 增加0.2攻击\挖掘速度，增加耗能 / <ItemLink id="ae2:energy_card"/> : 最大能源 = 基础容量 × (1 + 8 × 能源卡数量) |
 | <ItemImage id="data_energistics:data_crystal_shovel" /> 数据水晶锹 | 20kae | 1.4 | 6 | 下界合金\金  | <ItemLink id="ae2:speed_card"/> : 增加0.2攻击/挖掘速度，增加耗能 / <ItemLink id="ae2:energy_card"/> : 最大能源 = 基础容量 × (1 + 8 × 能源卡数量) |
-| <ItemImage id="data_energistics:data_crystal_cutting_knife" /> 数据切割刀 | 20kae | 无 | 无 | 替换为特殊功能，存储数据流可在传送锚之间互相传送 | <ItemLink id="ae2:energy_card"/> : 最大能源 = 基础容量 × (1 + 8 × 能源卡数量) |
+| <ItemImage id="data_energistics:data_crystal_cutting_knife" /> 数据切割刀 | 20kae | 无 | 当装载eae时潜行右键可以给AE设备重命名 | 替换为特殊功能，存储数据流可在传送锚之间互相传送 | <ItemLink id="ae2:energy_card"/> : 最大能源 = 基础容量 × (1 + 8 × 能源卡数量) |
 
 ---
 
@@ -46,14 +46,14 @@ item_ids:
 <Row>
     <ItemImage id="data_energistics:data_light_saber" scale="4" />
 </Row> 
-耐久为20kae，攻击速度为2，攻击伤害为17，右键短暂蓄力后可以投掷，在安装聚能卡后，左键攻击可以发射出光刃  
+耐久为20kae，攻击速度为2，攻击伤害为17，右键短暂蓄力后可以投掷，打开背包后拿染料或染色器右键可以对其染色  
 
 # 数据圣裁者  
 一种特殊的光剑，使用光剑蓝,红,绿合成
 <Row>
     <ItemImage id="data_energistics:data_sanctifier" scale="4" />
 </Row> 
-耐久为20kae，攻击伤害为36，他没有左键攻击方式,右键可以投掷在目标原地停留旋转两秒
+耐久为20kae，攻击伤害为36，右键短暂蓄力后可以投掷
 
 # 升级
 <Row>
@@ -61,7 +61,7 @@ item_ids:
     <ItemImage id="ae2:speed_card" />
 </Row>
 加速卡：
- 增加0.2攻击速度，增加100ae耗能(当圣裁者装载时，减少蓄力时间,并增加原地停留时间)  
+ 增加0.2攻击速度，增加100ae耗能(当光剑装载时，减少蓄力时间)  
  
 <Row>
  <ItemLink id="ae2:energy_card"/>  

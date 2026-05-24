@@ -1,0 +1,26 @@
+{
+	"format_version": "1.9.0",
+	"credit": "Made with Blockbench",
+	"parent": "block/block",
+	"render_type": "cutout",
+	"texture_size": [64, 64],
+	"textures": {
+		"1": "data_energistics:block/data_distribution_tower"
+	},
+	"elements": [
+		{
+			"name": "crystal_offline",
+			"from": [5, 25, 5],
+			"to": [11, 31, 11],
+			"shade": false,
+			"faces": {
+				"north": {"uv": [10, 6.5, 8.5, 5], "rotation": 180, "texture": "#1"},
+				"east": {"uv": [10, 6.5, 8.5, 5], "rotation": 180, "texture": "#1"},
+				"south": {"uv": [10, 6.5, 8.5, 5], "rotation": 180, "texture": "#1"},
+				"west": {"uv": [10, 6.5, 8.5, 5], "rotation": 180, "texture": "#1"},
+				"up": {"uv": [10, 6.5, 8.5, 5], "rotation": 180, "texture": "#1"},
+				"down": {"uv": [10, 6.5, 8.5, 5], "rotation": 180, "texture": "#1"}
+			}
+		}
+	]
+}

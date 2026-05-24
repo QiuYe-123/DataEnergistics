@@ -27,6 +27,7 @@ public abstract class EmiEncodePatternHandlerMixin {
 
         PatternEncodingSourceHelper.rememberTransferSource(menu, holder, emiRecipe);
         PatternEncodingSourceHelper.rememberTransferKeyInput(menu, holder, emiRecipe);
+        PatternEncodingSourceHelper.rememberTransferKeyOutput(menu, holder, emiRecipe);
         PatternEncodingSourceHelper.rememberTransferFluidInputs(menu, holder, emiRecipe);
         PatternEncodingSourceHelper.rememberTransferFluidOutputs(menu, holder, emiRecipe);
     }

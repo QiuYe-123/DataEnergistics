@@ -36,6 +36,12 @@
         "item": "ae2:quantum_entangled_singularity"
       },
       "count": 1
+    },
+    {
+      "ingredient": {
+        "item": "data_energistics:data_crystal_cutting_knife"
+      },
+      "count": 1
     }
   ],
   "fluid_inputs": [

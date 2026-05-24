@@ -4,7 +4,6 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -23,15 +22,17 @@ import net.neoforged.neoforge.client.model.data.ModelData;
 import org.jetbrains.annotations.NotNull;
 
 public class DataDistributionTowerRenderer implements BlockEntityRenderer<DataDistributionTowerBlockEntity> {
-    private static final float CORE_BASE_Y = 2.8125f;
+    private static final float CRYSTAL_BASE_Y = 2.8125f;
     private static final double RENDER_BOX_HEIGHT = 4.0d;
     private static final double RANGE_LINE_INSET = 0.03125d;
     private static final float RANGE_LINE_RED = 0.2f;
     private static final float RANGE_LINE_GREEN = 0.85f;
     private static final float RANGE_LINE_BLUE = 1.0f;
     private static final float RANGE_LINE_ALPHA = 0.5f;
-    private static final ModelResourceLocation CORE_OUTER_MODEL =
-            ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_core_outer"));
+    private static final ModelResourceLocation CRYSTAL_OFFLINE_MODEL =
+            ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_offline"));
+    private static final ModelResourceLocation CRYSTAL_ONLINE_MODEL =
+            ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_online"));
 
     @SuppressWarnings("unused")
     public DataDistributionTowerRenderer(BlockEntityRendererProvider.Context context) {
@@ -45,7 +46,7 @@ public class DataDistributionTowerRenderer implements BlockEntityRenderer<DataDi
     @Override
     public void render(@NotNull DataDistributionTowerBlockEntity blockEntity, float partialTick, @NotNull PoseStack poseStack,
                        @NotNull MultiBufferSource buffer, int packedLight, int packedOverlay) {
-        renderAnimatedCore(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay);
+        renderCrystal(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay);
 
         if (blockEntity.isRangeDisplayEnabled()) {
             AABB aabb = blockEntity.getCoverageAabb().move(
@@ -64,29 +65,23 @@ public class DataDistributionTowerRenderer implements BlockEntityRenderer<DataDi
         return new AABB(blockEntity.getBlockPos()).expandTowards(0.0d, RENDER_BOX_HEIGHT, 0.0d);
     }
 
-    private void renderAnimatedCore(DataDistributionTowerBlockEntity blockEntity, float partialTick, PoseStack poseStack,
-                                    MultiBufferSource buffer, int packedLight, int packedOverlay) {
+    private void renderCrystal(DataDistributionTowerBlockEntity blockEntity, float partialTick, PoseStack poseStack,
+                               MultiBufferSource buffer, int packedLight, int packedOverlay) {
         if (blockEntity.getLevel() == null) {
             return;
         }
 
+        boolean online = blockEntity.isNetworkNodeOnline();
         Minecraft minecraft = Minecraft.getInstance();
         BlockRenderDispatcher blockRenderer = minecraft.getBlockRenderer();
-        BakedModel outerModel = minecraft.getModelManager().getModel(CORE_OUTER_MODEL);
+        BakedModel model = minecraft.getModelManager().getModel(online ? CRYSTAL_ONLINE_MODEL : CRYSTAL_OFFLINE_MODEL);
         BlockState state = blockEntity.getBlockState();
-        float time = blockEntity.getLevel().getGameTime() + partialTick;
-        float bobOffset = Mth.sin(time * 0.08f) * 0.08f;
-        float outerRotation = blockEntity.isNetworkNodeOnline() ? time * 6.0f : 0.0f;
-        float tiltRotation = blockEntity.isNetworkNodeOnline() ? 14.0f + Mth.sin(time * 0.05f) * 6.0f : 14.0f;
+        float bobOffset = online ? Mth.sin((blockEntity.getLevel().getGameTime() + partialTick) * 0.08f) * 0.08f : 0.0f;
 
         poseStack.pushPose();
-        poseStack.translate(0.5f, CORE_BASE_Y + bobOffset, 0.5f);
-        poseStack.mulPose(Axis.YP.rotationDegrees(outerRotation));
-        poseStack.mulPose(Axis.XP.rotationDegrees(tiltRotation));
+        poseStack.translate(0.5f, CRYSTAL_BASE_Y + bobOffset, 0.5f);
         poseStack.translate(-0.5f, -1.75f, -0.5f);
-
-        renderModel(blockRenderer, outerModel, state, poseStack, buffer, packedLight, packedOverlay);
-
+        renderModel(blockRenderer, model, state, poseStack, buffer, packedLight, packedOverlay);
         poseStack.popPose();
     }
 

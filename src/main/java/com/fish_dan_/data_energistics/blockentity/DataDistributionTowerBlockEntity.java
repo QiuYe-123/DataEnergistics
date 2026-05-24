@@ -27,6 +27,7 @@ import com.fish_dan_.data_energistics.ae2.CustomAdHocChannelHost;
 import com.fish_dan_.data_energistics.Config;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.AE2FluxIntegration;
+import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.registry.ModBlockEntities;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
 import com.mojang.logging.LogUtils;
@@ -850,10 +851,48 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             return;
         }
 
-        boolean online = isTowerActive();
+        boolean online = isVisualTowerActive();
+        updateTowerActiveState(online);
         if (online != this.syncedOnline) {
             this.syncedOnline = online;
             this.markForClientUpdate();
+        }
+    }
+
+    private boolean isVisualTowerActive() {
+        if (isTowerActive()) {
+            return true;
+        }
+
+        if (AE2FluxIntegration.isAvailable()
+                && AE2FluxIntegration.extractEnergyFromOwnNetwork(this, 1, true) > 0) {
+            return true;
+        }
+
+        for (BlockPos pos : getCachedEndpoints()) {
+            if (hasStoredEnergy(pos)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void updateTowerActiveState(boolean active) {
+        if (this.level == null || this.level.isClientSide()) {
+            return;
+        }
+
+        for (int part = 0; part <= 2; part++) {
+            BlockPos partPos = this.worldPosition.above(part);
+            BlockState state = this.level.getBlockState(partPos);
+            if (!state.is(ModBlocks.DATA_DISTRIBUTION_TOWER.get())
+                    || !state.hasProperty(DataDistributionTowerBlock.ACTIVE)
+                    || state.getValue(DataDistributionTowerBlock.ACTIVE) == active) {
+                continue;
+            }
+
+            this.level.setBlock(partPos, state.setValue(DataDistributionTowerBlock.ACTIVE, active), Block.UPDATE_CLIENTS);
         }
     }
 
@@ -1237,6 +1276,18 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
         }
         return getEnergyStorageAt(pos, null) != null;
+    }
+
+    private boolean hasStoredEnergy(BlockPos pos) {
+        for (var direction : net.minecraft.core.Direction.values()) {
+            IEnergyStorage storage = getEnergyStorageAt(pos, direction);
+            if (storage != null && storage.getEnergyStored() > 0) {
+                return true;
+            }
+        }
+
+        IEnergyStorage internal = getEnergyStorageAt(pos, null);
+        return internal != null && internal.getEnergyStored() > 0;
     }
 
     private boolean hasDisplayableAeTarget(BlockEntity blockEntity) {

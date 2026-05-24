@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.client.emi;
 import appeng.integration.modules.emi.EmiEncodePatternHandler;
 import appeng.integration.modules.emi.EmiUseCraftingRecipeHandler;
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.recipe.PoweredRepairRecipeFilter;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
 import com.fish_dan_.data_energistics.registry.ModBlocks;
@@ -30,6 +31,7 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
     @Override
     public void register(EmiRegistry registry) {
         registry.addGenericExclusionArea(new UniversalTerminalEmiExclusionArea());
+        registry.removeRecipes(PoweredRepairRecipeFilter::shouldHideEmiRepairRecipe);
 
         registry.addRecipeHandler(
                 ModMenus.UNIVERSAL_CRAFTING_TERM.get(),

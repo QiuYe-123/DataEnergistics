@@ -69,6 +69,7 @@ import com.fish_dan_.data_energistics.registry.ModStorageCells;
 import com.fish_dan_.data_energistics.registry.UniversalTerminalAdapters;
 import com.fish_dan_.data_energistics.recipe.TimeShiftTransformLogic;
 import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipeLogic;
+import com.fish_dan_.data_energistics.util.LightSaberColorData;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -83,6 +84,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackSource;
+import net.minecraft.world.entity.EquipmentSlotGroup;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -109,6 +113,7 @@ import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddPackFindersEvent;
+import net.neoforged.neoforge.event.ItemAttributeModifierEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -123,6 +128,8 @@ public class Data_Energistics {
             "block.data_energistics.adaptive_pattern_provider";
     private static final ResourceLocation MODPACK_FIXES_PACK =
             ResourceLocation.fromNamespaceAndPath(MODID, "resourcepacks/modpack_fixes");
+    private static final ResourceLocation POWERED_TOOL_SPEED_CARD_ATTACK_SPEED_ID =
+            ResourceLocation.fromNamespaceAndPath(MODID, "powered_tool_speed_card_attack_speed");
     // Directly reference a slf4j logger
     private static final Logger LOGGER = LogUtils.getLogger();
 
@@ -192,6 +199,36 @@ public class Data_Energistics {
                     "item.data_energistics.portable_data_flow_cell_256k");
             Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CAPTURE_BALL.get(), 3,
                     "item.data_energistics.data_capture_ball");
+            Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_SWORD.get(), 3,
+                    "item.data_energistics.data_crystal_sword");
+            Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_CRYSTAL_SWORD.get(), 3,
+                    "item.data_energistics.data_crystal_sword");
+            Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_AXE.get(), 3,
+                    "item.data_energistics.data_crystal_axe");
+            Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_CRYSTAL_AXE.get(), 3,
+                    "item.data_energistics.data_crystal_axe");
+            Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_PICKAXE.get(), 3,
+                    "item.data_energistics.data_crystal_pickaxe");
+            Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_CRYSTAL_PICKAXE.get(), 3,
+                    "item.data_energistics.data_crystal_pickaxe");
+            Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_HOE.get(), 3,
+                    "item.data_energistics.data_crystal_hoe");
+            Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_CRYSTAL_HOE.get(), 3,
+                    "item.data_energistics.data_crystal_hoe");
+            Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_SHOVEL.get(), 3,
+                    "item.data_energistics.data_crystal_shovel");
+            Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_CRYSTAL_SHOVEL.get(), 3,
+                    "item.data_energistics.data_crystal_shovel");
+            Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get(), 3,
+                    "item.data_energistics.data_crystal_cutting_knife");
+            Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_LIGHT_SABER.get(), 3,
+                    "item.data_energistics.data_light_saber");
+            Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_LIGHT_SABER.get(), 3,
+                    "item.data_energistics.data_light_saber");
+            Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_SANCTIFIER.get(), 3,
+                    "item.data_energistics.data_sanctifier");
+            Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_SANCTIFIER.get(), 3,
+                    "item.data_energistics.data_sanctifier");
             Upgrades.add(AEItems.ENERGY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 6, "block.data_energistics.data_extractor");
             Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 6, "block.data_energistics.data_extractor");
             Upgrades.add(AEItems.SPEED_CARD, ModBlocks.DATA_EXTRACTOR.get(), 5, "block.data_energistics.data_extractor");
@@ -484,6 +521,37 @@ public class Data_Energistics {
     public void onServerStarting(ServerStartingEvent event) {
     }
 
+    @SubscribeEvent
+    public void onItemAttributeModifiers(ItemAttributeModifierEvent event) {
+        ItemStack stack = event.getItemStack();
+        if (!(stack.getItem() instanceof PoweredEnergyItem poweredEnergyItem)) {
+            return;
+        }
+
+        if (!(stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredSwordItem
+                || stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredAxeItem
+                || stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredPickaxeItem
+                || stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredHoeItem
+                || stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredShovelItem)) {
+            return;
+        }
+
+        double attackSpeedBonus = poweredEnergyItem.getSpeedCardAttackSpeedBonus(stack);
+        if (attackSpeedBonus <= 0.0D) {
+            return;
+        }
+
+        event.addModifier(
+                Attributes.ATTACK_SPEED,
+                new AttributeModifier(
+                        POWERED_TOOL_SPEED_CARD_ATTACK_SPEED_ID,
+                        attackSpeedBonus,
+                        AttributeModifier.Operation.ADD_VALUE
+                ),
+                EquipmentSlotGroup.MAINHAND
+        );
+    }
+
     // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
     @SuppressWarnings("removal")
     @EventBusSubscriber(modid = MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
@@ -555,7 +623,8 @@ public class Data_Energistics {
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/mob_data_carrier")));
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/ore_data_carrier")));
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/crop_data_carrier")));
-            event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_core_outer")));
+            event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_offline")));
+            event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_online")));
         }
 
         private static void registerMatterConvergingCrossbowProperties() {
@@ -597,6 +666,8 @@ public class Data_Energistics {
         private static void registerLightSaberProperties() {
             ItemProperties.register(ModItems.DATA_LIGHT_SABER.get(), Data_Energistics.id("powered"),
                     (stack, level, entity, seed) -> isPowered(stack) ? 1.0F : 0.0F);
+            ItemProperties.register(ModItems.DATA_LIGHT_SABER.get(), Data_Energistics.id("light_saber_color"),
+                    (stack, level, entity, seed) -> LightSaberColorData.getModelValue(stack));
             ItemProperties.register(ModItems.DATA_SANCTIFIER.get(), Data_Energistics.id("powered"),
                     (stack, level, entity, seed) -> isPowered(stack) ? 1.0F : 0.0F);
         }

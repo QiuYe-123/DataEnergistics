@@ -1,10 +1,9 @@
 package com.fish_dan_.data_energistics.client.jei;
 
-import com.fish_dan_.data_energistics.recipe.TimeShiftIngredient;
-import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipe;
 import com.fish_dan_.data_energistics.item.DataCaptureBallItem;
+import com.fish_dan_.data_energistics.recipe.DataCaptureBallRightClickRecipe;
+import com.fish_dan_.data_energistics.recipe.TimeShiftIngredient;
 import com.fish_dan_.data_energistics.recipe.TimeShiftRecipe;
-import com.fish_dan_.data_energistics.registry.ModItems;
 import com.fish_dan_.data_energistics.registry.ModItems;
 import java.util.Arrays;
 import java.util.List;
@@ -28,14 +27,13 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<WorldI
     private static final int HEIGHT = 72;
     private static final int CENTER_Y = 36;
     private static final int SLOT_SIZE = 18;
-    private static final int INPUT_X = 0;
+    private static final int INPUT_X = 10;
+    private static final int INPUT_Y = 10;
     private static final int ARROW_X = 62;
     private static final int OUTPUT_X = 112;
     private static final int TEXT_X = 40;
     private static final int TEXT_WIDTH = 68;
     private static final int TEXT_COLOR = 0x7E7E7E;
-    private static final int RIGHT_CLICK_WIDTH = 148;
-    private static final int RIGHT_CLICK_HEIGHT = 72;
     private static final int RIGHT_CLICK_ITEM_X = 8;
     private static final int RIGHT_CLICK_ITEM_Y = 26;
     private static final int RIGHT_CLICK_BLOCK_X = 61;
@@ -59,10 +57,10 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<WorldI
                 RECIPE_TYPE,
                 Component.translatable("recipe.data_energistics.time_shift.category"),
                 guiHelper.createDrawableItemLike(ModItems.DATA_CRYSTAL.get()),
-                RIGHT_CLICK_WIDTH,
+                WIDTH,
                 HEIGHT);
         this.background = guiHelper.createBlankDrawable(WIDTH, HEIGHT);
-        this.rightClickBackground = guiHelper.createBlankDrawable(RIGHT_CLICK_WIDTH, RIGHT_CLICK_HEIGHT);
+        this.rightClickBackground = guiHelper.createBlankDrawable(WIDTH, HEIGHT);
         this.slotDrawable = guiHelper.getSlotDrawable();
         this.recipeArrow = guiHelper.getRecipeArrow();
     }
@@ -109,11 +107,9 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<WorldI
     }
 
     private void setTimeShiftRecipe(IRecipeLayoutBuilder builder, TimeShiftRecipe recipe) {
-        int inputRows = visibleRows(recipe.getItemInputs().size());
-        int inputStartY = centeredSlotY(recipe.getItemInputs().size());
         for (int i = 0; i < recipe.getItemInputs().size(); i++) {
-            int x = INPUT_X + i / inputRows * SLOT_SIZE;
-            int y = inputStartY + i % inputRows * SLOT_SIZE;
+            int x = inputContentX(i);
+            int y = inputContentY(recipe.getItemInputs().size(), i);
             builder.addInputSlot(x, y).addItemStacks(withCount(recipe.getItemInputs().get(i)));
         }
 
@@ -152,11 +148,9 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<WorldI
     }
 
     private void drawSlotFrames(GuiGraphics guiGraphics, TimeShiftRecipe recipe) {
-        int inputRows = visibleRows(recipe.getItemInputs().size());
-        int inputStartY = centeredSlotY(recipe.getItemInputs().size());
         for (int i = 0; i < recipe.getItemInputs().size(); i++) {
-            int x = INPUT_X + i / inputRows * SLOT_SIZE;
-            int y = inputStartY + i % inputRows * SLOT_SIZE;
+            int x = inputContentX(i);
+            int y = inputContentY(recipe.getItemInputs().size(), i);
             this.slotDrawable.draw(guiGraphics, x - 1, y - 1);
         }
 
@@ -175,6 +169,10 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<WorldI
 
     private static String formatMinutes(TimeShiftRecipe recipe) {
         double minutes = recipe.getDurationMinutes();
+        return formatMinutes(minutes);
+    }
+
+    private static String formatMinutes(double minutes) {
         if (minutes == Math.rint(minutes)) {
             return Integer.toString((int) minutes);
         }
@@ -192,6 +190,18 @@ public final class TimeShiftRecipeCategory extends AbstractRecipeCategory<WorldI
 
     private static int centeredSlotY(int slotCount) {
         return CENTER_Y - visibleRows(slotCount) * SLOT_SIZE / 2;
+    }
+
+    private static int inputContentX(int index) {
+        return INPUT_X + index / 3 * SLOT_SIZE;
+    }
+
+    private static int inputContentY(int slotCount, int index) {
+        return inputStartY(slotCount) + index % 3 * SLOT_SIZE;
+    }
+
+    private static int inputStartY(int slotCount) {
+        return INPUT_Y + (slotCount < 3 ? 9 * (3 - slotCount) : 0);
     }
 
     private static int visibleRows(int slotCount) {

@@ -22,7 +22,8 @@ public abstract class Ae2CustomKeyGuiMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lappeng/api/client/AEKeyRendering;drawInGui(Lnet/minecraft/client/Minecraft;Lnet/minecraft/client/gui/GuiGraphics;IILappeng/api/stacks/AEKey;)V"
-            )
+            ),
+            require = 0
     )
     private void dataEnergistics$drawCustomGuiKey(
             Minecraft minecraft,
