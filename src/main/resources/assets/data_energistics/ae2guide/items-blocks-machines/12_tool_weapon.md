@@ -49,7 +49,7 @@ item_ids:
 耐久为20kae，攻击速度为2，攻击伤害为17，右键短暂蓄力后可以投掷，打开背包后拿染料或染色器右键可以对其染色  
 
 # 数据圣裁者  
-一种特殊的光剑，使用光剑蓝,红,绿合成
+一种特殊的光剑，使用光剑红，黄，蓝合成
 <Row>
     <ItemImage id="data_energistics:data_sanctifier" scale="4" />
 </Row> 
