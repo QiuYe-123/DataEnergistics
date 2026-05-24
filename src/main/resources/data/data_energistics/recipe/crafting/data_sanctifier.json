@@ -1,9 +1,9 @@
 {
   "type": "minecraft:crafting_shaped",
   "pattern": [
-    "ABC",
-    "DEF",
-    "JIH"
+    " A ",
+    "BEC",
+    " I "
   ],
   "key": {
     "A": {
@@ -35,59 +35,15 @@
       ],
       "components": {
         "minecraft:custom_data": {
-          "light_saber_color": "yellow"
-        }
-      }
-    },
-    "D": {
-      "type": "neoforge:components",
-      "items": [
-        "data_energistics:data_light_saber"
-      ],
-      "components": {
-        "minecraft:custom_data": {
-          "light_saber_color": "green"
+          "light_saber_color": "blue"
         }
       }
     },
     "E": {
       "item": "data_energistics:data_processor"
     },
-    "F": {
-      "type": "neoforge:components",
-      "items": [
-        "data_energistics:data_light_saber"
-      ],
-      "components": {
-        "minecraft:custom_data": {
-          "light_saber_color": "blue"
-        }
-      }
-    },
-    "J": {
-      "type": "neoforge:components",
-      "items": [
-        "data_energistics:data_light_saber"
-      ],
-      "components": {
-        "minecraft:custom_data": {
-          "light_saber_color": "cyan"
-        }
-      }
-    },
     "I": {
       "item": "data_energistics:solidified_obsidian"
-    },
-    "H": {
-      "type": "neoforge:components",
-      "items": [
-        "data_energistics:data_light_saber"
-      ],
-      "components": {
-        "minecraft:custom_data": {
-          "light_saber_color": "purple"
-        }
-      }
     }
   },
   "result": {
