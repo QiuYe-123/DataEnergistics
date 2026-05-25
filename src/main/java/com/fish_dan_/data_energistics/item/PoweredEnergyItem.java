@@ -9,7 +9,7 @@ import appeng.api.upgrades.IUpgradeableItem;
 import appeng.api.upgrades.UpgradeInventories;
 import appeng.core.definitions.AEItems;
 import appeng.core.localization.Tooltips;
-import appeng.api.upgrades.Upgrades;
+import com.fish_dan_.data_energistics.registry.ModItems;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -26,6 +26,7 @@ public interface PoweredEnergyItem extends IAEItemPowerStorage, IItemExtension, 
     double CHARGE_RATE = 20_000.0D;
     double ENERGY_PER_ACTION = 100.0D;
     double ENERGY_PER_SPEED_CARD = 100.0D;
+    double ENERGY_PER_SABER_ENERGY_CARD = 500.0D;
     int MAX_UPGRADES = 3;
 
     default void appendEnergyHoverText(ItemStack stack, List<Component> lines) {
@@ -57,7 +58,9 @@ public interface PoweredEnergyItem extends IAEItemPowerStorage, IItemExtension, 
     }
 
     default double getActionEnergyCost(ItemStack stack) {
-        return ENERGY_PER_ACTION + ENERGY_PER_SPEED_CARD * this.getSpeedCardCount(stack);
+        return ENERGY_PER_ACTION
+                + ENERGY_PER_SPEED_CARD * this.getSpeedCardCount(stack)
+                + ENERGY_PER_SABER_ENERGY_CARD * this.getSaberEnergyCardCount(stack);
     }
 
     default int getSpeedCardCount(ItemStack stack) {
@@ -66,6 +69,19 @@ public interface PoweredEnergyItem extends IAEItemPowerStorage, IItemExtension, 
 
     default int getEnergyCardCount(ItemStack stack) {
         return Math.max(0, this.getUpgrades(stack).getInstalledUpgrades(AEItems.ENERGY_CARD));
+    }
+
+    default int getSaberEnergyCardCount(ItemStack stack) {
+        return Math.max(0, this.getUpgrades(stack).getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()));
+    }
+
+    default double getSaberEnergyAttackDamageBonus(ItemStack stack, double baseAttackDamage) {
+        int saberEnergyCardCount = this.getSaberEnergyCardCount(stack);
+        if (saberEnergyCardCount <= 0 || baseAttackDamage <= 0.0D) {
+            return 0.0D;
+        }
+
+        return baseAttackDamage * (saberEnergyCardCount * 2.0D - 1.0D);
     }
 
     default float getSpeedCardAttackSpeedBonus(ItemStack stack) {

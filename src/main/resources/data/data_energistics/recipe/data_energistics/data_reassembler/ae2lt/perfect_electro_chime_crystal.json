@@ -1,0 +1,28 @@
+{
+  "type": "data_energistics:data_reassembler",
+  "item_inputs": [
+    {
+      "ingredient": {
+        "item": "ae2lt:electro_chime_crystal"
+      },
+      "count": 1
+    },
+    {
+      "ingredient": {
+        "item": "ae2lt:overload_singularity"
+      },
+      "count": 384
+    }
+  ],
+  "item_outputs": [
+    {
+      "id": "ae2lt:perfect_electro_chime_crystal",
+      "count": 1
+    }
+  ],
+  "key_input": {
+    "#t": "ae2lt:lightning",
+    "#": 512,
+    "tier": "extreme_high_voltage"
+  }
+}

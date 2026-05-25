@@ -30,6 +30,7 @@ import com.fish_dan_.data_energistics.client.render.DataExtractorRenderer;
 import com.fish_dan_.data_energistics.client.render.DataMimeticFieldRenderer;
 import com.fish_dan_.data_energistics.client.render.DispersingDataRenderer;
 import com.fish_dan_.data_energistics.client.render.DataDistributionTowerRenderer;
+import com.fish_dan_.data_energistics.client.render.LightBladeChargeRenderer;
 import com.fish_dan_.data_energistics.client.render.MatterConvergingBoltRenderer;
 import com.fish_dan_.data_energistics.client.render.ThrownLightSaberRenderer;
 import com.fish_dan_.data_energistics.client.screen.DataDistributionTowerScreen;
@@ -130,6 +131,8 @@ public class Data_Energistics {
             ResourceLocation.fromNamespaceAndPath(MODID, "resourcepacks/modpack_fixes");
     private static final ResourceLocation POWERED_TOOL_SPEED_CARD_ATTACK_SPEED_ID =
             ResourceLocation.fromNamespaceAndPath(MODID, "powered_tool_speed_card_attack_speed");
+    private static final ResourceLocation POWERED_TOOL_SABER_ENERGY_ATTACK_DAMAGE_ID =
+            ResourceLocation.fromNamespaceAndPath(MODID, "powered_tool_saber_energy_attack_damage");
     // Directly reference a slf4j logger
     private static final Logger LOGGER = LogUtils.getLogger();
 
@@ -203,21 +206,31 @@ public class Data_Energistics {
                     "item.data_energistics.data_crystal_sword");
             Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_CRYSTAL_SWORD.get(), 3,
                     "item.data_energistics.data_crystal_sword");
+            Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_CRYSTAL_SWORD.get(), 2,
+                    "item.data_energistics.data_crystal_sword");
             Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_AXE.get(), 3,
                     "item.data_energistics.data_crystal_axe");
             Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_CRYSTAL_AXE.get(), 3,
+                    "item.data_energistics.data_crystal_axe");
+            Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_CRYSTAL_AXE.get(), 2,
                     "item.data_energistics.data_crystal_axe");
             Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_PICKAXE.get(), 3,
                     "item.data_energistics.data_crystal_pickaxe");
             Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_CRYSTAL_PICKAXE.get(), 3,
                     "item.data_energistics.data_crystal_pickaxe");
+            Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_CRYSTAL_PICKAXE.get(), 2,
+                    "item.data_energistics.data_crystal_pickaxe");
             Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_HOE.get(), 3,
                     "item.data_energistics.data_crystal_hoe");
             Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_CRYSTAL_HOE.get(), 3,
                     "item.data_energistics.data_crystal_hoe");
+            Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_CRYSTAL_HOE.get(), 2,
+                    "item.data_energistics.data_crystal_hoe");
             Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_SHOVEL.get(), 3,
                     "item.data_energistics.data_crystal_shovel");
             Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_CRYSTAL_SHOVEL.get(), 3,
+                    "item.data_energistics.data_crystal_shovel");
+            Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_CRYSTAL_SHOVEL.get(), 2,
                     "item.data_energistics.data_crystal_shovel");
             Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_CRYSTAL_CUTTING_KNIFE.get(), 3,
                     "item.data_energistics.data_crystal_cutting_knife");
@@ -225,9 +238,13 @@ public class Data_Energistics {
                     "item.data_energistics.data_light_saber");
             Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_LIGHT_SABER.get(), 3,
                     "item.data_energistics.data_light_saber");
+            Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_LIGHT_SABER.get(), 1,
+                    "item.data_energistics.data_light_saber");
             Upgrades.add(AEItems.ENERGY_CARD, ModItems.DATA_SANCTIFIER.get(), 3,
                     "item.data_energistics.data_sanctifier");
             Upgrades.add(AEItems.SPEED_CARD, ModItems.DATA_SANCTIFIER.get(), 3,
+                    "item.data_energistics.data_sanctifier");
+            Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.DATA_SANCTIFIER.get(), 1,
                     "item.data_energistics.data_sanctifier");
             Upgrades.add(AEItems.ENERGY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 6, "block.data_energistics.data_extractor");
             Upgrades.add(AEItems.CAPACITY_CARD, ModBlocks.DATA_EXTRACTOR.get(), 6, "block.data_energistics.data_extractor");
@@ -253,7 +270,9 @@ public class Data_Energistics {
                     "item.data_energistics.matter_converging_crossbow");
             Upgrades.add(AEItems.SPEED_CARD, ModItems.MATTER_CONVERGING_CROSSBOW.get(), 4,
                     "item.data_energistics.matter_converging_crossbow");
-            Upgrades.add(AEItems.REDSTONE_CARD, ModItems.MATTER_CONVERGING_CROSSBOW.get(), 1,
+            Upgrades.add(ModItems.CARD_SABER_ENERGY.get(), ModItems.MATTER_CONVERGING_CROSSBOW.get(), 2,
+                    "item.data_energistics.matter_converging_crossbow");
+            Upgrades.add(ModItems.REDSTONE_TUNING_CARD.get(), ModItems.MATTER_CONVERGING_CROSSBOW.get(), 1,
                     "item.data_energistics.matter_converging_crossbow");
             Upgrades.add(ModItems.REDSTONE_TUNING_CARD.get(), AEBlocks.PATTERN_PROVIDER.block(), 1, "block.ae2.pattern_provider");
             Upgrades.add(ModItems.REDSTONE_TUNING_CARD.get(), ModBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 1, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
@@ -537,19 +556,35 @@ public class Data_Energistics {
         }
 
         double attackSpeedBonus = poweredEnergyItem.getSpeedCardAttackSpeedBonus(stack);
-        if (attackSpeedBonus <= 0.0D) {
-            return;
+        if (attackSpeedBonus > 0.0D) {
+            event.addModifier(
+                    Attributes.ATTACK_SPEED,
+                    new AttributeModifier(
+                            POWERED_TOOL_SPEED_CARD_ATTACK_SPEED_ID,
+                            attackSpeedBonus,
+                            AttributeModifier.Operation.ADD_VALUE
+                    ),
+                    EquipmentSlotGroup.MAINHAND
+            );
         }
 
-        event.addModifier(
-                Attributes.ATTACK_SPEED,
-                new AttributeModifier(
-                        POWERED_TOOL_SPEED_CARD_ATTACK_SPEED_ID,
-                        attackSpeedBonus,
-                        AttributeModifier.Operation.ADD_VALUE
-                ),
-                EquipmentSlotGroup.MAINHAND
-        );
+        double baseAttackDamage = event.getModifiers().stream()
+                .filter(entry -> entry.attribute().equals(Attributes.ATTACK_DAMAGE))
+                .filter(entry -> entry.slot().test(net.minecraft.world.entity.EquipmentSlot.MAINHAND))
+                .mapToDouble(entry -> entry.modifier().amount())
+                .sum();
+        double saberEnergyAttackDamageBonus = poweredEnergyItem.getSaberEnergyAttackDamageBonus(stack, baseAttackDamage);
+        if (saberEnergyAttackDamageBonus > 0.0D) {
+            event.addModifier(
+                    Attributes.ATTACK_DAMAGE,
+                    new AttributeModifier(
+                            POWERED_TOOL_SABER_ENERGY_ATTACK_DAMAGE_ID,
+                            saberEnergyAttackDamageBonus,
+                            AttributeModifier.Operation.ADD_VALUE
+                    ),
+                    EquipmentSlotGroup.MAINHAND
+            );
+        }
     }
 
     // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
@@ -613,6 +648,7 @@ public class Data_Energistics {
             event.registerBlockEntityRenderer(ModBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), DataDistributionTowerRenderer::new);
             event.registerBlockEntityRenderer(ModBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), DataMimeticFieldRenderer::new);
             event.registerEntityRenderer(ModEntities.DISPERSING_DATA.get(), DispersingDataRenderer::new);
+            event.registerEntityRenderer(ModEntities.LIGHT_BLADE_CHARGE.get(), LightBladeChargeRenderer::new);
             event.registerEntityRenderer(ModEntities.MATTER_CONVERGING_BOLT.get(), MatterConvergingBoltRenderer::new);
             event.registerEntityRenderer(ModEntities.THROWN_LIGHT_SABER.get(), ThrownLightSaberRenderer::new);
             event.registerEntityRenderer(ModEntities.TNT_CONFIGURABLE_PRIMED.get(), TntRenderer::new);
@@ -623,8 +659,8 @@ public class Data_Energistics {
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/mob_data_carrier")));
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/ore_data_carrier")));
             event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/drive/cells/crop_data_carrier")));
-            event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_offline")));
-            event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_online")));
+            event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_off")));
+            event.register(ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_on")));
         }
 
         private static void registerMatterConvergingCrossbowProperties() {

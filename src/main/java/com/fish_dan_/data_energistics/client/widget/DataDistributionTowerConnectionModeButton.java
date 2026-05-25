@@ -47,7 +47,7 @@ public class DataDistributionTowerConnectionModeButton extends Button implements
         if (this.mode == ConnectionMode.AE_AND_FE) {
             DataEnergisticsIcon.getBlitter("POWER_UNIT_AF")
                     .dest(this.getX(), this.getY() + 1 + yOffset)
-                    .zOffset(3)
+                    .zOffset(4)
                     .blit(guiGraphics);
             return;
         }

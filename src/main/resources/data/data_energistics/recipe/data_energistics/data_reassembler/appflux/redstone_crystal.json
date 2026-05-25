@@ -1,0 +1,17 @@
+{
+  "type": "data_energistics:data_reassembler",
+  "item_inputs": [
+    {
+      "ingredient": {
+        "tag": "c:gems/redstone"
+      },
+      "count": 16
+    }
+  ],
+  "item_outputs": [
+    {
+      "id": "appflux:charged_redstone",
+      "count": 20
+    }
+  ]
+}

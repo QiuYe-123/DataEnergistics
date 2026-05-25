@@ -1,9 +1,11 @@
 package com.fish_dan_.data_energistics.client.render;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -15,6 +17,7 @@ import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.client.RenderTypeHelper;
@@ -22,7 +25,10 @@ import net.neoforged.neoforge.client.model.data.ModelData;
 import org.jetbrains.annotations.NotNull;
 
 public class DataDistributionTowerRenderer implements BlockEntityRenderer<DataDistributionTowerBlockEntity> {
-    private static final float CRYSTAL_BASE_Y = 2.8125f;
+    private static final float CRYSTAL_BASE_Y = 3.6875f;
+    private static final float CRYSTAL_MODEL_OFFSET_X = -0.5f;
+    private static final float CRYSTAL_MODEL_OFFSET_Y = -1.75f;
+    private static final float CRYSTAL_MODEL_OFFSET_Z = -0.5f;
     private static final double RENDER_BOX_HEIGHT = 4.0d;
     private static final double RANGE_LINE_INSET = 0.03125d;
     private static final float RANGE_LINE_RED = 0.2f;
@@ -30,9 +36,9 @@ public class DataDistributionTowerRenderer implements BlockEntityRenderer<DataDi
     private static final float RANGE_LINE_BLUE = 1.0f;
     private static final float RANGE_LINE_ALPHA = 0.5f;
     private static final ModelResourceLocation CRYSTAL_OFFLINE_MODEL =
-            ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_offline"));
+            ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_off"));
     private static final ModelResourceLocation CRYSTAL_ONLINE_MODEL =
-            ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_online"));
+            ModelResourceLocation.standalone(Data_Energistics.id("block/data_distribution_tower_crystal_on"));
 
     @SuppressWarnings("unused")
     public DataDistributionTowerRenderer(BlockEntityRendererProvider.Context context) {
@@ -71,18 +77,34 @@ public class DataDistributionTowerRenderer implements BlockEntityRenderer<DataDi
             return;
         }
 
-        boolean online = blockEntity.isNetworkNodeOnline();
         Minecraft minecraft = Minecraft.getInstance();
         BlockRenderDispatcher blockRenderer = minecraft.getBlockRenderer();
-        BakedModel model = minecraft.getModelManager().getModel(online ? CRYSTAL_ONLINE_MODEL : CRYSTAL_OFFLINE_MODEL);
         BlockState state = blockEntity.getBlockState();
+        boolean online = state.hasProperty(DataDistributionTowerBlock.ACTIVE)
+                ? state.getValue(DataDistributionTowerBlock.ACTIVE)
+                : blockEntity.isNetworkNodeOnline();
+        BakedModel model = minecraft.getModelManager().getModel(online ? CRYSTAL_ONLINE_MODEL : CRYSTAL_OFFLINE_MODEL);
         float bobOffset = online ? Mth.sin((blockEntity.getLevel().getGameTime() + partialTick) * 0.08f) * 0.08f : 0.0f;
 
         poseStack.pushPose();
         poseStack.translate(0.5f, CRYSTAL_BASE_Y + bobOffset, 0.5f);
-        poseStack.translate(-0.5f, -1.75f, -0.5f);
+        poseStack.mulPose(Axis.YP.rotationDegrees(getCrystalYRotation(state)));
+        poseStack.translate(CRYSTAL_MODEL_OFFSET_X, CRYSTAL_MODEL_OFFSET_Y, CRYSTAL_MODEL_OFFSET_Z);
         renderModel(blockRenderer, model, state, poseStack, buffer, packedLight, packedOverlay);
         poseStack.popPose();
+    }
+
+    private static float getCrystalYRotation(BlockState state) {
+        if (!state.hasProperty(DataDistributionTowerBlock.FACING)) {
+            return 0.0f;
+        }
+
+        return switch (state.getValue(DataDistributionTowerBlock.FACING)) {
+            case EAST -> -90.0f;
+            case SOUTH -> -180.0f;
+            case WEST -> 90.0f;
+            default -> 0.0f;
+        };
     }
 
     private static void renderModel(BlockRenderDispatcher blockRenderer, BakedModel model, BlockState state, PoseStack poseStack,

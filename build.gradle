@@ -122,7 +122,7 @@ dependencies {
 
     compileOnly "curse.maven:ae2-crystal-science-1435174:8036407"
     runtimeOnly "curse.maven:ae2-crystal-science-1435174:8036407"
-    implementation "curse.maven:ae2-lightning-tech-1527395:8036157"
+    implementation "curse.maven:ae2-lightning-tech-1527395:8135920"
 
     implementation "curse.maven:applied-energistics-2-wireless-terminals-459929:7693114"
     compileOnly files(extractedAe2wtlibApiDir)

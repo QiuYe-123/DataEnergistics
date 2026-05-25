@@ -45,6 +45,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     private static final float SINGULARITY_DAMAGE = 25.0F;
     private static final float DEFAULT_DATA_DUST_DAMAGE_RATIO = 0.01F;
     private static final float DATA_DUST_BASE_DAMAGE = 10.0F;
+    private static final double SPECIAL_LIGHT_SABER_ENERGY = 20_000.0D;
     private static final float SINGULARITY_EXPLOSION_RADIUS = 1.5F;
     private static final float CRIT_DAMAGE_BONUS = 1.5F;
     private static final double MAX_TRAVEL_DISTANCE = 256.0D;
@@ -61,6 +62,8 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
             SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> DATA_HOMING =
             SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Integer> DATA_SABER_ENERGY_CARD_COUNT =
+            SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.INT);
     private static final String TAG_DATA_DUST_DAMAGE_RATIO = "DataDustDamageRatio";
 
     private double traveledDistance;
@@ -85,6 +88,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
         builder.define(DATA_COLOR, -1);
         builder.define(DATA_PIERCE_LEVEL, 0);
         builder.define(DATA_HOMING, false);
+        builder.define(DATA_SABER_ENERGY_CARD_COUNT, 0);
     }
 
     @Override
@@ -123,6 +127,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
 
     public void setWeaponStack(ItemStack stack) {
         this.weaponStack = stack.copy();
+        this.getEntityData().set(DATA_SABER_ENERGY_CARD_COUNT, this.getSaberEnergyCardCount(stack));
     }
 
     public void setCritical(boolean critical) {
@@ -158,6 +163,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
         tag.putInt("PierceLevel", this.getPierceLevel());
         tag.putBoolean("Homing", this.isHoming());
         tag.putBoolean("Critical", this.critical);
+        tag.putInt("SaberEnergyCardCount", this.getSaberEnergyCardCount());
         if (!this.weaponStack.isEmpty()) {
             tag.put("WeaponStack", this.weaponStack.save(this.registryAccess()));
         }
@@ -170,12 +176,16 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
         this.getEntityData().set(DATA_COLOR, tag.getInt("BoltColor"));
         this.getEntityData().set(DATA_PIERCE_LEVEL, tag.getInt("PierceLevel"));
         this.getEntityData().set(DATA_HOMING, tag.getBoolean("Homing"));
+        this.getEntityData().set(DATA_SABER_ENERGY_CARD_COUNT, Math.max(0, tag.getInt("SaberEnergyCardCount")));
         this.critical = tag.getBoolean("Critical");
         if (tag.contains("WeaponStack", 10)) {
             this.weaponStack = ItemStack.parse(this.registryAccess(), tag.getCompound("WeaponStack"))
                     .orElse(ItemStack.EMPTY);
         } else {
             this.weaponStack = ItemStack.EMPTY;
+        }
+        if (!this.weaponStack.isEmpty()) {
+            this.getEntityData().set(DATA_SABER_ENERGY_CARD_COUNT, this.getSaberEnergyCardCount(this.weaponStack));
         }
     }
 
@@ -248,7 +258,8 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     }
 
     private boolean isDataDustAmmo() {
-        return this.getItem().is(ModItems.TIME_CORE.get());
+        return this.getItem().is(ModItems.DATA_LIGHT_SABER.get())
+                && Math.abs(this.getItem().getOrDefault(appeng.api.ids.AEComponents.STORED_ENERGY, 0.0D) - SPECIAL_LIGHT_SABER_ENERGY) < 1.0E-4D;
     }
 
     public int getColor() {
@@ -256,7 +267,8 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     }
 
     private float getDamageForAmmo() {
-        return this.isSingularityAmmo() ? SINGULARITY_DAMAGE : MATTER_BALL_DAMAGE;
+        float baseDamage = this.isSingularityAmmo() ? SINGULARITY_DAMAGE : MATTER_BALL_DAMAGE;
+        return baseDamage * this.getSaberEnergyDamageMultiplier();
     }
 
     private float getImpactDamage() {
@@ -415,11 +427,25 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     }
 
     private float getDataDustBaseDamage() {
-        float damage = DATA_DUST_BASE_DAMAGE * (float) this.getDeltaMovement().length();
+        float damage = DATA_DUST_BASE_DAMAGE * this.getSaberEnergyDamageMultiplier() * (float) this.getDeltaMovement().length();
         if (this.critical) {
             damage *= CRIT_DAMAGE_BONUS;
         }
         return Mth.clamp(damage, 0.0F, Float.MAX_VALUE);
+    }
+
+    private int getSaberEnergyCardCount() {
+        return Math.max(0, this.getEntityData().get(DATA_SABER_ENERGY_CARD_COUNT));
+    }
+
+    private int getSaberEnergyCardCount(ItemStack stack) {
+        return Math.max(0, appeng.api.upgrades.UpgradeInventories.forItem(stack, 6)
+                .getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()));
+    }
+
+    private float getSaberEnergyDamageMultiplier() {
+        int cardCount = this.getSaberEnergyCardCount();
+        return cardCount > 0 ? cardCount * 2.0F : 1.0F;
     }
 
     private boolean tryForceHomingHit() {

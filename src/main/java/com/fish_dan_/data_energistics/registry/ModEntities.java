@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.entity.DispersingDataEntity;
+import com.fish_dan_.data_energistics.entity.LightBladeChargeEntity;
 import com.fish_dan_.data_energistics.entity.MatterConvergingBoltEntity;
 import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
 import com.fish_dan_.data_energistics.entity.TntConfigurablePrimedEntity;
@@ -31,6 +32,13 @@ public final class ModEntities {
                     .clientTrackingRange(4)
                     .updateInterval(10)
                     .build("matter_converging_bolt"));
+    public static final DeferredHolder<EntityType<?>, EntityType<LightBladeChargeEntity>> LIGHT_BLADE_CHARGE =
+            ENTITY_TYPES.register("light_blade_charge", () -> EntityType.Builder
+                    .<LightBladeChargeEntity>of(LightBladeChargeEntity::new, MobCategory.MISC)
+                    .sized(0.5F, 0.5F)
+                    .clientTrackingRange(8)
+                    .updateInterval(1)
+                    .build("light_blade_charge"));
     public static final DeferredHolder<EntityType<?>, EntityType<ThrownLightSaberEntity>> THROWN_LIGHT_SABER =
             ENTITY_TYPES.register("thrown_light_saber", () -> EntityType.Builder
                     .<ThrownLightSaberEntity>of(ThrownLightSaberEntity::new, MobCategory.MISC)

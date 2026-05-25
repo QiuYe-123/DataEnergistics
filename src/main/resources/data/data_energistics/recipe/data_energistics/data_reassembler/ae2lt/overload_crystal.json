@@ -1,0 +1,28 @@
+{
+  "type": "data_energistics:data_reassembler",
+  "item_inputs": [
+    {
+      "ingredient": {
+        "item": "ae2lt:overload_crystal_dust"
+      },
+      "count": 16
+    },
+    {
+      "ingredient": {
+        "item": "ae2lt:overload_crystal"
+      },
+      "count": 16
+    }
+  ],
+  "item_outputs": [
+    {
+      "id": "ae2lt:overload_crystal",
+      "count": 72
+    }
+  ],
+  "key_input": {
+    "#t": "ae2lt:lightning",
+    "#": 8,
+    "id": "high_voltage_lightning"
+  }
+}

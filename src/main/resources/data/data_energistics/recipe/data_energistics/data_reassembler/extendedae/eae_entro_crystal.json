@@ -1,0 +1,34 @@
+{
+  "type": "data_energistics:data_reassembler",
+  "item_inputs": [
+    {
+      "ingredient": {
+        "tag": "c:gems/entro"
+      },
+      "count": 16
+    },
+    {
+      "ingredient": {
+        "tag": "c:dusts/entro"
+      },
+      "count": 16
+    }
+  ],
+  "fluid_inputs": [
+    {
+      "#": 500,
+      "#t": "ae2:f",
+      "id": "minecraft:water"
+    }
+  ],
+  "item_outputs": [
+    {
+      "id": "extendedae:entro_crystal",
+      "count": 72
+    }
+  ],
+  "key_input": {
+    "#t": "data_energistics:data_flow",
+    "#": 2400
+  }
+}

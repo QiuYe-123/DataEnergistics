@@ -1,0 +1,34 @@
+{
+  "type": "data_energistics:data_reassembler",
+  "item_inputs": [
+    {
+      "ingredient": {
+        "item": "neoecoae:energized_crystal_dust"
+      },
+      "count": 48
+    },
+    {
+      "ingredient": {
+        "item": "ae2:fluix_crystal"
+      },
+      "count": 48
+    }
+  ],
+  "fluid_inputs": [
+    {
+      "#": 500,
+      "#t": "ae2:f",
+      "id": "minecraft:water"
+    }
+  ],
+  "item_outputs": [
+    {
+      "id": "neoecoae:energized_fluix_crystal",
+      "count": 72
+    }
+  ],
+  "key_input": {
+    "#t": "data_energistics:data_flow",
+    "#": 2400
+  }
+}

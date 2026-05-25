@@ -13,6 +13,23 @@ import org.jetbrains.annotations.Nullable;
 
 public final class LightSaberColorData {
     private static final String TAG_LIGHT_SABER_COLOR = "light_saber_color";
+    private static final int DEFAULT_LIGHT_SABER_BLADE_COLOR = 0x31F7D3;
+    private static final int SANCTIFIER_BLADE_COLOR = 0xFFE359;
+    private static final int SANCTIFIER_FRAME_TIME = 25;
+    private static final int[] SANCTIFIER_FRAME_COLORS = new int[] {
+            0x8ADF81,
+            0xF9E07F,
+            0xE79C5F,
+            0xA48A53,
+            0xDF5F5F,
+            0xFEB2D3,
+            0xEF8FBF,
+            0xB58ADE,
+            0x6BA3F5,
+            0xA0DDFF,
+            0x76E2D0,
+            0x60D988
+    };
 
     private LightSaberColorData() {
     }
@@ -76,6 +93,20 @@ public final class LightSaberColorData {
             }
         }
         return null;
+    }
+
+    public static int getBladeColor(ItemStack stack) {
+        if (stack.is(ModItems.DATA_SANCTIFIER.get())) {
+            return SANCTIFIER_BLADE_COLOR;
+        }
+
+        DyeColor color = getStoredColor(stack);
+        return color == null ? DEFAULT_LIGHT_SABER_BLADE_COLOR : color.getTextureDiffuseColor();
+    }
+
+    public static int getSanctifierAnimatedColor(long gameTime) {
+        int frame = (int) ((gameTime / SANCTIFIER_FRAME_TIME) % SANCTIFIER_FRAME_COLORS.length);
+        return SANCTIFIER_FRAME_COLORS[Math.floorMod(frame, SANCTIFIER_FRAME_COLORS.length)];
     }
 
     private static int colorDistanceSquared(int first, int second) {

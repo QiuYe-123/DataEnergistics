@@ -169,7 +169,7 @@ public final class ModItems {
     );
     public static final DeferredItem<Item> CARD_SABER_ENERGY = ITEMS.register(
             "card_saber_energy",
-            () -> new Item(new Item.Properties())
+            () -> Upgrades.createUpgradeCardItem(new Item.Properties())
     );
     public static final DeferredItem<Item> REDSTONE_TUNING_CARD = ITEMS.register(
             "redstone_tuning_card",

@@ -20,6 +20,12 @@
         "item": "minecraft:echo_shard"
       },
       "count": 4
+    },
+    {
+      "ingredient": {
+        "item": "minecraft:enchanted_golden_apple"
+      },
+      "count": 1
     }
   ],
   "results": [

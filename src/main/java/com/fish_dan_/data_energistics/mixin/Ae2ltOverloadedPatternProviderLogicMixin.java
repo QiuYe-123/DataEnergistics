@@ -6,7 +6,6 @@ import com.fish_dan_.data_energistics.ae2.RedstoneTuningAutoRequestHelper;
 import com.fish_dan_.data_energistics.ae2.RedstoneTuningMode;
 import com.moakiee.ae2lt.logic.OverloadedPatternProviderLogic;
 import com.moakiee.ae2lt.blockentity.OverloadedPatternProviderBlockEntity;
-import appeng.api.stacks.GenericStack;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -16,7 +15,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.util.List;
+import java.lang.reflect.Field;
+import java.util.Collection;
+import java.util.Map;
 
 @Mixin(OverloadedPatternProviderLogic.class)
 public abstract class Ae2ltOverloadedPatternProviderLogicMixin implements PatternProviderLogicAccessor {
@@ -26,8 +27,6 @@ public abstract class Ae2ltOverloadedPatternProviderLogicMixin implements Patter
 
     @Unique
     private boolean dataEnergistics$dispatchPulsePending;
-    @Shadow(remap = false)
-    private List<GenericStack> wirelessSendList;
 
     @Inject(method = "pushPattern", at = @At("RETURN"))
     private void dataEnergistics$afterPushPattern(appeng.api.crafting.IPatternDetails patternDetails,
@@ -79,7 +78,7 @@ public abstract class Ae2ltOverloadedPatternProviderLogicMixin implements Patter
             return;
         }
         if (!((PatternProviderLogicFieldAccessor) this).dataEnergistics$getSendList().isEmpty()
-                || !this.wirelessSendList.isEmpty()) {
+                || this.dataEnergistics$hasAe2LtWirelessOverflow()) {
             return;
         }
         this.dataEnergistics$dispatchPulsePending = false;
@@ -102,5 +101,39 @@ public abstract class Ae2ltOverloadedPatternProviderLogicMixin implements Patter
                 ((PatternProviderLogicFieldAccessor) this).dataEnergistics$getActionSource(),
                 ((OverloadedPatternProviderLogic) (Object) this).getAvailablePatterns()
         );
+    }
+
+    @Unique
+    private boolean dataEnergistics$hasAe2LtWirelessOverflow() {
+        Object logic = this;
+
+        Object legacySendList = dataEnergistics$getFieldValue(logic, "wirelessSendList");
+        if (legacySendList instanceof Collection<?> collection && !collection.isEmpty()) {
+            return true;
+        }
+
+        Object modernOverflowMap = dataEnergistics$getFieldValue(logic, "pendingOverflowByConn");
+        if (modernOverflowMap instanceof Map<?, ?> map && !map.isEmpty()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    @Unique
+    private static Object dataEnergistics$getFieldValue(Object instance, String fieldName) {
+        Class<?> current = instance.getClass();
+        while (current != null) {
+            try {
+                Field field = current.getDeclaredField(fieldName);
+                field.setAccessible(true);
+                return field.get(instance);
+            } catch (NoSuchFieldException ignored) {
+                current = current.getSuperclass();
+            } catch (ReflectiveOperationException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 }

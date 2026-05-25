@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.entity;
 
+import com.fish_dan_.data_energistics.mixin.LivingEntityAccessor;
 import com.fish_dan_.data_energistics.registry.ModEntities;
+import com.fish_dan_.data_energistics.registry.ModItems;
 import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -13,34 +15,53 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.ItemSupplier;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
+import appeng.api.upgrades.UpgradeInventories;
+import org.jetbrains.annotations.Nullable;
 
 public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplier {
     private static final int DESPAWN_TICKS = 20 * 60 * 5;
+    private static final float DEFAULT_DATA_DUST_DAMAGE_RATIO = 0.01F;
+    private static final double HOMING_RANGE = 24.0D;
+    private static final double HOMING_STRENGTH = 0.35D;
+    private static final double HOMING_MAX_STRENGTH = 0.85D;
+    private static final double HOMING_CLOSE_RANGE = 8.0D;
+    private static final double HOMING_HIT_MARGIN = 0.75D;
     private static final String TAG_DEALT_DAMAGE = "DealtDamage";
+    private static final String TAG_DATA_DUST_DAMAGE_RATIO = "DataDustDamageRatio";
     private static final EntityDataAccessor<ItemStack> DATA_SABER_STACK =
             SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.ITEM_STACK);
     private static final EntityDataAccessor<Byte> ID_LOYALTY =
             SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.BYTE);
     private static final EntityDataAccessor<Boolean> ID_FOIL =
             SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Boolean> ID_HOMING =
+            SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Integer> ID_SABER_ENERGY_CARD_COUNT =
+            SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.INT);
 
     private boolean dealtDamage;
     public int clientSideReturnTridentTickCount;
     private ItemStack saberStack = ItemStack.EMPTY;
+    private ItemStack weaponStack = ItemStack.EMPTY;
+    private float dataDustDamageRatio = DEFAULT_DATA_DUST_DAMAGE_RATIO;
 
     public ThrownLightSaberEntity(EntityType<? extends ThrownLightSaberEntity> entityType, Level level) {
         super(entityType, level);
@@ -69,12 +90,21 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         builder.define(DATA_SABER_STACK, ItemStack.EMPTY);
         builder.define(ID_LOYALTY, (byte) 0);
         builder.define(ID_FOIL, false);
+        builder.define(ID_HOMING, false);
+        builder.define(ID_SABER_ENERGY_CARD_COUNT, 0);
     }
 
     @Override
     public void tick() {
         if (this.inGroundTime > 4) {
             this.dealtDamage = true;
+        }
+
+        if (!this.level().isClientSide && this.isHoming() && !this.dealtDamage && !this.isNoPhysics()) {
+            this.applyHoming();
+            if (this.tryForceHomingHit()) {
+                return;
+            }
         }
 
         Entity owner = this.getOwner();
@@ -115,7 +145,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     @Override
     protected void onHitEntity(EntityHitResult result) {
         Entity target = result.getEntity();
-        float damage = this.getBaseThrownDamage();
+        float damage = this.getBaseThrownDamage() * this.getSpeedDamageMultiplier();
         Entity owner = this.getOwner();
         DamageSource damageSource = this.damageSources().trident(this, owner == null ? this : owner);
         if (this.level() instanceof ServerLevel serverLevel) {
@@ -135,6 +165,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
             if (target instanceof LivingEntity livingTarget) {
                 this.doKnockback(livingTarget, damageSource);
                 this.doPostHurtEffects(livingTarget);
+                this.applyDataDustDamage(livingTarget, owner);
             }
         }
 
@@ -179,6 +210,28 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
 
     public boolean isFoil() {
         return this.entityData.get(ID_FOIL);
+    }
+
+    public void setHoming(boolean homing) {
+        this.entityData.set(ID_HOMING, homing);
+    }
+
+    public boolean isHoming() {
+        return this.entityData.get(ID_HOMING);
+    }
+
+    public void setWeaponStack(ItemStack stack) {
+        boolean dimensionsChanged = this.shouldUseExpandedDimensions() != shouldUseExpandedDimensions(stack, this.getSaberEnergyCardCount(stack));
+        this.weaponStack = stack == null ? ItemStack.EMPTY : stack.copy();
+        int saberEnergyCardCount = this.getSaberEnergyCardCount(this.weaponStack);
+        this.entityData.set(ID_SABER_ENERGY_CARD_COUNT, saberEnergyCardCount);
+        if (dimensionsChanged) {
+            this.refreshDimensions();
+        }
+    }
+
+    public void setDataDustDamageRatio(float damageRatio) {
+        this.dataDustDamageRatio = Mth.clamp(damageRatio, DEFAULT_DATA_DUST_DAMAGE_RATIO, 0.05F);
     }
 
     @Override
@@ -227,6 +280,12 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putBoolean(TAG_DEALT_DAMAGE, this.dealtDamage);
+        tag.putBoolean("Homing", this.isHoming());
+        tag.putInt("SaberEnergyCardCount", this.getSaberEnergyCardCount());
+        tag.putFloat(TAG_DATA_DUST_DAMAGE_RATIO, this.dataDustDamageRatio);
+        if (!this.weaponStack.isEmpty()) {
+            tag.put("WeaponStack", this.weaponStack.save(this.registryAccess()));
+        }
     }
 
     @Override
@@ -237,6 +296,33 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         this.setSaberStack(origin == null ? ItemStack.EMPTY : origin);
         this.entityData.set(ID_LOYALTY, this.getLoyaltyFromItem(this.saberStack));
         this.entityData.set(ID_FOIL, !this.saberStack.isEmpty() && this.saberStack.hasFoil());
+        this.entityData.set(ID_HOMING, tag.getBoolean("Homing"));
+        this.entityData.set(ID_SABER_ENERGY_CARD_COUNT, Math.max(0, tag.getInt("SaberEnergyCardCount")));
+        this.dataDustDamageRatio = Mth.clamp(tag.getFloat(TAG_DATA_DUST_DAMAGE_RATIO), DEFAULT_DATA_DUST_DAMAGE_RATIO, 0.05F);
+        if (tag.contains("WeaponStack", 10)) {
+            this.weaponStack = ItemStack.parse(this.registryAccess(), tag.getCompound("WeaponStack"))
+                    .orElse(ItemStack.EMPTY);
+        } else {
+            this.weaponStack = ItemStack.EMPTY;
+        }
+        if (!this.weaponStack.isEmpty()) {
+            this.entityData.set(ID_SABER_ENERGY_CARD_COUNT, this.getSaberEnergyCardCount(this.weaponStack));
+        }
+        this.refreshDimensions();
+    }
+
+    @Override
+    public EntityDimensions getDimensions(Pose pose) {
+        EntityDimensions dimensions = super.getDimensions(pose);
+        return this.shouldUseExpandedDimensions() ? dimensions.scale(2.0F) : dimensions;
+    }
+
+    @Override
+    public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        if (ID_SABER_ENERGY_CARD_COUNT.equals(key) || DATA_SABER_STACK.equals(key)) {
+            this.refreshDimensions();
+        }
     }
 
     @Override
@@ -292,11 +378,141 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         double damage = playerBaseDamage + addValue[0];
         damage += playerBaseDamage * addMultipliedBase[0];
         damage *= 1.0D + addMultipliedTotal[0];
-        return Math.max(0.0F, (float) damage + 1.0F);
+        return Math.max(0.0F, ((float) damage + 1.0F) * this.getSaberEnergyDamageMultiplier());
     }
 
     private boolean isAcceptibleReturnOwner() {
         Entity owner = this.getOwner();
         return owner != null && owner.isAlive() && (!(owner instanceof ServerPlayer serverPlayer) || !serverPlayer.isSpectator());
     }
+
+    private int getSaberEnergyCardCount() {
+        return Math.max(0, this.entityData.get(ID_SABER_ENERGY_CARD_COUNT));
+    }
+
+    private int getSaberEnergyCardCount(ItemStack stack) {
+        return stack.isEmpty() ? 0 : Math.max(0, UpgradeInventories.forItem(stack, 6)
+                .getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()));
+    }
+
+    private boolean shouldUseExpandedDimensions() {
+        return shouldUseExpandedDimensions(this.getExpansionSourceStack(), this.getSaberEnergyCardCount());
+    }
+
+    private static boolean shouldUseExpandedDimensions(ItemStack stack, int saberEnergyCardCount) {
+        return !stack.isEmpty()
+                && stack.is(ModItems.DATA_SANCTIFIER.get())
+                && saberEnergyCardCount > 0;
+    }
+
+    private ItemStack getExpansionSourceStack() {
+        if (!this.weaponStack.isEmpty()) {
+            return this.weaponStack;
+        }
+        ItemStack stack = this.getEntityData().get(DATA_SABER_STACK);
+        if (!stack.isEmpty()) {
+            return stack;
+        }
+        ItemStack pickupStack = this.getPickupItemStackOrigin();
+        return pickupStack == null ? ItemStack.EMPTY : pickupStack;
+    }
+
+    private float getSaberEnergyDamageMultiplier() {
+        int cardCount = this.getSaberEnergyCardCount();
+        return cardCount > 0 ? cardCount * 2.0F : 1.0F;
+    }
+
+    private float getSpeedDamageMultiplier() {
+        return Math.max(0.0F, (float) this.getDeltaMovement().length());
+    }
+
+    private void applyDataDustDamage(LivingEntity target, @Nullable Entity owner) {
+        float damage = target.getMaxHealth() * this.dataDustDamageRatio;
+        if (damage <= 0.0F) {
+            return;
+        }
+
+        DamageSource damageSource = owner instanceof Player player
+                ? this.damageSources().playerAttack(player)
+                : owner instanceof LivingEntity livingOwner
+                ? this.damageSources().mobAttack(livingOwner)
+                : this.damageSources().magic();
+        target.invulnerableTime = 0;
+        target.hurtTime = 0;
+        target.hurtDuration = 0;
+        ((LivingEntityAccessor) target).dataEnergistics$setLastHurt(0.0F);
+        target.setHealth(Math.max(0.0F, target.getHealth() - damage));
+        target.hurt(damageSource, 0.0F);
+        if (target.getHealth() <= 0.0F) {
+            target.die(damageSource);
+        }
+    }
+
+    private void applyHoming() {
+        Vec3 velocity = this.getDeltaMovement();
+        double speed = velocity.length();
+        if (speed < 1.0E-6D) {
+            return;
+        }
+
+        LivingEntity target = this.findNearestHomingTarget();
+        if (target == null) {
+            return;
+        }
+
+        Vec3 toTarget = target.getBoundingBox().getCenter().subtract(this.position());
+        double distance = toTarget.length();
+        if (toTarget.lengthSqr() < 1.0E-6D) {
+            return;
+        }
+
+        Vec3 currentDirection = velocity.normalize();
+        Vec3 desiredDirection = toTarget.normalize();
+        double alignment = Mth.clamp((1.0D - currentDirection.dot(desiredDirection)) * 0.5D, 0.0D, 1.0D);
+        double closeRangeBoost = distance <= HOMING_CLOSE_RANGE ? (HOMING_CLOSE_RANGE - distance) / HOMING_CLOSE_RANGE : 0.0D;
+        double homingStrength = Mth.clamp(HOMING_STRENGTH + alignment * 0.28D + closeRangeBoost * 0.22D,
+                HOMING_STRENGTH, HOMING_MAX_STRENGTH);
+        Vec3 adjustedDirection = currentDirection.scale(1.0D - homingStrength).add(desiredDirection.scale(homingStrength));
+        if (adjustedDirection.lengthSqr() < 1.0E-6D) {
+            return;
+        }
+
+        this.setDeltaMovement(adjustedDirection.normalize().scale(speed));
+        this.hasImpulse = true;
+    }
+
+    @Nullable
+    private LivingEntity findNearestHomingTarget() {
+        Entity owner = this.getOwner();
+        return this.level().getEntitiesOfClass(LivingEntity.class, this.getBoundingBox().inflate(HOMING_RANGE),
+                        entity -> entity.isAlive()
+                                && !entity.isRemoved()
+                                && !(entity instanceof Player)
+                                && !(entity instanceof ServerPlayer)
+                                && entity != owner)
+                .stream()
+                .min((left, right) -> Double.compare(this.distanceToSqr(left), this.distanceToSqr(right)))
+                .orElse(null);
+    }
+
+    private boolean tryForceHomingHit() {
+        LivingEntity target = this.findNearestHomingTarget();
+        if (target == null) {
+            return false;
+        }
+
+        Vec3 start = this.position();
+        Vec3 end = start.add(this.getDeltaMovement());
+        AABB searchBox = this.getBoundingBox().expandTowards(this.getDeltaMovement()).inflate(HOMING_HIT_MARGIN);
+        EntityHitResult hitResult = ProjectileUtil.getEntityHitResult(this.level(), this, start, end, searchBox,
+                entity -> entity == target && this.canHitEntity(entity));
+        if (hitResult == null) {
+            return false;
+        }
+
+        this.setPos(hitResult.getLocation());
+        this.onHitEntity(hitResult);
+        return true;
+    }
+
 }

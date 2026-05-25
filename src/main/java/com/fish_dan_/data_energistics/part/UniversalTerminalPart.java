@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.part;
 
 import appeng.api.inventories.InternalInventory;
 import appeng.api.storage.IPatternAccessTermMenuHost;
+import appeng.api.storage.ISubMenuHost;
 import appeng.api.parts.IPartItem;
 import appeng.api.parts.IPartModel;
 import appeng.api.util.IConfigManager;
@@ -46,11 +47,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class UniversalTerminalPart extends AbstractTerminalPart implements IPatternTerminalLogicHost, IPatternTerminalMenuHost, IPatternAccessTermMenuHost {
+public class UniversalTerminalPart extends AbstractTerminalPart implements IPatternTerminalLogicHost, IPatternTerminalMenuHost, IPatternAccessTermMenuHost, ISubMenuHost {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String TAG_ACTIVE_TERMINAL = "universal_terminal_active";
     private static final String TAG_CRAFTING_GRID = "universal_terminal_crafting_grid";
     private static final String TAG_TERMINAL_DATA = "universal_terminal_data";
+    private static final String TAG_INSTALLED_TERMINALS = "installed_terminals";
+    private static final String TAG_TERMINAL_NAME = "name";
     private static final String TAG_APPLIEDE_SHIFT_TO_TRANSMUTE = "appliede_shift_to_transmute";
     private static final String TAG_PATTERN_SOURCE_PENDING = "pattern_source_pending";
     private static final String TAG_PATTERN_SOURCE_LAST = "pattern_source_last";
@@ -460,18 +463,26 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
 
     private List<String> getInstalledTerminalNames(HolderLookup.Provider registries) {
         ItemStack stack = buildDataStack();
-        return UniversalTerminalData.getInstalledTerminalNames(stack, registries);
+        List<String> installed = UniversalTerminalData.getInstalledTerminalNames(stack, registries);
+        return !installed.isEmpty() ? installed : getRawInstalledTerminalNames();
     }
 
     private List<UniversalTerminalData.TerminalEntry> getInstalledTerminalEntries(HolderLookup.Provider registries) {
         ItemStack stack = buildDataStack();
-        return UniversalTerminalData.readEntries(stack, registries);
+        List<UniversalTerminalData.TerminalEntry> entries = UniversalTerminalData.readEntries(stack, registries);
+        if (!entries.isEmpty()) {
+            return entries;
+        }
+
+        return getRawInstalledTerminalNames().stream()
+                .map(name -> new UniversalTerminalData.TerminalEntry(name, UniversalTerminalData.getMenuIcon(name)))
+                .toList();
     }
 
     private @Nullable String resolveActiveTerminalName() {
         List<String> installed = getInstalledTerminalNames(this.getLevel().registryAccess());
         if (installed.isEmpty()) {
-            return null;
+            return UniversalTerminalData.getTerminalIndex(this.activeTerminal) >= 0 ? this.activeTerminal : null;
         }
 
         if (installed.contains(this.activeTerminal)) {
@@ -480,6 +491,22 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
 
         setActiveTerminal(installed.getFirst());
         return this.activeTerminal;
+    }
+
+    private List<String> getRawInstalledTerminalNames() {
+        if (!this.terminalData.contains(TAG_INSTALLED_TERMINALS, CompoundTag.TAG_LIST)) {
+            return List.of();
+        }
+
+        List<String> installed = new java.util.ArrayList<>();
+        var terminalList = this.terminalData.getList(TAG_INSTALLED_TERMINALS, CompoundTag.TAG_COMPOUND);
+        for (int i = 0; i < terminalList.size(); i++) {
+            String name = terminalList.getCompound(i).getString(TAG_TERMINAL_NAME);
+            if (!name.isEmpty() && UniversalTerminalData.getTerminalIndex(name) >= 0 && !installed.contains(name)) {
+                installed.add(name);
+            }
+        }
+        return List.copyOf(installed);
     }
 
     private ItemStack buildDataStack() {

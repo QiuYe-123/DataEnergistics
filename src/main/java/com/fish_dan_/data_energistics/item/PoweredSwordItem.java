@@ -1,7 +1,12 @@
 package com.fish_dan_.data_energistics.item;
 
+import appeng.api.storage.cells.ICellWorkbenchItem;
+import appeng.api.config.FuzzyMode;
+import appeng.items.storage.StorageCellTooltipComponent;
+import appeng.util.ConfigInventory;
 import appeng.api.util.AEColor;
 import appeng.items.tools.powered.ColorApplicatorItem;
+import com.fish_dan_.data_energistics.entity.LightBladeChargeEntity;
 import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
 import com.fish_dan_.data_energistics.util.LightSaberColorData;
 import com.mojang.logging.LogUtils;
@@ -19,6 +24,7 @@ import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.SlotAccess;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ClickAction;
 import net.minecraft.world.inventory.Slot;
@@ -35,6 +41,7 @@ import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.item.component.Tool;
 import net.minecraft.world.item.enchantment.EnchantmentEffectComponents;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.ItemAbilities;
@@ -42,11 +49,15 @@ import net.neoforged.neoforge.common.ItemAbility;
 import org.slf4j.Logger;
 
 import java.util.List;
+import java.util.Optional;
 
-public class PoweredSwordItem extends SwordItem implements PoweredEnergyItem, ProjectileItem {
+public class PoweredSwordItem extends SwordItem implements PoweredEnergyItem, ProjectileItem, ICellWorkbenchItem {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final int THROW_THRESHOLD_TIME = 10;
     private static final float THROW_POWER = 2.5F;
+    private static final float LIGHT_BLADE_SPEED = 2.8F;
+    private static final float LIGHT_BLADE_DAMAGE_RATIO = 5.0F / 6.0F;
+    public static final float SANCTIFIER_THROWN_LIGHT_BLADE_SPEED = 2.4F;
     private final boolean throwable;
 
     public PoweredSwordItem(Tier tier, Properties properties) {
@@ -71,6 +82,16 @@ public class PoweredSwordItem extends SwordItem implements PoweredEnergyItem, Pr
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> lines, TooltipFlag tooltipFlag) {
         super.appendHoverText(stack, context, lines, tooltipFlag);
         this.appendEnergyHoverText(stack, lines);
+    }
+
+    @Override
+    public Optional<TooltipComponent> getTooltipImage(ItemStack stack) {
+        var upgrades = this.getUpgrades(stack);
+        List<ItemStack> upgradeItems = collectUpgradeItems(upgrades);
+        if (upgradeItems.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new StorageCellTooltipComponent(upgradeItems, List.of(), false, false));
     }
 
     @Override
@@ -121,9 +142,32 @@ public class PoweredSwordItem extends SwordItem implements PoweredEnergyItem, Pr
         }
         boolean result = super.hurtEnemy(stack, target, attacker);
         if (result && !attacker.level().isClientSide) {
+            if (this.getSaberEnergyCardCount(stack) > 0) {
+                this.fireLightBlade((Level) attacker.level(), attacker, stack);
+            }
             this.consumeActionEnergy(stack);
         }
         return result;
+    }
+
+    @Override
+    public boolean onEntitySwing(ItemStack stack, LivingEntity entity, InteractionHand hand) {
+        if (hand != InteractionHand.MAIN_HAND || entity.level().isClientSide) {
+            return false;
+        }
+        if (!(entity instanceof Player player)) {
+            return false;
+        }
+        if (!this.hasSufficientEnergy(stack) || this.getSaberEnergyCardCount(stack) <= 0) {
+            return false;
+        }
+        if (player.getAttackStrengthScale(0.5F) < 1.0F) {
+            return false;
+        }
+
+        this.fireLightBlade((Level) entity.level(), entity, stack);
+        player.resetAttackStrengthTicker();
+        return false;
     }
 
     @Override
@@ -207,6 +251,7 @@ public class PoweredSwordItem extends SwordItem implements PoweredEnergyItem, Pr
                 this.consumeActionEnergy(thrownStack);
 
                 ThrownLightSaberEntity thrownLightSaber = new ThrownLightSaberEntity(level, player, thrownStack);
+                thrownLightSaber.setWeaponStack(thrownStack);
                 thrownLightSaber.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0F, THROW_POWER, 1.0F);
                 if (player.hasInfiniteMaterials()) {
                     thrownLightSaber.pickup = Pickup.CREATIVE_ONLY;
@@ -247,6 +292,91 @@ public class PoweredSwordItem extends SwordItem implements PoweredEnergyItem, Pr
 
     protected int getThrowThresholdTime(ItemStack stack) {
         return Math.max(4, THROW_THRESHOLD_TIME - this.getSpeedCardCount(stack) * 2);
+    }
+
+    private void fireLightBlade(Level level, LivingEntity attacker, ItemStack stack) {
+        if (this.getSaberEnergyCardCount(stack) <= 0) {
+            return;
+        }
+
+        float damage = getLightBladeDamage(stack);
+        if (damage <= 0.0F) {
+            return;
+        }
+
+        LightBladeChargeEntity lightBlade = new LightBladeChargeEntity(
+                level,
+                attacker,
+                getLightBladeColor(level, stack),
+                damage
+        );
+        lightBlade.setWeaponStack(stack);
+        lightBlade.setPos(attacker.getX(), attacker.getEyeY() - 0.15D, attacker.getZ());
+        lightBlade.shootFromRotation(attacker, attacker.getXRot(), attacker.getYRot(), 0.0F, LIGHT_BLADE_SPEED, 0.0F);
+        level.addFreshEntity(lightBlade);
+    }
+
+    public static float getLightBladeDamage(ItemStack stack) {
+        return Math.max(0.0F, (float) (getPanelAttackDamage(stack) * LIGHT_BLADE_DAMAGE_RATIO));
+    }
+
+    private static int getLightBladeColor(Level level, ItemStack stack) {
+        if (stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_SANCTIFIER.get())) {
+            return LightSaberColorData.getSanctifierAnimatedColor(level.getGameTime());
+        }
+        return LightSaberColorData.getBladeColor(stack);
+    }
+
+    public static double getPanelAttackDamage(ItemStack stack) {
+        final double playerBaseDamage = 1.0D;
+        final double[] addValue = {0.0D};
+        final double[] addMultipliedBase = {0.0D};
+        final double[] addMultipliedTotal = {0.0D};
+
+        stack.forEachModifier(net.minecraft.world.entity.EquipmentSlot.MAINHAND,
+                (Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute, net.minecraft.world.entity.ai.attributes.AttributeModifier modifier) -> {
+                    if (!attribute.equals(Attributes.ATTACK_DAMAGE)) {
+                        return;
+                    }
+
+                    if (modifier.operation() == net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_VALUE) {
+                        addValue[0] += modifier.amount();
+                    } else if (modifier.operation() == net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_BASE) {
+                        addMultipliedBase[0] += modifier.amount();
+                    } else if (modifier.operation() == net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL) {
+                        addMultipliedTotal[0] += modifier.amount();
+                    }
+                });
+
+        double panelDamage = playerBaseDamage + addValue[0];
+        panelDamage += playerBaseDamage * addMultipliedBase[0];
+        panelDamage *= 1.0D + addMultipliedTotal[0];
+        return Math.max(0.0D, panelDamage);
+    }
+
+    @Override
+    public ConfigInventory getConfigInventory(ItemStack stack) {
+        return ConfigInventory.emptyTypes();
+    }
+
+    @Override
+    public FuzzyMode getFuzzyMode(ItemStack stack) {
+        return FuzzyMode.IGNORE_ALL;
+    }
+
+    @Override
+    public void setFuzzyMode(ItemStack stack, FuzzyMode fuzzyMode) {
+    }
+
+    private static List<ItemStack> collectUpgradeItems(appeng.api.upgrades.IUpgradeInventory upgrades) {
+        List<ItemStack> upgradeItems = new java.util.ArrayList<>(upgrades.size());
+        for (int i = 0; i < upgrades.size(); i++) {
+            ItemStack upgrade = upgrades.getStackInSlot(i);
+            if (!upgrade.isEmpty()) {
+                upgradeItems.add(upgrade.copy());
+            }
+        }
+        return upgradeItems;
     }
 
     @Override

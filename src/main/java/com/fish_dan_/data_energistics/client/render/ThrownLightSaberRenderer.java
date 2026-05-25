@@ -36,6 +36,9 @@ public class ThrownLightSaberRenderer extends ThrownItemRenderer<ThrownLightSabe
         poseStack.mulPose(Axis.YP.rotationDegrees(Mth.lerp(partialTick, entity.yRotO, entity.getYRot()) - 90.0F));
         poseStack.mulPose(Axis.ZP.rotationDegrees(Mth.lerp(partialTick, entity.xRotO, entity.getXRot()) - 90.0F));
         poseStack.mulPose(Axis.YP.rotationDegrees(90.0F));
+        if (isSanctifier(stack) && hasSaberEnergyCard(stack)) {
+            poseStack.scale(2.0F, 2.0F, 2.0F);
+        }
         if (isSanctifier(stack)) {
             poseStack.mulPose(Axis.ZP.rotationDegrees(getSanctifierSpinDegrees(entity, partialTick)));
         }
@@ -50,6 +53,11 @@ public class ThrownLightSaberRenderer extends ThrownItemRenderer<ThrownLightSabe
     private static boolean isSanctifier(ItemStack stack) {
         ResourceLocation itemId = stack.getItemHolder().getKey().location();
         return "data_energistics".equals(itemId.getNamespace()) && "data_sanctifier".equals(itemId.getPath());
+    }
+
+    private static boolean hasSaberEnergyCard(ItemStack stack) {
+        return stack.getItem() instanceof com.fish_dan_.data_energistics.item.PoweredEnergyItem poweredEnergyItem
+                && poweredEnergyItem.getSaberEnergyCardCount(stack) > 0;
     }
 
     private static float getSanctifierSpinDegrees(ThrownLightSaberEntity entity, float partialTick) {
