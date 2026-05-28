@@ -5,7 +5,6 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.141'
 }
 
-def ae2wtlibApiJar = file(".codex_tmp_wtlib/META-INF/jarjar/de.mari_023.ae2wtlib_api-19.4.1.jar")
 def extractedAe2wtlibApiDir = layout.buildDirectory.dir("generated/ae2wtlibApi")
 
 version = mod_version
@@ -166,11 +165,35 @@ dependencies {
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
 }
 
-tasks.register("extractAe2wtlibApiClasses", Sync) {
-    from(zipTree(ae2wtlibApiJar)) {
-        exclude "META-INF/**"
+configurations {
+    ae2wtlibMod
+}
+
+dependencies {
+    ae2wtlibMod "curse.maven:applied-energistics-2-wireless-terminals-459929:7693114"
+}
+
+tasks.register("extractAe2wtlibApiClasses") {
+    dependsOn(configurations.named("ae2wtlibMod"))
+    outputs.dir(extractedAe2wtlibApiDir)
+    doLast {
+        def outputDir = extractedAe2wtlibApiDir.get().asFile
+        delete outputDir
+        def cf = project.configurations.getByName("ae2wtlibMod")
+        def modJar = cf.files.find {
+            it.name.contains("wireless-terminals") || it.name.contains("ae2wtlib")
+        }
+        if (modJar != null) {
+            def apiJarEntry = zipTree(modJar).filter {
+                it.name == "de.mari_023.ae2wtlib_api-19.4.1.jar"
+            }.singleFile
+            copy {
+                from zipTree(apiJarEntry)
+                exclude "META-INF/**"
+                into outputDir
+            }
+        }
     }
-    into(extractedAe2wtlibApiDir)
 }
 
 tasks.withType(JavaCompile).configureEach {
