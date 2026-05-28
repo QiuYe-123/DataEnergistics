@@ -15,6 +15,7 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.ModelResourceLocation;
+import net.minecraft.Util;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
@@ -26,6 +27,8 @@ import org.jetbrains.annotations.NotNull;
 
 public class DataDistributionTowerRenderer implements BlockEntityRenderer<DataDistributionTowerBlockEntity> {
     private static final float CRYSTAL_BASE_Y = 3.6875f;
+    private static final float CRYSTAL_ONLINE_FLOAT_RANGE = 0.14f;
+    private static final float CRYSTAL_ONLINE_FLOAT_SPEED = 0.14f;
     private static final float CRYSTAL_MODEL_OFFSET_X = -0.5f;
     private static final float CRYSTAL_MODEL_OFFSET_Y = -1.75f;
     private static final float CRYSTAL_MODEL_OFFSET_Z = -0.5f;
@@ -80,11 +83,13 @@ public class DataDistributionTowerRenderer implements BlockEntityRenderer<DataDi
         Minecraft minecraft = Minecraft.getInstance();
         BlockRenderDispatcher blockRenderer = minecraft.getBlockRenderer();
         BlockState state = blockEntity.getBlockState();
-        boolean online = state.hasProperty(DataDistributionTowerBlock.ACTIVE)
-                ? state.getValue(DataDistributionTowerBlock.ACTIVE)
-                : blockEntity.isNetworkNodeOnline();
+        boolean online = blockEntity.isNetworkNodeOnline();
         BakedModel model = minecraft.getModelManager().getModel(online ? CRYSTAL_ONLINE_MODEL : CRYSTAL_OFFLINE_MODEL);
-        float bobOffset = online ? Mth.sin((blockEntity.getLevel().getGameTime() + partialTick) * 0.08f) * 0.08f : 0.0f;
+        float bobOffset = 0.0f;
+        if (online) {
+            float phase = (Util.getMillis() * 0.001f) * (CRYSTAL_ONLINE_FLOAT_SPEED * 20.0f);
+            bobOffset = (Mth.sin(phase) * 0.5f + 0.5f) * CRYSTAL_ONLINE_FLOAT_RANGE;
+        }
 
         poseStack.pushPose();
         poseStack.translate(0.5f, CRYSTAL_BASE_Y + bobOffset, 0.5f);

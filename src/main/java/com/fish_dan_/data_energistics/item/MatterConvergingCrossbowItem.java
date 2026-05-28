@@ -67,8 +67,6 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     private static final double ENERGY_PER_SHOT = 200.0D;
     private static final double DATA_DUST_ENERGY_PER_SHOT = 200_000.0D;
     private static final double DATA_DUST_ENERGY_PER_PERCENT = 25_000.0D;
-    private static final int DATA_DUST_BASE_PERCENT = 1;
-    private static final int DATA_DUST_MAX_PERCENT = 5;
     private static final double HOMING_ENERGY_MULTIPLIER = 5.0D;
     private static final float PROJECTILE_SPEED = 3.15F;
     private static final float SPEED_CARD_PROJECTILE_SPEED_BONUS = 1.0F;
@@ -81,7 +79,6 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     private static final double SPECIAL_LIGHT_SABER_ENERGY = 20_000.0D;
     private static final long MAX_STORED_DATA = 512L;
     private static final String TAG_STORED_DATA = "StoredData";
-    private static final String TAG_DATA_DUST_DAMAGE_RATIO = "DataDustDamageRatio";
 
     private boolean startSoundPlayed = false;
     private boolean midLoadSoundPlayed = false;
@@ -298,7 +295,6 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
             ThrownLightSaberEntity projectile = new ThrownLightSaberEntity(level, shooter, thrownStack);
             projectile.pickup = Pickup.ALLOWED;
             projectile.setWeaponStack(weaponStack);
-            projectile.setDataDustDamageRatio(this.getDataDustDamagePercentForChargedShot(weaponStack) / 100.0F);
             projectile.setHoming(this.hasRedstoneCard(weaponStack));
             return projectile;
         }
@@ -342,7 +338,6 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
             return List.of();
         }
         if (this.isDataDustAmmo(ammo)) {
-            this.applyDataDustShotData(weaponStack, ammo);
             return List.of(ammo);
         }
 
@@ -571,10 +566,14 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         return itemKey.toStack(1);
     }
 
-    private boolean isDataDustAmmo(ItemStack ammoStack) {
+    public static boolean isSpecialLightSaberAmmo(ItemStack ammoStack) {
         return !ammoStack.isEmpty()
                 && ammoStack.is(ModItems.DATA_LIGHT_SABER.get())
                 && Math.abs(ammoStack.getOrDefault(AEComponents.STORED_ENERGY, 0.0D) - SPECIAL_LIGHT_SABER_ENERGY) < 1.0E-4D;
+    }
+
+    private boolean isDataDustAmmo(ItemStack ammoStack) {
+        return isSpecialLightSaberAmmo(ammoStack);
     }
 
     private boolean isSupportedAmmo(ItemStack ammoStack) {
@@ -592,27 +591,12 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         return DATA_DUST_ENERGY_PER_SHOT + this.getDataDustExtraEnergyForShot(stack);
     }
 
-    private int getDataDustDamagePercentForShot(ItemStack stack) {
-        double extraPower = this.getDataDustExtraEnergyForShot(stack);
-        int extraPercent = (int) Math.floor(extraPower / DATA_DUST_ENERGY_PER_PERCENT);
-        return Math.min(DATA_DUST_MAX_PERCENT, DATA_DUST_BASE_PERCENT + extraPercent);
-    }
-
-    private void applyDataDustShotData(ItemStack weaponStack, ItemStack ammoStack) {
-        float ratio = this.getDataDustDamagePercentForChargedShot(weaponStack) / 100.0F;
-        CustomData.update(DataComponents.CUSTOM_DATA, ammoStack, tag -> tag.putFloat(TAG_DATA_DUST_DAMAGE_RATIO, ratio));
-    }
-
-    private int getDataDustDamagePercentForChargedShot(ItemStack stack) {
-        return this.getDataDustDamagePercentForShot(stack);
-    }
-
     private double getDataDustExtraEnergyFromCards(ItemStack stack) {
         return Math.max(0.0D, this.getAEMaxPower(stack) - MAX_POWER);
     }
 
     private double getDataDustExtraEnergyForShot(ItemStack stack) {
-        double maxExtraEnergy = (DATA_DUST_MAX_PERCENT - DATA_DUST_BASE_PERCENT) * DATA_DUST_ENERGY_PER_PERCENT;
+        double maxExtraEnergy = 4 * DATA_DUST_ENERGY_PER_PERCENT;
         return Math.min(this.getDataDustExtraEnergyFromCards(stack), maxExtraEnergy);
     }
 
@@ -626,10 +610,6 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         boolean changed = false;
         for (ItemStack projectile : charged.getItems()) {
             ItemStack updatedProjectile = projectile.copy();
-            if (this.isDataDustAmmo(updatedProjectile)) {
-                this.applyDataDustShotData(stack, updatedProjectile);
-                changed = true;
-            }
             updatedProjectiles.add(updatedProjectile);
         }
 

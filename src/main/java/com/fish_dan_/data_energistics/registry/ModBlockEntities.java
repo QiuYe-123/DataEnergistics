@@ -4,7 +4,6 @@ import com.fish_dan_.data_energistics.blockentity.AdaptivePatternProviderBlockEn
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataExtractorBlockEntity;
-import com.fish_dan_.data_energistics.blockentity.DataFlowGeneratorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataFrameworkBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataMimeticFieldBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.DataRipperReassemblerBlockEntity;
@@ -19,11 +18,6 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 public final class ModBlockEntities {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITY_TYPES =
             DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, Data_Energistics.MODID);
-
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataFlowGeneratorBlockEntity>> DATA_FLOW_GENERATOR_BLOCK_ENTITY =
-            BLOCK_ENTITY_TYPES.register(
-                    "data_flow_generator",
-                    () -> BlockEntityType.Builder.of(DataFlowGeneratorBlockEntity::new, ModBlocks.DATA_FLOW_GENERATOR.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataSolarPanelBlockEntity>> DATA_SOLAR_PANEL_BLOCK_ENTITY =
             BLOCK_ENTITY_TYPES.register(

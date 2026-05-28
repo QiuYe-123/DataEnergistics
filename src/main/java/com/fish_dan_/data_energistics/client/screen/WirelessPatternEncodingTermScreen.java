@@ -51,10 +51,12 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
             ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_highlighted.png");
     private static final ResourceLocation AE2_BUTTON_DISABLED_TEXTURE =
             ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_disabled.png");
-    private static final Component PANEL_TITLE = Component.literal("上传");
-    private static final Component EMPTY_STATE_TEXT = Component.literal("未发现可用供应器");
-    private static final Component ENCODE_BUTTON_HINT = Component.literal(
-            "编写样板\n[左键/右键]时打开上传面板\nShift+[左键/右键]时关闭上传面板");
+    private static final Component PANEL_TITLE =
+            Component.translatable("screen.data_energistics.pattern_writer_preview.panel_title");
+    private static final Component EMPTY_STATE_TEXT =
+            Component.translatable("screen.data_energistics.pattern_writer_preview.empty_state");
+    private static final Component ENCODE_BUTTON_HINT =
+            Component.translatable("screen.data_energistics.pattern_writer_preview.encode_button_hint");
     private static final int PANEL_WIDTH = 128;
     private static final int PANEL_HEIGHT = 128;
     private static final int PANEL_TEXTURE_WIDTH = 128;
@@ -515,7 +517,8 @@ public class WirelessPatternEncodingTermScreen extends WETScreen {
         this.providerSearchBox.setBordered(false);
         this.providerSearchBox.setVisible(false);
         this.providerSearchBox.setCanLoseFocus(true);
-        this.providerSearchBox.setPlaceholder(Component.literal("搜索"));
+        this.providerSearchBox.setPlaceholder(
+                Component.translatable("screen.data_energistics.pattern_writer_preview.search_hint"));
         this.providerSearchBox.setResponder(value -> {
             this.previewScrollbar.setCurrentScroll(0);
             invalidateVisibleProvidersCache();

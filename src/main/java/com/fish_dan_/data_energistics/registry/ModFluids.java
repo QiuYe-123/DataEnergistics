@@ -3,12 +3,16 @@ package com.fish_dan_.data_energistics.registry;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import java.util.function.Supplier;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.Item;
@@ -33,6 +37,7 @@ import net.neoforged.neoforge.registries.NeoForgeRegistries;
 
 public final class ModFluids {
     private static final String ENDER_TELEPORT_TAG = "data_energistics.ender_fluid_teleport_time";
+    private static final String DATA_CORROSION_DEATH_MESSAGE_KEY = "death.attack.data_energistics.data_corrosion_liquid";
     private static final long ENDER_TELEPORT_COOLDOWN_TICKS = 20L;
     private static final int ENDER_TELEPORT_HALF_RANGE = 4;
     private static final int ENDER_TELEPORT_ATTEMPTS = 16;
@@ -224,11 +229,23 @@ public final class ModFluids {
                 return false;
             }
 
-            if (entity.hurt(serverLevel.damageSources().dragonBreath(), DATA_CORROSION_LIQUID_FLUID_DAMAGE)) {
+            if (entity.hurt(new DataCorrosionDamageSource(serverLevel.damageSources().dragonBreath().typeHolder()),
+                    DATA_CORROSION_LIQUID_FLUID_DAMAGE)) {
                 persistentData.putLong(DATA_CORROSION_LIQUID_DAMAGE_TAG,
                         gameTime + DATA_CORROSION_LIQUID_DAMAGE_COOLDOWN_TICKS);
             }
             return false;
+        }
+    }
+
+    private static final class DataCorrosionDamageSource extends DamageSource {
+        private DataCorrosionDamageSource(Holder<DamageType> type) {
+            super(type);
+        }
+
+        @Override
+        public Component getLocalizedDeathMessage(LivingEntity victim) {
+            return Component.translatable(DATA_CORROSION_DEATH_MESSAGE_KEY, victim.getDisplayName());
         }
     }
 }

@@ -14,6 +14,13 @@
       "count": 16
     }
   ],
+  "fluid_inputs": [
+    {
+      "#": 250,
+      "#t": "ae2:f",
+      "id": "data_energistics:data_corrosion_liquid"
+    }
+  ],
   "item_outputs": [
     {
       "id": "ae2lt:overload_crystal",

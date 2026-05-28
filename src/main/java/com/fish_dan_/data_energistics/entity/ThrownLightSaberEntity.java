@@ -34,11 +34,13 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import appeng.api.upgrades.UpgradeInventories;
+import net.neoforged.neoforge.entity.PartEntity;
 import org.jetbrains.annotations.Nullable;
 
 public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplier {
     private static final int DESPAWN_TICKS = 20 * 60 * 5;
-    private static final float DEFAULT_DATA_DUST_DAMAGE_RATIO = 0.01F;
+    private static final float BASE_DATA_DUST_DAMAGE_RATIO = 0.05F;
+    private static final float DATA_DUST_DAMAGE_RATIO_PER_CARD = 0.05F;
     private static final double HOMING_RANGE = 24.0D;
     private static final double HOMING_STRENGTH = 0.35D;
     private static final double HOMING_MAX_STRENGTH = 0.85D;
@@ -61,7 +63,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     public int clientSideReturnTridentTickCount;
     private ItemStack saberStack = ItemStack.EMPTY;
     private ItemStack weaponStack = ItemStack.EMPTY;
-    private float dataDustDamageRatio = DEFAULT_DATA_DUST_DAMAGE_RATIO;
+    private float dataDustDamageRatio = BASE_DATA_DUST_DAMAGE_RATIO;
 
     public ThrownLightSaberEntity(EntityType<? extends ThrownLightSaberEntity> entityType, Level level) {
         super(entityType, level);
@@ -145,28 +147,49 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     @Override
     protected void onHitEntity(EntityHitResult result) {
         Entity target = result.getEntity();
+        LivingEntity livingTarget = this.resolveLivingTarget(target);
         float damage = this.getBaseThrownDamage() * this.getSpeedDamageMultiplier();
         Entity owner = this.getOwner();
-        DamageSource damageSource = this.damageSources().trident(this, owner == null ? this : owner);
+        DamageSource damageSource = owner instanceof LivingEntity livingOwner
+                ? this.damageSources().mobProjectile(this, livingOwner)
+                : this.damageSources().thrown(this, owner);
         if (this.level() instanceof ServerLevel serverLevel) {
-            damage = EnchantmentHelper.modifyDamage(serverLevel, this.getWeaponItem(), target, damageSource, damage);
+            damage = EnchantmentHelper.modifyDamage(serverLevel, this.getWeaponItem(),
+                    livingTarget != null ? livingTarget : target, damageSource, damage);
         }
 
         this.dealtDamage = true;
-        if (target.hurt(damageSource, damage)) {
-            if (target.getType() == EntityType.ENDERMAN) {
-                return;
-            }
+        this.resetTargetInvulnerability(target);
+        if (livingTarget != null && livingTarget != target) {
+            this.resetTargetInvulnerability(livingTarget);
+        }
 
-            if (this.level() instanceof ServerLevel serverLevel) {
-                EnchantmentHelper.doPostAttackEffectsWithItemSource(serverLevel, target, damageSource, this.getWeaponItem());
-            }
+        boolean damaged = target.hurt(damageSource, damage);
+        if (!damaged && livingTarget != null && livingTarget != target) {
+            damaged = livingTarget.hurt(damageSource, damage);
+            target = livingTarget;
+        }
 
-            if (target instanceof LivingEntity livingTarget) {
-                this.doKnockback(livingTarget, damageSource);
-                this.doPostHurtEffects(livingTarget);
-                this.applyDataDustDamage(livingTarget, owner);
+        LivingEntity effectedTarget = this.resolveLivingTarget(target);
+        if (effectedTarget == null && livingTarget != null) {
+            effectedTarget = livingTarget;
+        }
+
+        if (target.getType() == EntityType.ENDERMAN) {
+            return;
+        }
+
+        if (damaged && this.level() instanceof ServerLevel serverLevel) {
+            EnchantmentHelper.doPostAttackEffectsWithItemSource(serverLevel, target, damageSource, this.getWeaponItem());
+        }
+
+        if (effectedTarget != null) {
+            if (damaged) {
+                this.doKnockback(effectedTarget, damageSource);
+                this.doPostHurtEffects(effectedTarget);
             }
+            this.resetTargetInvulnerability(effectedTarget);
+            this.applyDataDustDamage(effectedTarget, owner);
         }
 
         this.setDeltaMovement(this.getDeltaMovement().multiply(-0.01D, -0.1D, -0.01D));
@@ -228,10 +251,6 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         if (dimensionsChanged) {
             this.refreshDimensions();
         }
-    }
-
-    public void setDataDustDamageRatio(float damageRatio) {
-        this.dataDustDamageRatio = Mth.clamp(damageRatio, DEFAULT_DATA_DUST_DAMAGE_RATIO, 0.05F);
     }
 
     @Override
@@ -298,7 +317,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         this.entityData.set(ID_FOIL, !this.saberStack.isEmpty() && this.saberStack.hasFoil());
         this.entityData.set(ID_HOMING, tag.getBoolean("Homing"));
         this.entityData.set(ID_SABER_ENERGY_CARD_COUNT, Math.max(0, tag.getInt("SaberEnergyCardCount")));
-        this.dataDustDamageRatio = Mth.clamp(tag.getFloat(TAG_DATA_DUST_DAMAGE_RATIO), DEFAULT_DATA_DUST_DAMAGE_RATIO, 0.05F);
+        this.dataDustDamageRatio = Math.max(0.0F, tag.getFloat(TAG_DATA_DUST_DAMAGE_RATIO));
         if (tag.contains("WeaponStack", 10)) {
             this.weaponStack = ItemStack.parse(this.registryAccess(), tag.getCompound("WeaponStack"))
                     .orElse(ItemStack.EMPTY);
@@ -419,7 +438,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
 
     private float getSaberEnergyDamageMultiplier() {
         int cardCount = this.getSaberEnergyCardCount();
-        return cardCount > 0 ? cardCount * 2.0F : 1.0F;
+        return Math.max(1.0F, cardCount * 2.0F);
     }
 
     private float getSpeedDamageMultiplier() {
@@ -427,7 +446,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     }
 
     private void applyDataDustDamage(LivingEntity target, @Nullable Entity owner) {
-        float damage = target.getMaxHealth() * this.dataDustDamageRatio;
+        float damage = target.getMaxHealth() * this.getDataDustDamageRatio();
         if (damage <= 0.0F) {
             return;
         }
@@ -446,6 +465,30 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         if (target.getHealth() <= 0.0F) {
             target.die(damageSource);
         }
+    }
+
+    private void resetTargetInvulnerability(Entity target) {
+        target.invulnerableTime = 0;
+        if (target instanceof LivingEntity livingTarget) {
+            livingTarget.hurtTime = 0;
+            livingTarget.hurtDuration = 0;
+            ((LivingEntityAccessor) livingTarget).dataEnergistics$setLastHurt(0.0F);
+        }
+    }
+
+    private float getDataDustDamageRatio() {
+        return BASE_DATA_DUST_DAMAGE_RATIO + this.getSaberEnergyCardCount() * DATA_DUST_DAMAGE_RATIO_PER_CARD;
+    }
+
+    @Nullable
+    private LivingEntity resolveLivingTarget(Entity target) {
+        if (target instanceof LivingEntity livingTarget) {
+            return livingTarget;
+        }
+        if (target instanceof PartEntity<?> partEntity && partEntity.getParent() instanceof LivingEntity livingParent) {
+            return livingParent;
+        }
+        return null;
     }
 
     private void applyHoming() {

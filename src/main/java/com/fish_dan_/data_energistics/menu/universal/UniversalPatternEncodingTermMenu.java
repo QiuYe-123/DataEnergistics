@@ -10,6 +10,7 @@ import java.util.Map;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.NonNullList;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
@@ -220,8 +221,8 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         var transferResult = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(providers, encodedPattern);
         if (transferResult.duplicateFound()) {
             returnEncodedPatternAsBlankToNetwork();
-            this.getPlayer().sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                    "[此设备已有相同样板，已清空样板并返回网络]"));
+            this.getPlayer().sendSystemMessage(Component.translatable(
+                    "message.data_energistics.pattern_provider.duplicate_cleared"));
             syncPatternProvidersFromNetwork();
             return;
         }

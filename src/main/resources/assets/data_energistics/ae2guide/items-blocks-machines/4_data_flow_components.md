@@ -21,6 +21,7 @@ item_ids:
 - data_energistics:portable_data_flow_cell_16k
 - data_energistics:portable_data_flow_cell_64k
 - data_energistics:portable_data_flow_cell_256k
+- data_energistics:data_cell_infinity
 ---
 
 # 数据流元件
@@ -101,4 +102,23 @@ item_ids:
   </Row>
 </Column>
 
-没有容纳任何数据流时，可以 Shift+右键拆卸
+没有容纳任何数据流时，可以 Shift+右键拆卸  
+
+---
+
+# 升级  
+
+<Row>
+    <ItemLink id="ae2:energy_card"/>  
+    <ItemImage id="ae2:energy_card" />
+</Row>
+能源卡:
+最大能源 = 基础容量 × (1 + 8 × 能源卡数量)
+
+---
+
+# 创造元件
+  <Row>
+    <RecipeFor id="data_cell_infinity" />
+  </Row>
+一种未知力量形成的元件，能无限取出数据流以及数据，没有人知道它从何而来，也没有人知道它将会去哪

@@ -42,7 +42,8 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
     private static final int SEARCH_Y = 4;
     private static final int SEARCH_WIDTH = 70;
     private static final int SEARCH_HEIGHT = 12;
-    private static final Component SEARCH_HINT = Component.literal("搜索设备");
+    private static final Component SEARCH_HINT =
+            Component.translatable("screen.data_energistics.data_distribution_tower.search_hint");
 
     private final Scrollbar scrollbar;
     private final DataExtractorToggleButton rangeVisibleButton;
@@ -285,7 +286,8 @@ public class DataDistributionTowerScreen extends AEBaseScreen<DataDistributionTo
 
     private String getEmptyStateText() {
         if (!normalizeSearch(this.searchQuery).isEmpty()) {
-            return "\u672a\u627e\u5230\u5339\u914d\u8bbe\u5907";
+            return Component.translatable(
+                    "screen.data_energistics.data_distribution_tower.search_no_match").getString();
         }
         return Component.translatable("screen.data_energistics.data_distribution_tower.bound_none").getString();
     }

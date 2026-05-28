@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.item.DataFlowPortableCellItem;
 import com.fish_dan_.data_energistics.item.DataFlowStorageCellItem;
 import com.fish_dan_.data_energistics.item.DataRipperPartItem;
 import com.fish_dan_.data_energistics.item.DataStorageComponentItem;
+import com.fish_dan_.data_energistics.item.InfiniteDataCellItem;
 import com.fish_dan_.data_energistics.item.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.PoweredAxeItem;
 import com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem;
@@ -27,16 +28,11 @@ import appeng.api.upgrades.Upgrades;
 import appeng.items.parts.PartItem;
 import appeng.items.storage.StorageTier;
 import net.minecraft.tags.BlockTags;
-import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.HoeItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.PickaxeItem;
 import net.minecraft.world.item.Rarity;
-import net.minecraft.world.item.ShovelItem;
-import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.Tiers;
 import net.minecraft.world.item.component.Tool;
@@ -73,6 +69,9 @@ public final class ModItems {
     public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_16K = registerDataFlowCell("data_flow_cell_16k", 1.5, 16);
     public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_64K = registerDataFlowCell("data_flow_cell_64k", 2.5, 65);
     public static final DeferredItem<DataFlowStorageCellItem> DATA_FLOW_CELL_256K = registerDataFlowCell("data_flow_cell_256k", 3.0, 262);
+    public static final DeferredItem<InfiniteDataCellItem> DATA_CELL_INFINITY = ITEMS.register(
+            "data_cell_infinity",
+            () -> new InfiniteDataCellItem(new Item.Properties()));
 
     public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_1K =
             registerPortableDataFlowCell("portable_data_flow_cell_1k", StorageTier.SIZE_1K, 0x4FD8FF);
@@ -85,7 +84,6 @@ public final class ModItems {
     public static final DeferredItem<DataFlowPortableCellItem> PORTABLE_DATA_FLOW_CELL_256K =
             registerPortableDataFlowCell("portable_data_flow_cell_256k", StorageTier.SIZE_256K, 0xFF72C8);
 
-    public static final DeferredItem<BlockItem> DATA_FLOW_GENERATOR = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_FLOW_GENERATOR);
     public static final DeferredItem<BlockItem> DATA_SOLAR_PANEL = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_SOLAR_PANEL);
     public static final DeferredItem<BlockItem> DATA_EXTRACTOR = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_EXTRACTOR);
     public static final DeferredItem<BlockItem> DATA_RIPPER_REASSEMBLER = ITEMS.registerSimpleBlockItem(ModBlocks.DATA_RIPPER_REASSEMBLER);
@@ -128,29 +126,29 @@ public final class ModItems {
     public static final DeferredItem<PoweredSwordItem> DATA_CRYSTAL_SWORD = ITEMS.register(
             "data_crystal_sword",
             () -> new PoweredSwordItem(DATA_CRYSTAL_SWORD_TIER,
-                    handheldProperties(0, SwordItem.createAttributes(DATA_CRYSTAL_SWORD_TIER, 6.0F, -2.0F)),
+                    handheldProperties(0, PoweredSwordItem.createAttributes(DATA_CRYSTAL_SWORD_TIER, 6.0F, -2.0F)),
                     NO_MINING_SWORD_TOOL,
                     false)
     );
     public static final DeferredItem<PoweredAxeItem> DATA_CRYSTAL_AXE = ITEMS.register(
             "data_crystal_axe",
             () -> new PoweredAxeItem(DATA_CRYSTAL_TOOL_TIER,
-                    handheldProperties(0, AxeItem.createAttributes(DATA_CRYSTAL_TOOL_TIER, 8.0F, -2.8F)))
+                    handheldProperties(0, PoweredAxeItem.createAttributes(DATA_CRYSTAL_TOOL_TIER, 0.0F, -2.8F)))
     );
     public static final DeferredItem<PoweredPickaxeItem> DATA_CRYSTAL_PICKAXE = ITEMS.register(
             "data_crystal_pickaxe",
             () -> new PoweredPickaxeItem(DATA_CRYSTAL_TOOL_TIER,
-                    handheldProperties(0, PickaxeItem.createAttributes(DATA_CRYSTAL_TOOL_TIER, 2.0F, -2.6F)))
+                    handheldProperties(0, PoweredPickaxeItem.createAttributes(DATA_CRYSTAL_TOOL_TIER, 0.0F, -2.6F)))
     );
     public static final DeferredItem<PoweredHoeItem> DATA_CRYSTAL_HOE = ITEMS.register(
             "data_crystal_hoe",
             () -> new PoweredHoeItem(DATA_CRYSTAL_TOOL_TIER,
-                    handheldProperties(0, HoeItem.createAttributes(DATA_CRYSTAL_TOOL_TIER, 2.0F, -2.6F)))
+                    handheldProperties(0, PoweredHoeItem.createAttributes(DATA_CRYSTAL_TOOL_TIER, 0.0F, -2.6F)))
     );
     public static final DeferredItem<PoweredShovelItem> DATA_CRYSTAL_SHOVEL = ITEMS.register(
             "data_crystal_shovel",
             () -> new PoweredShovelItem(DATA_CRYSTAL_TOOL_TIER,
-                    handheldProperties(0, ShovelItem.createAttributes(DATA_CRYSTAL_TOOL_TIER, 2.0F, -2.6F)))
+                    handheldProperties(0, PoweredShovelItem.createAttributes(DATA_CRYSTAL_TOOL_TIER, 0.0F, -2.6F)))
     );
     public static final DeferredItem<PoweredCuttingKnifeItem> DATA_CRYSTAL_CUTTING_KNIFE = ITEMS.register(
             "data_crystal_cutting_knife",
@@ -159,12 +157,12 @@ public final class ModItems {
     public static final DeferredItem<PoweredSwordItem> DATA_LIGHT_SABER = ITEMS.register(
             "data_light_saber",
             () -> new PoweredSwordItem(DATA_CRYSTAL_SWORD_TIER,
-                    handheldProperties(0, SwordItem.createAttributes(DATA_CRYSTAL_SWORD_TIER, 13.0F, -2.0F)))
+                    handheldProperties(0, PoweredSwordItem.createAttributes(DATA_CRYSTAL_SWORD_TIER, 13.0F, -2.0F)))
     );
     public static final DeferredItem<PoweredSwordItem> DATA_SANCTIFIER = ITEMS.register(
             "data_sanctifier",
             () -> new PoweredSwordItem(DATA_CRYSTAL_SWORD_TIER,
-                    handheldProperties(0, SwordItem.createAttributes(DATA_CRYSTAL_SWORD_TIER, 32.0F, -2.0F))
+                    handheldProperties(0, PoweredSwordItem.createAttributes(DATA_CRYSTAL_SWORD_TIER, 32.0F, -2.0F))
                             .fireResistant())
     );
     public static final DeferredItem<Item> CARD_SABER_ENERGY = ITEMS.register(

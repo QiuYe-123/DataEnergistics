@@ -21,12 +21,12 @@
     }
   ],
   "fluid_inputs": [
-    {
-      "#": 100,
-      "#t": "ae2:f",
-      "id": "minecraft:water"
-    }
-  ],
+  {
+    "#": 50,
+    "#t": "ae2:f",
+    "id": "data_energistics:data_corrosion_liquid"
+  }
+],
   "item_outputs": [
     {
       "id": "ae2:fluix_crystal",

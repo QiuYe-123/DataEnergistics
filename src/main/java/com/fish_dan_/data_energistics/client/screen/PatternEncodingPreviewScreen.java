@@ -58,11 +58,13 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_highlighted.png");
     private static final ResourceLocation AE2_BUTTON_DISABLED_TEXTURE =
             ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_disabled.png");
-    private static final Component PANEL_TITLE = Component.literal("上传");
+    private static final Component PANEL_TITLE =
+            Component.translatable("screen.data_energistics.pattern_writer_preview.panel_title");
     private static final int COLOR_PANEL_TITLE = 0x000000;
-    private static final Component EMPTY_STATE_TEXT = Component.literal("未发现可用供应器");
-    private static final Component ENCODE_BUTTON_HINT = Component.literal(
-            "编写样板\n[左键/右键]时打开上传面板\nShift+[左键/右键]时关闭上传面板");
+    private static final Component EMPTY_STATE_TEXT =
+            Component.translatable("screen.data_energistics.pattern_writer_preview.empty_state");
+    private static final Component ENCODE_BUTTON_HINT =
+            Component.translatable("screen.data_energistics.pattern_writer_preview.encode_button_hint");
     private static final int PREVIEW_PANEL_WIDTH = 128;
     private static final int PREVIEW_PANEL_HEIGHT = 128;
     private static final int PREVIEW_TEXTURE_WIDTH = 128;
@@ -113,7 +115,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private static final int COLOR_BUTTON_HOVER = 0x88333333;
     private static final int COLOR_BUTTON_SELECTED = 0xAA5F7991;
     private static final int COLOR_BUTTON_BORDER = 0xB0909090;
-    private static final Component SEARCH_BOX_HINT = Component.literal("搜索");
+    private static final Component SEARCH_BOX_HINT =
+            Component.translatable("screen.data_energistics.pattern_writer_preview.search_hint");
 
     private boolean previewVisible;
     private boolean previewScrollbarDragging;

@@ -19,6 +19,7 @@ import java.util.Optional;
 
 public class PoweredCuttingKnifeItem extends PoweredItem implements IBasicCellItem {
     private static final int DATA_FLOW_BYTES = 256;
+    private static final int SABER_ENERGY_DATA_FLOW_BYTES = 512;
     private static final int BYTES_PER_TYPE = 1;
     private static final int TOTAL_TYPES = 1;
 
@@ -44,7 +45,9 @@ public class PoweredCuttingKnifeItem extends PoweredItem implements IBasicCellIt
 
     @Override
     public int getBytes(ItemStack stack) {
-        return DATA_FLOW_BYTES;
+        return this.getUpgrades(stack).getInstalledUpgrades(com.fish_dan_.data_energistics.registry.ModItems.CARD_SABER_ENERGY.get()) > 0
+                ? SABER_ENERGY_DATA_FLOW_BYTES
+                : DATA_FLOW_BYTES;
     }
 
     @Override

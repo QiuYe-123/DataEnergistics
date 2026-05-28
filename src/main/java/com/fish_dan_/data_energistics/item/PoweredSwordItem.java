@@ -1,11 +1,15 @@
 package com.fish_dan_.data_energistics.item;
 
+import appeng.api.config.Actionable;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.storage.StorageCells;
 import appeng.api.storage.cells.ICellWorkbenchItem;
 import appeng.api.config.FuzzyMode;
 import appeng.items.storage.StorageCellTooltipComponent;
 import appeng.util.ConfigInventory;
 import appeng.api.util.AEColor;
 import appeng.items.tools.powered.ColorApplicatorItem;
+import com.fish_dan_.data_energistics.ae2.DataFlowKey;
 import com.fish_dan_.data_energistics.entity.LightBladeChargeEntity;
 import com.fish_dan_.data_energistics.entity.ThrownLightSaberEntity;
 import com.fish_dan_.data_energistics.util.LightSaberColorData;
@@ -22,6 +26,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -34,10 +39,10 @@ import net.minecraft.world.entity.projectile.AbstractArrow.Pickup;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ProjectileItem;
-import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.UseAnim;
+import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.component.Tool;
 import net.minecraft.world.item.enchantment.EnchantmentEffectComponents;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
@@ -46,27 +51,29 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.ItemAbilities;
 import net.neoforged.neoforge.common.ItemAbility;
+import com.fish_dan_.data_energistics.registry.ModItems;
 import org.slf4j.Logger;
 
 import java.util.List;
 import java.util.Optional;
 
-public class PoweredSwordItem extends SwordItem implements PoweredEnergyItem, ProjectileItem, ICellWorkbenchItem {
+public class PoweredSwordItem extends AbstractPoweredTieredItem implements ProjectileItem, ConditionalDataFlowCellItem {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final int THROW_THRESHOLD_TIME = 10;
     private static final float THROW_POWER = 2.5F;
     private static final float LIGHT_BLADE_SPEED = 2.8F;
     private static final float LIGHT_BLADE_DAMAGE_RATIO = 5.0F / 6.0F;
+    private static final long SWORD_AI_STRIP_DATA_FLOW_COST = 20L;
+    private static final int SWORD_AI_STRIP_DURATION_TICKS = 20;
     public static final float SANCTIFIER_THROWN_LIGHT_BLADE_SPEED = 2.4F;
     private final boolean throwable;
 
     public PoweredSwordItem(Tier tier, Properties properties) {
-        this(tier, properties, true);
+        this(tier, properties, createDefaultSwordTool(), true);
     }
 
     public PoweredSwordItem(Tier tier, Properties properties, boolean throwable) {
-        super(tier, properties);
-        this.throwable = throwable;
+        this(tier, properties, createDefaultSwordTool(), throwable);
     }
 
     public PoweredSwordItem(Tier tier, Properties properties, Tool toolComponent) {
@@ -78,14 +85,26 @@ public class PoweredSwordItem extends SwordItem implements PoweredEnergyItem, Pr
         this.throwable = throwable;
     }
 
+    public static Tool createDefaultSwordTool() {
+        return net.minecraft.world.item.SwordItem.createToolProperties();
+    }
+
+    public static ItemAttributeModifiers createAttributes(Tier tier, float attackDamage, float attackSpeed) {
+        return net.minecraft.world.item.SwordItem.createAttributes(tier, attackDamage, attackSpeed);
+    }
+
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> lines, TooltipFlag tooltipFlag) {
         super.appendHoverText(stack, context, lines, tooltipFlag);
-        this.appendEnergyHoverText(stack, lines);
+        this.appendConditionalCellInformationToTooltip(stack, lines);
     }
 
     @Override
     public Optional<TooltipComponent> getTooltipImage(ItemStack stack) {
+        Optional<TooltipComponent> cellTooltip = this.getConditionalCellTooltipImage(stack);
+        if (cellTooltip.isPresent()) {
+            return cellTooltip;
+        }
         var upgrades = this.getUpgrades(stack);
         List<ItemStack> upgradeItems = collectUpgradeItems(upgrades);
         if (upgradeItems.isEmpty()) {
@@ -121,6 +140,12 @@ public class PoweredSwordItem extends SwordItem implements PoweredEnergyItem, Pr
     }
 
     @Override
+    public boolean canAttackBlock(net.minecraft.world.level.block.state.BlockState state, Level level,
+            net.minecraft.core.BlockPos pos, Player player) {
+        return !player.isCreative();
+    }
+
+    @Override
     public UseAnim getUseAnimation(ItemStack stack) {
         return this.throwable ? UseAnim.SPEAR : UseAnim.NONE;
     }
@@ -140,14 +165,20 @@ public class PoweredSwordItem extends SwordItem implements PoweredEnergyItem, Pr
         if (!this.hasSufficientEnergy(stack)) {
             return false;
         }
-        boolean result = super.hurtEnemy(stack, target, attacker);
+        boolean result = true;
         if (result && !attacker.level().isClientSide) {
-            if (this.getSaberEnergyCardCount(stack) > 0) {
+            this.tryStripTargetAi(stack, target);
+            if (this.canFireLightBlade(stack)) {
                 this.fireLightBlade((Level) attacker.level(), attacker, stack);
+                this.consumeActionEnergy(stack);
             }
             this.consumeActionEnergy(stack);
         }
         return result;
+    }
+
+    @Override
+    public void postHurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker) {
     }
 
     @Override
@@ -158,7 +189,7 @@ public class PoweredSwordItem extends SwordItem implements PoweredEnergyItem, Pr
         if (!(entity instanceof Player player)) {
             return false;
         }
-        if (!this.hasSufficientEnergy(stack) || this.getSaberEnergyCardCount(stack) <= 0) {
+        if (!this.canFireLightBlade(stack)) {
             return false;
         }
         if (player.getAttackStrengthScale(0.5F) < 1.0F) {
@@ -166,6 +197,7 @@ public class PoweredSwordItem extends SwordItem implements PoweredEnergyItem, Pr
         }
 
         this.fireLightBlade((Level) entity.level(), entity, stack);
+        this.consumeActionEnergy(stack);
         player.resetAttackStrengthTicker();
         return false;
     }
@@ -316,6 +348,21 @@ public class PoweredSwordItem extends SwordItem implements PoweredEnergyItem, Pr
         level.addFreshEntity(lightBlade);
     }
 
+    private boolean canFireLightBlade(ItemStack stack) {
+        return isLightBladeEmitter(stack)
+                && this.getSaberEnergyCardCount(stack) > 0
+                && this.getAECurrentPower(stack) >= this.getActionEnergyCost(stack) * 2.0D;
+    }
+
+    private static boolean isLightBladeEmitter(ItemStack stack) {
+        return stack.is(ModItems.DATA_LIGHT_SABER.get()) || stack.is(ModItems.DATA_SANCTIFIER.get());
+    }
+
+    @Override
+    public boolean hasDataFlowCellSupport(ItemStack stack) {
+        return stack.is(ModItems.DATA_CRYSTAL_SWORD.get()) && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
+    }
+
     public static float getLightBladeDamage(ItemStack stack) {
         return Math.max(0.0F, (float) (getPanelAttackDamage(stack) * LIGHT_BLADE_DAMAGE_RATIO));
     }
@@ -354,18 +401,31 @@ public class PoweredSwordItem extends SwordItem implements PoweredEnergyItem, Pr
         return Math.max(0.0D, panelDamage);
     }
 
-    @Override
-    public ConfigInventory getConfigInventory(ItemStack stack) {
-        return ConfigInventory.emptyTypes();
-    }
+    private void tryStripTargetAi(ItemStack stack, LivingEntity target) {
+        if (!stack.is(ModItems.DATA_CRYSTAL_SWORD.get())
+                || this.getSaberEnergyCardCount(stack) <= 0
+                || !(target instanceof Mob mob)) {
+            return;
+        }
 
-    @Override
-    public FuzzyMode getFuzzyMode(ItemStack stack) {
-        return FuzzyMode.IGNORE_ALL;
-    }
+        var cellInventory = StorageCells.getCellInventory(stack, null);
+        if (cellInventory == null) {
+            return;
+        }
 
-    @Override
-    public void setFuzzyMode(ItemStack stack, FuzzyMode fuzzyMode) {
+        long extracted = cellInventory.extract(DataFlowKey.of(), SWORD_AI_STRIP_DATA_FLOW_COST, Actionable.MODULATE,
+                IActionSource.empty());
+        if (extracted < SWORD_AI_STRIP_DATA_FLOW_COST) {
+            return;
+        }
+
+        var persistentData = mob.getPersistentData();
+        if (!persistentData.contains(DataCrystalSwordAiStripLogic.TAG_EXPIRE_TICK)) {
+            persistentData.putBoolean(DataCrystalSwordAiStripLogic.TAG_ORIGINAL_NO_AI, mob.isNoAi());
+        }
+        persistentData.putLong(DataCrystalSwordAiStripLogic.TAG_EXPIRE_TICK,
+                mob.level().getGameTime() + SWORD_AI_STRIP_DURATION_TICKS);
+        mob.setNoAi(true);
     }
 
     private static List<ItemStack> collectUpgradeItems(appeng.api.upgrades.IUpgradeInventory upgrades) {

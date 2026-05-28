@@ -50,7 +50,7 @@ public final class GenericStackDisplayHelper {
     }
 
     public static Component createAmountTooltip(GenericStack stack) {
-        return Component.literal("数量：")
+        return Component.translatable("tooltip.data_energistics.amount")
                 .withStyle(ChatFormatting.GRAY)
                 .append(Component.literal(stack.what().formatAmount(stack.amount(), AmountFormat.FULL))
                         .withStyle(ChatFormatting.GRAY));

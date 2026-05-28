@@ -35,6 +35,7 @@ import java.util.OptionalDouble;
 @EventBusSubscriber(modid = Data_Energistics.MODID, value = Dist.CLIENT)
 public final class DataTeleportAnchorKnifeHighlighter {
     private static final int CHUNK_RADIUS = 9;
+    private static final int SABER_ENERGY_CHUNK_RADIUS = 11;
     private static final long RESCAN_INTERVAL_TICKS = 10L;
     private static final double BASE_BOX_INSET = 0.002d;
     private static final double SELECTED_BOX_EXPANSION = 0.25d;
@@ -292,6 +293,7 @@ public final class DataTeleportAnchorKnifeHighlighter {
 
         int centerChunkX = player.blockPosition().getX() >> 4;
         int centerChunkZ = player.blockPosition().getZ() >> 4;
+        int chunkRadius = getChunkRadius(player);
         long gameTime = level.getGameTime();
         if (centerChunkX == cachedCenterChunkX
                 && centerChunkZ == cachedCenterChunkZ
@@ -300,8 +302,8 @@ public final class DataTeleportAnchorKnifeHighlighter {
         }
 
         List<BlockPos> anchors = new ArrayList<>();
-        for (int chunkX = centerChunkX - CHUNK_RADIUS; chunkX <= centerChunkX + CHUNK_RADIUS; chunkX++) {
-            for (int chunkZ = centerChunkZ - CHUNK_RADIUS; chunkZ <= centerChunkZ + CHUNK_RADIUS; chunkZ++) {
+        for (int chunkX = centerChunkX - chunkRadius; chunkX <= centerChunkX + chunkRadius; chunkX++) {
+            for (int chunkZ = centerChunkZ - chunkRadius; chunkZ <= centerChunkZ + chunkRadius; chunkZ++) {
                 if (!level.hasChunk(chunkX, chunkZ)) {
                     continue;
                 }
@@ -320,5 +322,18 @@ public final class DataTeleportAnchorKnifeHighlighter {
         cachedScanGameTime = gameTime;
         cachedAnchorPositions = List.copyOf(anchors);
         return cachedAnchorPositions;
+    }
+
+    private static int getChunkRadius(net.minecraft.world.entity.player.Player player) {
+        if (player == null) {
+            return CHUNK_RADIUS;
+        }
+
+        return player.getMainHandItem().getItem() instanceof com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem knife
+                && knife.getUpgrades(player.getMainHandItem()).getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()) > 0
+                || player.getOffhandItem().getItem() instanceof com.fish_dan_.data_energistics.item.PoweredCuttingKnifeItem offhandKnife
+                && offhandKnife.getUpgrades(player.getOffhandItem()).getInstalledUpgrades(ModItems.CARD_SABER_ENERGY.get()) > 0
+                ? SABER_ENERGY_CHUNK_RADIUS
+                : CHUNK_RADIUS;
     }
 }

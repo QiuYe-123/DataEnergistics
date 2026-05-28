@@ -8,6 +8,9 @@ import dev.emi.emi.api.stack.EmiStack;
 import mezz.jei.api.recipe.vanilla.IJeiAnvilRecipe;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.RecipeHolder;
 
 import java.util.List;
 import java.util.Set;
@@ -61,6 +64,43 @@ public final class PoweredRepairRecipeFilter {
         }
 
         return false;
+    }
+
+    public static boolean shouldHideJeiCraftingRepairRecipe(RecipeHolder<CraftingRecipe> recipeHolder) {
+        if (recipeHolder == null) {
+            return false;
+        }
+
+        CraftingRecipe recipe = recipeHolder.value();
+        if (recipe == null) {
+            return false;
+        }
+
+        Item ingredientItem = null;
+        int ingredientCount = 0;
+        for (Ingredient ingredient : recipe.getIngredients()) {
+            if (ingredient == null || ingredient.isEmpty()) {
+                continue;
+            }
+
+            Item item = getSingleTrackedItemFromStacks(List.of(ingredient.getItems()));
+            if (item == null) {
+                return false;
+            }
+            if (ingredientItem == null) {
+                ingredientItem = item;
+            } else if (ingredientItem != item) {
+                return false;
+            }
+            ingredientCount++;
+        }
+
+        if (ingredientCount != 2 || ingredientItem == null) {
+            return false;
+        }
+
+        Item outputItem = getTrackedItem(recipe.getResultItem(null));
+        return outputItem == ingredientItem;
     }
 
     private static boolean isTwoItemSelfRepairAnvil(List<? extends EmiIngredient> inputs, List<EmiStack> outputs) {

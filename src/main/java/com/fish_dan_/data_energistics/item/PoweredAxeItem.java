@@ -7,25 +7,50 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.item.component.ItemAttributeModifiers;
+import net.minecraft.world.item.component.Tool;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.level.gameevent.GameEvent;
 
 import java.util.List;
+import java.util.Optional;
 
-public class PoweredAxeItem extends AxeItem implements PoweredEnergyItem {
+public class PoweredAxeItem extends AbstractPoweredTieredItem implements ConditionalDataFlowCellItem {
+    private static final float SABER_ENERGY_DESTROY_SPEED_BONUS = 8.0F;
+
     public PoweredAxeItem(Tier tier, Properties properties) {
-        super(tier, properties);
+        super(tier, properties, tier.createToolProperties(net.minecraft.tags.BlockTags.MINEABLE_WITH_AXE));
+    }
+
+    public static ItemAttributeModifiers createAttributes(Tier tier, float attackDamage, float attackSpeed) {
+        return net.minecraft.world.item.DiggerItem.createAttributes(tier, attackDamage, attackSpeed);
     }
 
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> lines, TooltipFlag tooltipFlag) {
         super.appendHoverText(stack, context, lines, tooltipFlag);
-        this.appendEnergyHoverText(stack, lines);
+        this.appendConditionalCellInformationToTooltip(stack, lines);
+    }
+
+    @Override
+    public Optional<TooltipComponent> getTooltipImage(ItemStack stack) {
+        return this.getConditionalCellTooltipImage(stack);
+    }
+
+    @Override
+    public boolean hasDataFlowCellSupport(ItemStack stack) {
+        return stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_AXE.get())
+                && ConditionalDataFlowCellItem.super.hasDataFlowCellSupport(stack);
     }
 
     @Override
@@ -50,8 +75,9 @@ public class PoweredAxeItem extends AxeItem implements PoweredEnergyItem {
 
     @Override
     public float getDestroySpeed(ItemStack stack, BlockState state) {
+        float base = super.getDestroySpeed(stack, state);
         return this.hasSufficientEnergy(stack)
-                ? super.getDestroySpeed(stack, state) + this.getSpeedCardDestroySpeedBonus(stack)
+                ? base + this.getSpeedCardDestroySpeedBonus(stack) + this.getSaberEnergyDestroySpeedBonus(stack)
                 : this.getUnpoweredDestroySpeed(stack, state);
     }
 
@@ -67,6 +93,7 @@ public class PoweredAxeItem extends AxeItem implements PoweredEnergyItem {
         }
         boolean result = super.mineBlock(stack, level, state, pos, miningEntity);
         if (result && !level.isClientSide && state.getDestroySpeed(level, pos) != 0.0F) {
+            this.tryChainBreakTree(stack, (ServerLevel) level, pos, miningEntity);
             this.consumeActionEnergy(stack);
         }
         return result;
@@ -77,7 +104,7 @@ public class PoweredAxeItem extends AxeItem implements PoweredEnergyItem {
         if (!this.hasSufficientEnergy(stack)) {
             return false;
         }
-        boolean result = super.hurtEnemy(stack, target, attacker);
+        boolean result = true;
         if (result && !attacker.level().isClientSide) {
             this.consumeActionEnergy(stack);
         }
@@ -85,11 +112,15 @@ public class PoweredAxeItem extends AxeItem implements PoweredEnergyItem {
     }
 
     @Override
+    public void postHurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker) {
+    }
+
+    @Override
     public InteractionResult useOn(UseOnContext context) {
         if (!this.hasSufficientEnergy(context.getItemInHand())) {
             return InteractionResult.FAIL;
         }
-        InteractionResult result = super.useOn(context);
+        InteractionResult result = this.tryTransformBlock(context);
         if (result.consumesAction() && !context.getLevel().isClientSide) {
             this.consumeActionEnergy(context.getItemInHand());
         }
@@ -120,5 +151,65 @@ public class PoweredAxeItem extends AxeItem implements PoweredEnergyItem {
             this.consumeActionEnergy(stack);
         }
         return result;
+    }
+
+    private void tryChainBreakTree(ItemStack stack, ServerLevel level, BlockPos origin, LivingEntity breaker) {
+        if (!stack.is(com.fish_dan_.data_energistics.registry.ModItems.DATA_CRYSTAL_AXE.get())
+                || !PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this)
+                || !PoweredToolSaberEnergyHelper.consumeDataFlow(stack)) {
+            return;
+        }
+
+        for (BlockPos targetPos : PoweredToolSaberEnergyHelper.collectTree(level, origin, 256)) {
+            if (targetPos.equals(origin)) {
+                continue;
+            }
+            BlockState targetState = level.getBlockState(targetPos);
+            if (targetState.isAir() || targetState.getDestroySpeed(level, targetPos) < 0.0F) {
+                continue;
+            }
+            level.destroyBlock(targetPos, true, breaker);
+        }
+    }
+
+    private float getSaberEnergyDestroySpeedBonus(ItemStack stack) {
+        return PoweredToolSaberEnergyHelper.hasSaberEnergy(stack, this) ? SABER_ENERGY_DESTROY_SPEED_BONUS : 0.0F;
+    }
+
+    @Override
+    public boolean canPerformAction(ItemStack stack, net.neoforged.neoforge.common.ItemAbility itemAbility) {
+        return net.neoforged.neoforge.common.ItemAbilities.DEFAULT_AXE_ACTIONS.contains(itemAbility);
+    }
+
+    private InteractionResult tryTransformBlock(UseOnContext context) {
+        Level level = context.getLevel();
+        BlockPos pos = context.getClickedPos();
+        BlockState state = level.getBlockState(pos);
+        BlockState transformed = state.getToolModifiedState(context, net.neoforged.neoforge.common.ItemAbilities.AXE_STRIP, false);
+        if (transformed != null) {
+            level.playSound(context.getPlayer(), pos, SoundEvents.AXE_STRIP, SoundSource.BLOCKS, 1.0F, 1.0F);
+        } else {
+            transformed = state.getToolModifiedState(context, net.neoforged.neoforge.common.ItemAbilities.AXE_SCRAPE, false);
+            if (transformed != null) {
+                level.playSound(context.getPlayer(), pos, SoundEvents.AXE_SCRAPE, SoundSource.BLOCKS, 1.0F, 1.0F);
+                level.levelEvent(context.getPlayer(), 3005, pos, 0);
+            } else {
+                transformed = state.getToolModifiedState(context, net.neoforged.neoforge.common.ItemAbilities.AXE_WAX_OFF, false);
+                if (transformed != null) {
+                    level.playSound(context.getPlayer(), pos, SoundEvents.AXE_WAX_OFF, SoundSource.BLOCKS, 1.0F, 1.0F);
+                    level.levelEvent(context.getPlayer(), 3004, pos, 0);
+                }
+            }
+        }
+
+        if (transformed == null) {
+            return InteractionResult.PASS;
+        }
+
+        if (!level.isClientSide) {
+            level.setBlock(pos, transformed, 11);
+            level.gameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Context.of(context.getPlayer(), transformed));
+        }
+        return InteractionResult.sidedSuccess(level.isClientSide);
     }
 }

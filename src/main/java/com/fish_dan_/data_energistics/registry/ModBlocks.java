@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.block.AdaptivePatternProviderBlock;
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.block.DataFlowGeneratorBlock;
 import com.fish_dan_.data_energistics.block.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.block.DataExtractorBlock;
@@ -24,11 +23,6 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 
 public final class ModBlocks {
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(Data_Energistics.MODID);
-
-    public static final DeferredBlock<Block> DATA_FLOW_GENERATOR = BLOCKS.registerBlock(
-            "data_flow_generator",
-            DataFlowGeneratorBlock::new,
-            BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK));
 
     public static final DeferredBlock<Block> DATA_SOLAR_PANEL = BLOCKS.registerBlock(
             "me_solar_panel",
@@ -68,6 +62,19 @@ public final class ModBlocks {
             "data_teleport_anchor",
             DataTeleportAnchorBlock::new,
             BlockBehaviour.Properties.ofLegacyCopy(Blocks.IRON_BLOCK));
+
+    public static final DeferredBlock<Block> GUIDE_ENDER_DISPLAY = BLOCKS.registerBlock(
+            "guide_ender_display",
+            Block::new,
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.GLASS)
+                    .noOcclusion());
+
+    public static final DeferredBlock<Block> GUIDE_DATA_CORROSION_LIQUID_DISPLAY = BLOCKS.registerBlock(
+            "guide_data_corrosion_liquid_display",
+            Block::new,
+            BlockBehaviour.Properties.ofLegacyCopy(Blocks.GLASS)
+                    .noOcclusion()
+                    .lightLevel(state -> 4));
 
     public static final DeferredBlock<Block> ADAPTIVE_PATTERN_PROVIDER = BLOCKS.registerBlock(
             "adaptive_pattern_provider",

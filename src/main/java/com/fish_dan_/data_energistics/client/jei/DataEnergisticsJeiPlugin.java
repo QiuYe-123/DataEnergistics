@@ -153,13 +153,22 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         }
 
         var recipeManager = this.jeiRuntime.getRecipeManager();
-        var repairRecipes = recipeManager.createRecipeLookup(RecipeTypes.ANVIL)
+        var anvilRecipes = recipeManager.createRecipeLookup(RecipeTypes.ANVIL)
                 .includeHidden()
                 .get()
                 .filter(PoweredRepairRecipeFilter::shouldHideJeiRepairRecipe)
                 .toList();
-        if (!repairRecipes.isEmpty()) {
-            recipeManager.hideRecipes(RecipeTypes.ANVIL, repairRecipes);
+        if (!anvilRecipes.isEmpty()) {
+            recipeManager.hideRecipes(RecipeTypes.ANVIL, anvilRecipes);
+        }
+
+        var craftingRepairRecipes = recipeManager.createRecipeLookup(RecipeTypes.CRAFTING)
+                .includeHidden()
+                .get()
+                .filter(PoweredRepairRecipeFilter::shouldHideJeiCraftingRepairRecipe)
+                .toList();
+        if (!craftingRepairRecipes.isEmpty()) {
+            recipeManager.hideRecipes(RecipeTypes.CRAFTING, craftingRepairRecipes);
         }
     }
 

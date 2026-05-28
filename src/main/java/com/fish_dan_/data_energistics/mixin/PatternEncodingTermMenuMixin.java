@@ -346,8 +346,8 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         var transferResult = PatternProviderSyncHelper.transferEncodedPatternToProvidersChecked(providers, encodedPattern);
         if (transferResult.duplicateFound()) {
             dataEnergistics$returnEncodedPatternAsBlankToNetwork();
-            this.getPlayer().sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                    "[此设备已有相同样板,已清空样板并返回网络]"));
+            this.getPlayer().sendSystemMessage(Component.translatable(
+                    "message.data_energistics.pattern_provider.duplicate_cleared"));
             dataEnergistics$syncPatternProvidersFromNetwork();
             return;
         }

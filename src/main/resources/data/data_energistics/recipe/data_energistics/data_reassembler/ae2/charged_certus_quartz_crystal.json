@@ -10,9 +10,9 @@
   ],
   "fluid_inputs": [
     {
-      "#": 1000,
+      "#": 500,
       "#t": "ae2:f",
-      "id": "minecraft:water"
+      "id": "data_energistics:data_corrosion_liquid"
     }
   ],
   "item_outputs": [
