@@ -5,7 +5,68 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.141'
 }
 
+import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
+import org.gradle.api.file.ArchiveOperations
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.FileSystemOperations
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Classpath
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.TaskAction
+
+import javax.inject.Inject
+
 def extractedAe2wtlibApiDir = layout.buildDirectory.dir("generated/ae2wtlibApi")
+
+abstract class ExtractAe2wtlibApiClasses extends DefaultTask {
+    @Classpath
+    abstract ConfigurableFileCollection getModClasspath()
+
+    @Input
+    abstract Property<String> getApiJarName()
+
+    @OutputDirectory
+    abstract DirectoryProperty getOutputDir()
+
+    @Inject
+    abstract FileSystemOperations getFileSystemOperations()
+
+    @Inject
+    abstract ArchiveOperations getArchiveOperations()
+
+    @TaskAction
+    void extract() {
+        def outputDirectory = outputDir.get().asFile
+
+        fileSystemOperations.delete {
+            delete(outputDirectory)
+        }
+
+        def modJar = modClasspath.files.find { file ->
+            file.name.contains("wireless-terminals") || file.name.contains("ae2wtlib")
+        }
+        if (modJar == null) {
+            throw new GradleException("Could not find the AE2 wireless terminals mod jar in ae2wtlibMod.")
+        }
+
+        def apiJarFiles = archiveOperations.zipTree(modJar).matching {
+            include("**/${apiJarName.get()}")
+        }.files
+
+        if (apiJarFiles.size() != 1) {
+            throw new GradleException("Expected exactly one embedded API jar named ${apiJarName.get()} in ${modJar.name}, found ${apiJarFiles.size()}.")
+        }
+
+        fileSystemOperations.copy {
+            from(archiveOperations.zipTree(apiJarFiles.first()))
+            exclude("META-INF/**")
+            into(outputDirectory)
+        }
+    }
+}
 
 version = mod_version
 group = mod_group_id
@@ -147,8 +208,6 @@ dependencies {
 
     implementation "curse.maven:mekanism-268560:7904058"
     implementation "curse.maven:applied-mekanistics-574300:7096962"
-
-
     // Example mod dependency using a mod jar from ./libs with a flat dir repository
     // This maps to ./libs/coolmod-${mc_version}-${coolmod_version}.jar
     // The group id is ignored when searching -- in this case, it is "blank"
@@ -173,27 +232,10 @@ dependencies {
     ae2wtlibMod "curse.maven:applied-energistics-2-wireless-terminals-459929:7693114"
 }
 
-tasks.register("extractAe2wtlibApiClasses") {
-    dependsOn(configurations.named("ae2wtlibMod"))
-    outputs.dir(extractedAe2wtlibApiDir)
-    doLast {
-        def outputDir = extractedAe2wtlibApiDir.get().asFile
-        delete outputDir
-        def cf = project.configurations.getByName("ae2wtlibMod")
-        def modJar = cf.files.find {
-            it.name.contains("wireless-terminals") || it.name.contains("ae2wtlib")
-        }
-        if (modJar != null) {
-            def apiJarEntry = zipTree(modJar).filter {
-                it.name == "de.mari_023.ae2wtlib_api-19.4.1.jar"
-            }.singleFile
-            copy {
-                from zipTree(apiJarEntry)
-                exclude "META-INF/**"
-                into outputDir
-            }
-        }
-    }
+tasks.register("extractAe2wtlibApiClasses", ExtractAe2wtlibApiClasses) {
+    modClasspath.from(configurations.named("ae2wtlibMod"))
+    apiJarName = "de.mari_023.ae2wtlib_api-19.4.1.jar"
+    outputDir = extractedAe2wtlibApiDir
 }
 
 tasks.withType(JavaCompile).configureEach {

@@ -119,6 +119,6 @@ item_ids:
 
 # 创造元件
   <Row>
-    <RecipeFor id="data_cell_infinity" />
+    <ItemImage id="data_cell_infinity" />
   </Row>
 一种未知力量形成的元件，能无限取出数据流以及数据，没有人知道它从何而来，也没有人知道它将会去哪

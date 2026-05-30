@@ -13,6 +13,16 @@ item_ids:
 # 数位化陨石
 
 <GameScene zoom="3" background="transparent">
+  <Block id="data_energistics:guide_data_corrosion_liquid_display" x="3" y="0" z="4" />
+  <Block id="data_energistics:guide_data_corrosion_liquid_display" x="2" y="0" z="4" />
+  <Block id="data_energistics:guide_data_corrosion_liquid_display" x="1" y="0" z="4" />
+  <Block id="data_energistics:guide_data_corrosion_liquid_display" x="0" y="0" z="4" />
+
+  <Block id="data_energistics:guide_data_corrosion_liquid_display" x="4" y="0" z="0" />
+  <Block id="data_energistics:guide_data_corrosion_liquid_display" x="4" y="0" z="1" />
+  <Block id="data_energistics:guide_data_corrosion_liquid_display" x="4" y="0" z="2" />
+  <Block id="data_energistics:guide_data_corrosion_liquid_display" x="4" y="0" z="3" />
+
   <Block id="ae2:sky_stone_block" x="3" y="0" z="0" />
   <Block id="data_energistics:data_meteorite_0" x="3" y="0" z="1" />
   <Block id="ae2:sky_stone_block" x="3" y="0" z="2" />
